@@ -56,6 +56,15 @@ VSVersionInfo(
 Set-Content -Path C:\build\prism\version-info.py -Value $versionInfo
 
 Write-Host "Running PyInstaller..."
+
+# Find the intersystems native DLLs directory for bundling
+$irisLibs = uv run python -c "import os,iris; print(os.path.join(os.path.dirname(os.path.dirname(iris.__file__)),'intersystems_irispython.libs'))" 2>$null
+$addBinary = @()
+if ($irisLibs -and (Test-Path $irisLibs)) {
+  Write-Host "Found IRIS native libs: $irisLibs"
+  $addBinary = @("--add-binary", "$irisLibs;intersystems_irispython.libs")
+}
+
 uv run pyinstaller --noconfirm --onefile --name prism --clean `
   --paths src `
   --hidden-import prism `
@@ -64,6 +73,8 @@ uv run pyinstaller --noconfirm --onefile --name prism --clean `
   --hidden-import prism.iris `
   --hidden-import prism.iris.api `
   --hidden-import prism.iris.sdk `
+  --collect-all iris `
+  --collect-all irisnative `
   --collect-submodules prism `
   --collect-submodules fastmcp `
   --copy-metadata fastmcp `
@@ -72,6 +83,7 @@ uv run pyinstaller --noconfirm --onefile --name prism --clean `
   --collect-submodules lupa `
   --collect-binaries lupa `
   --version-file version-info.py `
+  @addBinary `
   main.py 2>&1 | Out-Host
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: PyInstaller failed"; exit 1 }
 
