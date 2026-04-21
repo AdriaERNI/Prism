@@ -205,6 +205,48 @@ $env:IRIS_WORKSPACE = "D:\myproject\src"
 $env:IRIS_DEBUG_ENABLED = "true"
 ```
 
+## PowerShell Quoting (CLI)
+
+When running `prism terminal` or `prism ws` from PowerShell, be aware of two quoting pitfalls:
+
+### 1. Dollar signs (`$`) are interpolated in double quotes
+
+PowerShell expands `$ZVersion`, `$Namespace`, etc. as its own variables (empty), so the command arrives mangled.
+
+```powershell
+# WRONG — PowerShell expands $ZVersion to empty string
+prism terminal "Write $ZVersion"
+
+# CORRECT — single quotes prevent interpolation
+prism terminal 'Write $ZVersion'
+```
+
+### 2. Inner double quotes are stripped
+
+PowerShell removes double quotes inside a single-quoted string when passing to native executables. Use backslash-escaped quotes (`\"`) instead.
+
+```powershell
+# WRONG — quotes stripped, IRIS sees: Write hello → <UNDEFINED> error
+prism terminal 'Write "hello"'
+
+# CORRECT — backslash escapes survive to the executable
+prism terminal 'Write \"hello\"'
+
+# Also works for complex expressions
+prism terminal 'For i=1:1:3 Write i,\" \"'
+```
+
+### Quick reference
+
+| ObjectScript | PowerShell CLI command |
+|---|---|
+| `Write 1+1` | `prism terminal 'Write 1+1'` |
+| `Write "hello"` | `prism terminal 'Write \"hello\"'` |
+| `Write $ZVersion` | `prism terminal 'Write $ZVersion'` |
+| `Set x="abc" Write x` | `prism terminal 'Set x=\"abc\" Write x'` |
+
+> **MCP tools are not affected** — `execute_terminal(command='Write "hello"')` works as-is because there is no shell in the middle.
+
 ## Error Handling
 
 | Error | Cause | Solution |
