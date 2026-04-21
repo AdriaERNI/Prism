@@ -8,7 +8,7 @@ from prism.iris.api import terminal as terminal_api
 from prism.mcp._decorator import logged_tool
 
 
-@logged_tool(task=True)
+@logged_tool
 async def execute_terminal(
     command: Annotated[
         str,

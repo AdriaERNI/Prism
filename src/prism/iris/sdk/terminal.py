@@ -1,14 +1,15 @@
-"""IRIS terminal via irisnative — run ObjectScript commands over SuperServer.
+"""IRIS terminal via native API — run ObjectScript commands over SuperServer.
 
-Each call creates a separate IRIS process via irisnative, enabling true
-parallel execution. Requires the MCP.Terminal helper class on the server,
-which is auto-deployed on first use.
+Each call creates a separate IRIS process, enabling true parallel execution.
+Requires the MCP.Terminal helper class on the server, which is auto-deployed
+on first use.
 """
 
 from __future__ import annotations
 
 import asyncio
 import functools
+import logging
 import time
 
 from prism.config import (
@@ -70,7 +71,9 @@ HELPER_SOURCE = [
 ]
 
 _deploy_lock = asyncio.Lock()
-_helper_deployed = False
+_deployed_namespaces: set[str] = set()
+
+_log = logging.getLogger(__name__)
 
 
 def _parse_host(base_url: str) -> str:
@@ -79,61 +82,110 @@ def _parse_host(base_url: str) -> str:
     return url.split(":")[0].split("/")[0]
 
 
+_iris_sdk = None
+
+
+def _load_iris():
+    """Return the InterSystems ``iris`` module with ``createConnection``.
+
+    In PyInstaller builds, ``iris.__init__`` checks
+    ``os.path.exists("_elsdk_.py")`` which fails because the file is compiled
+    to ``.pyc``. This causes ``from iris._elsdk_ import *`` to be skipped, so
+    ``iris.createConnection`` is never defined.
+
+    This function detects and fixes that by explicitly importing
+    ``iris._elsdk_`` and copying its public symbols into the ``iris`` module.
+    """
+    global _iris_sdk
+    if _iris_sdk is not None:
+        return _iris_sdk
+
+    _log.debug("Loading InterSystems iris module...")
+    import iris  # noqa: F811 — the top-level InterSystems package
+
+    _log.debug(
+        "iris module loaded from %s, has createConnection: %s",
+        getattr(iris, "__file__", "?"),
+        hasattr(iris, "createConnection"),
+    )
+
+    if not hasattr(iris, "createConnection"):
+        _log.debug("Forcing import of iris._elsdk_ for PyInstaller build...")
+        import iris._elsdk_
+
+        for name in dir(iris._elsdk_):
+            if not name.startswith("_"):
+                setattr(iris, name, getattr(iris._elsdk_, name))
+        _log.debug(
+            "After _elsdk_ import, has createConnection: %s",
+            hasattr(iris, "createConnection"),
+        )
+
+    _iris_sdk = iris
+    return _iris_sdk
+
+
 def _connect(namespace: str | None = None):
-    """Create an irisnative connection to the SuperServer."""
-    # Import 'iris' before 'irisnative' to ensure the external InterSystems
-    # module is cached in sys.modules. This prevents a naming collision with
-    # prism.iris in PyInstaller builds where irisnative's internal
-    # 'import iris' could otherwise resolve to the wrong module.
-    import iris  # noqa: F401 - required for sys.modules side-effect
-    import irisnative
+    """Create a native connection to the IRIS SuperServer."""
+    iris_mod = _load_iris()
 
     host = _parse_host(IRIS_BASE_URL)
     ns = namespace or IRIS_NAMESPACE
-    return irisnative.createConnection(
+    _log.debug("Connecting to %s:%s ns=%s ...", host, IRIS_SUPERSERVER_PORT, ns)
+    conn = iris_mod.createConnection(
         host, IRIS_SUPERSERVER_PORT, ns, IRIS_USERNAME, IRIS_PASSWORD
     )
+    _log.debug("Connected successfully")
+    return conn
 
 
-async def ensure_helper_deployed() -> None:
+async def ensure_helper_deployed(namespace: str | None = None) -> None:
     """Deploy the MCP.Terminal helper class if not already deployed.
 
     Uses an asyncio lock to prevent concurrent deploys on first parallel use.
-    Deployment happens via the Atelier REST API (httpx), not irisnative.
+    Deployment happens via the Atelier REST API (httpx), not the native API.
+    Tracks deployment per namespace so multi-namespace setups work correctly.
     """
-    global _helper_deployed
-    if _helper_deployed:
+    ns = namespace or IRIS_NAMESPACE
+    if ns in _deployed_namespaces:
         return
 
     async with _deploy_lock:
-        if _helper_deployed:
+        if ns in _deployed_namespaces:
             return
 
         from prism.iris.api.documents import get_document, put_document
         from prism.iris.api.compile import compile_documents
 
+        _log.debug("Ensuring %s is deployed in namespace %s", HELPER_DOC, ns)
+
         try:
-            await get_document(HELPER_DOC)
-            _helper_deployed = True
+            await get_document(HELPER_DOC, namespace=ns)
+            _deployed_namespaces.add(ns)
+            _log.debug("%s already exists in %s", HELPER_DOC, ns)
             return
         except Exception:
             pass
 
-        await put_document(HELPER_DOC, HELPER_SOURCE)
-        await compile_documents([HELPER_DOC])
-        _helper_deployed = True
+        _log.debug("Deploying %s to namespace %s", HELPER_DOC, ns)
+        await put_document(HELPER_DOC, HELPER_SOURCE, namespace=ns)
+        await compile_documents([HELPER_DOC], namespace=ns)
+        _deployed_namespaces.add(ns)
+        _log.debug("%s deployed and compiled in %s", HELPER_DOC, ns)
 
 
 def _run_command_sync(command: str, namespace: str | None = None) -> str:
-    """Execute an ObjectScript command via irisnative (blocking)."""
-    # Import 'iris' before 'irisnative' — see _connect() for rationale
-    import iris  # noqa: F401 - required for sys.modules side-effect
-    import irisnative
+    """Execute an ObjectScript command via the native IRIS API (blocking)."""
+    iris_mod = _load_iris()
 
     conn = _connect(namespace)
     try:
-        iris_obj = irisnative.createIris(conn)
-        return iris_obj.classMethodString(HELPER_CLASS, "Execute", command)
+        _log.debug("Creating IRIS object...")
+        iris_obj = iris_mod.createIRIS(conn)
+        _log.debug("Calling %s.Execute()...", HELPER_CLASS)
+        result = iris_obj.classMethodString(HELPER_CLASS, "Execute", command)
+        _log.debug("Execute returned %d chars", len(result) if result else 0)
+        return result
     finally:
         conn.close()
 
@@ -143,9 +195,9 @@ async def execute_command(
     namespace: str | None = None,
     timeout: float = 30.0,
 ) -> dict:
-    """Execute an ObjectScript command via irisnative.
+    """Execute an ObjectScript command via the native IRIS API.
 
-    Auto-deploys the helper class on first use. Runs the blocking irisnative
+    Auto-deploys the helper class on first use. Runs the blocking native
     call in a thread executor so it doesn't block the event loop.
 
     Returns ``{"namespace": ..., "command": ..., "output": ..., "prompt": ""}``.
@@ -153,7 +205,7 @@ async def execute_command(
     start = time.monotonic()
     # Include helper auto-deploy in the same timeout budget so callers don't
     # wait unboundedly on first use.
-    await asyncio.wait_for(ensure_helper_deployed(), timeout=timeout)
+    await asyncio.wait_for(ensure_helper_deployed(namespace), timeout=timeout)
 
     elapsed = time.monotonic() - start
     remaining = timeout - elapsed

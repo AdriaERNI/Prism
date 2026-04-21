@@ -15,7 +15,9 @@ from prism.config import (
 
 def api_url(namespace: str | None = None) -> str:
     ns = namespace or IRIS_NAMESPACE
-    return f"{IRIS_BASE_URL}/{IRIS_API_PREFIX}/{ns}"
+    # Encode '%' as '%25' for namespaces like %SYS in the URL path
+    ns_encoded = ns.replace("%", "%25")
+    return f"{IRIS_BASE_URL}/{IRIS_API_PREFIX}/{ns_encoded}"
 
 
 def base_url() -> str:
