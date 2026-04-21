@@ -2,7 +2,7 @@
 
 from fastmcp import FastMCP
 
-from prism.config import IRIS_DEBUG_ENABLED, IRIS_WORKSPACE
+from prism.config import IRIS_DEBUG_ENABLED, IRIS_WORKSPACE, PRISM_OUTPUT_FORMAT
 from prism.mcp import discover_tools
 
 _BASE_INSTRUCTIONS = """\
@@ -245,6 +245,8 @@ def create_mcp() -> FastMCP:
 
     for tool_fn in discover_tools():
         extra = getattr(tool_fn, "_mcp_tool_kwargs", {})
+        if PRISM_OUTPUT_FORMAT == "toon":
+            extra["output_schema"] = None
         server.tool(tool_fn, **extra)
 
     return server

@@ -23,6 +23,9 @@ prism = "prism.cli.app:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/prism"]
 
+[project.optional-dependencies]
+toon = ["toons>=0.5"]
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

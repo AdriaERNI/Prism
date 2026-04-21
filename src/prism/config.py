@@ -38,6 +38,9 @@ IRIS_TEST_AUTO_DEPLOY = os.getenv("IRIS_TEST_AUTO_DEPLOY", "true").lower() in (
     "yes",
 )
 
+# Output format configuration
+PRISM_OUTPUT_FORMAT = os.getenv("PRISM_OUTPUT_FORMAT", "json")
+
 # Debugging configuration
 IRIS_DEBUG_ENABLED = os.getenv("IRIS_DEBUG_ENABLED", "false").lower() in (
     "true",

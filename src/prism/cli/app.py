@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from typing import Optional
 
 # Disable Typer's Rich-based help formatting before typer is imported.
 # Must be set before ``import typer`` so the module-level ``HAS_RICH`` flag
@@ -24,6 +25,21 @@ from prism.cli.commands.server_info import info  # noqa: E402
 from prism.cli.commands.sql import sql  # noqa: E402
 from prism.cli.commands.terminal import terminal, ws  # noqa: E402
 from prism.cli.commands.testing import list_tests, test  # noqa: E402
+from prism.output import set_output_format  # noqa: E402
+
+
+def _main_callback(
+    ctx: typer.Context,
+    fmt: Optional[str] = typer.Option(  # noqa: UP007
+        None,
+        "--format",
+        help="Output format: json (default) or toon.",
+    ),
+) -> None:
+    """Global options applied before any subcommand."""
+    if fmt is not None:
+        set_output_format(fmt)
+
 
 app = typer.Typer(
     name="prism",
@@ -31,6 +47,7 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_enable=False,
+    callback=_main_callback,
 )
 
 app.command(name="config")(config)

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 
 import typer
 
+from prism.output import get_output_format
 from prism.iris.api.server_info import get_server_info
+from prism.output import format_output
 
 
 def info() -> None:
@@ -19,4 +20,4 @@ def info() -> None:
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(response, indent=2, default=str))
+    typer.echo(format_output(response, get_output_format()))

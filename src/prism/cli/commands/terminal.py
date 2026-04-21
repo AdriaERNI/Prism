@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 
 import typer
 
+from prism.output import get_output_format
 from prism.iris.api.terminal import execute_command_ws
 from prism.iris.sdk.terminal import execute_command as execute_command_native
+from prism.output import format_output
 
 
 def terminal(
@@ -28,7 +29,7 @@ def terminal(
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(result, indent=2, default=str))
+    typer.echo(format_output(result, get_output_format()))
 
 
 def ws(
@@ -47,4 +48,4 @@ def ws(
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(result, indent=2, default=str))
+    typer.echo(format_output(result, get_output_format()))

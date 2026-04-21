@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 
 import typer
 
+from prism.output import get_output_format
 from prism.iris.api.testing import list_test_classes, run_tests
+from prism.output import format_output
 
 
 def test(
@@ -41,7 +42,7 @@ def test(
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(response, indent=2, default=str))
+    typer.echo(format_output(response, get_output_format()))
 
 
 def list_tests(
@@ -64,4 +65,4 @@ def list_tests(
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(response, indent=2, default=str))
+    typer.echo(format_output(response, get_output_format()))

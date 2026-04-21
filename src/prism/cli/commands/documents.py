@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from pathlib import Path
 
 import typer
 
+from prism.output import get_output_format
 from prism.iris.api.documents import (
     DocumentNotFound,
     delete_document,
@@ -16,6 +16,7 @@ from prism.iris.api.documents import (
     list_documents,
     put_document,
 )
+from prism.output import format_output
 
 
 def get_doc(
@@ -34,7 +35,7 @@ def get_doc(
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(response, indent=2, default=str))
+    typer.echo(format_output(response, get_output_format()))
 
 
 def list_docs(
@@ -65,7 +66,7 @@ def list_docs(
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(response, indent=2, default=str))
+    typer.echo(format_output(response, get_output_format()))
 
 
 def put_doc(
@@ -90,7 +91,7 @@ def put_doc(
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(response, indent=2, default=str))
+    typer.echo(format_output(response, get_output_format()))
 
 
 def delete_doc(
@@ -109,4 +110,4 @@ def delete_doc(
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
-    typer.echo(json.dumps(response, indent=2, default=str))
+    typer.echo(format_output(response, get_output_format()))
