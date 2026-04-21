@@ -1,0 +1,1 @@
+"""Prism Typer CLI."""

@@ -1,0 +1,10 @@
+ROUTINE Test.MCPRoutine [Type=MAC]
+ ;
+Hello() PUBLIC {
+ Write "Hello from routine",!
+ Quit
+}
+ ;
+Add(a,b) PUBLIC {
+ Quit a+b
+}

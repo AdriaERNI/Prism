@@ -1,0 +1,81 @@
+site_name: Prism
+site_description: Prism lets AI see through IRIS — MCP server for SQL, documents, compilation, debugging, testing, and ObjectScript execution
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/git-alt
+
+plugins:
+  - search:
+      lang: en
+      separator: '[\s\-\.]+'
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - def_list
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quick-start.md
+    - Configuration: getting-started/configuration.md
+  - Commands:
+    - Overview: commands/index.md
+    - prism config: commands/config.md
+    - prism info: commands/info.md
+    - prism sql: commands/sql.md
+    - Documents (get-doc, list-docs, put-doc, delete-doc): commands/documents.md
+    - prism compile: commands/compile.md
+    - Terminal (terminal, ws): commands/terminal.md
+    - Testing (test, list-tests): commands/testing.md
+    - prism serve: commands/serve.md
+  - MCP Server:
+    - Overview: mcp/index.md
+    - Client setup: mcp/client-setup.md
+    - Tool reference: mcp/tools.md
+    - Interactive debugger: mcp/debugging.md

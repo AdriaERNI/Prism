@@ -1,0 +1,201 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# Unified Windows VM: IRIS instance + build tools (Python, PyInstaller, Inno Setup).
+# Used for both integration testing and building the Windows exe/installer.
+#
+# Usage:
+#   cd vagrant && vagrant up --provider=libvirt
+#
+# Integration tests:
+#   IRIS_BASE_URL=http://<VM_IP>:52773 uv run pytest tests/integration/ -v
+#   Or via forwarded port: IRIS_BASE_URL=http://localhost:52774 uv run pytest tests/integration/ -v
+#
+# Build exe/installer:
+#   ./vagrant/build-windows.sh
+
+IRIS_INSTALLER = "IRIS_Community-2025.3.0.226.0-win_x64.exe"
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "jborean93/WindowsServer2022"
+  config.vm.hostname = "prism-win"
+
+  config.vm.communicator = "winrm"
+  config.winrm.username = "vagrant"
+  config.winrm.password = "vagrant"
+  config.winrm.transport = :ssl
+  config.winrm.ssl_peer_verification = false
+  config.winrm.timeout = 1800
+  config.winrm.retry_limit = 30
+
+  config.vm.guest = :windows
+  config.vm.boot_timeout = 1800
+
+  # IRIS Web Server (Management Portal + REST API)
+  config.vm.network "forwarded_port", guest: 52773, host: 52774
+  # IRIS SuperServer
+  config.vm.network "forwarded_port", guest: 1972, host: 1973
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  config.vm.provider :libvirt do |lv|
+    lv.default_prefix = "prism"
+    lv.memory = 4096
+    lv.cpus = 2
+  end
+
+  # ── DNS fix ──────────────────────────────────────────────────────────
+  config.vm.provision "dns", type: "shell", privileged: true, inline: <<-SHELL
+    Write-Host "Configuring DNS..."
+    Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | ForEach-Object {
+      Set-DnsClientServerAddress -InterfaceIndex $_.ifIndex -ServerAddresses ("8.8.8.8","8.8.4.4")
+    }
+    $retries = 0
+    while ($retries -lt 10) {
+      try {
+        $null = [System.Net.Dns]::GetHostAddresses("community.chocolatey.org")
+        Write-Host "DNS OK."
+        break
+      } catch {
+        Start-Sleep -Seconds 3
+        $retries++
+      }
+    }
+    if ($retries -eq 10) {
+      Write-Host "ERROR: DNS not working" -ForegroundColor Red
+      exit 1
+    }
+  SHELL
+
+  # ── Build tools (Chocolatey, Python, Inno Setup, uv) ────────────────
+  config.vm.provision "tools", type: "shell", privileged: true, inline: <<-SHELL
+    $ErrorActionPreference = 'Stop'
+
+    Write-Host "Installing Chocolatey..."
+    Set-ExecutionPolicy Bypass -Scope Process -Force
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+    iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+    Write-Host "Installing Python 3.12..."
+    choco install python312 -y --no-progress
+
+    Write-Host "Installing Inno Setup..."
+    choco install innosetup -y --no-progress
+
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
+    Write-Host "Installing uv..."
+    pip install uv
+
+    Write-Host "Build tools provisioned."
+  SHELL
+
+  # ── IRIS installation ───────────────────────────────────────────────
+  config.vm.provision "file",
+    source: "#{IRIS_INSTALLER}",
+    destination: "C:\\Users\\vagrant\\IRIS_installer.exe"
+
+  config.vm.provision "iris", type: "shell", privileged: true, inline: <<-SHELL
+    $installer = "C:\\Users\\vagrant\\IRIS_installer.exe"
+    $logFile = "C:\\Users\\vagrant\\iris_install.log"
+
+    Write-Host "Installing InterSystems IRIS Community Edition..."
+    $process = Start-Process -FilePath $installer -ArgumentList @(
+      "/qn",
+      "INSTALLDIR=C:\\InterSystems\\IRIS",
+      "ADDLOCAL=ALL",
+      "INITIALSECURITY=Normal",
+      "IRISUSERPASSWORD=SYS",
+      "CSPSYSTEMUSERPASSWORD=SYS",
+      "/l*v", $logFile
+    ) -Wait -PassThru
+
+    if ($process.ExitCode -eq 0) {
+      Write-Host "IRIS installed successfully."
+    } else {
+      Write-Host "IRIS installation failed with exit code: $($process.ExitCode)"
+      Get-Content $logFile | Select-Object -Last 50
+      exit 1
+    }
+  SHELL
+
+  # ── Fix IRIS httpd config (Listen directive missing after silent install)
+  config.vm.provision "httpd-fix", type: "shell", privileged: true, inline: <<-SHELL
+    $localConf = "C:\\InterSystems\\IRIS\\httpd\\conf\\httpd-local.conf"
+    $content = Get-Content $localConf -Raw -ErrorAction SilentlyContinue
+    if (-not $content -or $content -notmatch "Listen") {
+      Write-Host "Adding Listen 52773 to httpd-local.conf..."
+      Add-Content -Path $localConf -Value "Listen 52773"
+    } else {
+      Write-Host "Listen directive already present."
+    }
+  SHELL
+
+  # ── Firewall, start services, and verify ─────────────────────────────
+  config.vm.provision "verify", type: "shell", privileged: true, inline: <<-SHELL
+    Write-Host "Configuring firewall..."
+    New-NetFirewallRule -DisplayName "IRIS Web Server" -Direction Inbound -LocalPort 52773 -Protocol TCP -Action Allow -ErrorAction SilentlyContinue
+    New-NetFirewallRule -DisplayName "IRIS SuperServer" -Direction Inbound -LocalPort 1972 -Protocol TCP -Action Allow -ErrorAction SilentlyContinue
+
+    Write-Host "Ensuring IRIS services are running..."
+    $services = @("ISCAgent", "IRIS_c-_intersystems_iris", "IRIShttpd")
+    foreach ($svc in $services) {
+      $s = Get-Service -Name $svc -ErrorAction SilentlyContinue
+      if ($s) {
+        if ($s.Status -ne 'Running') {
+          Write-Host "  Starting ${svc}..."
+          Set-Service -Name $svc -StartupType Automatic
+          Start-Service -Name $svc -ErrorAction SilentlyContinue
+          Start-Sleep -Seconds 5
+        }
+        $s = Get-Service -Name $svc
+        Write-Host "  ${svc}: $($s.Status)"
+      }
+    }
+
+    # Wait for the web server port to be available
+    Write-Host "Waiting for IRIS web server on port 52773..."
+    $retries = 0
+    while ($retries -lt 30) {
+      $tcp = Test-NetConnection -ComputerName 127.0.0.1 -Port 52773 -WarningAction SilentlyContinue
+      if ($tcp.TcpTestSucceeded) {
+        Write-Host "IRIS web server is listening."
+        break
+      }
+      Start-Sleep -Seconds 5
+      $retries++
+      Write-Host "  Waiting... ($retries/30)"
+    }
+
+    if ($retries -eq 30) {
+      Write-Host "ERROR: IRIS web server did not start." -ForegroundColor Red
+      Get-Service -Name "ISCAgent*","IRIS*" | Format-Table -AutoSize
+      # Check httpd error log for clues
+      $logDir = "C:\InterSystems\IRIS\httpd\logs"
+      if (Test-Path $logDir) {
+        Get-ChildItem $logDir | ForEach-Object {
+          Write-Host "--- $($_.Name) ---"
+          Get-Content $_.FullName -Tail 20
+        }
+      }
+      exit 1
+    }
+
+    # Verify the REST API responds
+    try {
+      $cred = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("_SYSTEM:SYS"))
+      $resp = Invoke-WebRequest -Uri "http://127.0.0.1:52773/api/atelier/" -Headers @{Authorization="Basic $cred"} -UseBasicParsing -TimeoutSec 10
+      Write-Host "IRIS REST API responded: $($resp.StatusCode)"
+    } catch {
+      Write-Host "WARNING: REST API not responding yet: $_" -ForegroundColor Yellow
+    }
+
+    Write-Host ""
+    Write-Host "=== VM Ready ==="
+    Write-Host "IRIS REST API:    http://localhost:52774/api/atelier/v8/USER"
+    Write-Host "IRIS Credentials: _SYSTEM / SYS"
+    Write-Host "Build tools:      Python 3.12, uv, PyInstaller, Inno Setup"
+  SHELL
+end
