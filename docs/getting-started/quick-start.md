@@ -18,12 +18,11 @@ prism config _SYSTEM SYS http://192.168.1.100:52773 --namespace USER --show
 Output:
 
 ```
-Saved settings to C:\Users\you\AppData\Local\prism\settings.json
-  namespace: USER
-  password: ***
-  superserver_port: 1972
-  url: http://192.168.1.100:52773
-  username: _SYSTEM
+Saved settings to C:\Users\you\AppData\Local\prism\config.json
+  iris_username: _SYSTEM
+  iris_password: ***
+  iris_base_url: http://192.168.1.100:52773
+  iris_namespace: USER
 ```
 
 Every subsequent `prism` invocation picks those up automatically.

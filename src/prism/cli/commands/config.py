@@ -1,10 +1,10 @@
-"""`prism config` — store IRIS connection settings in the user config directory."""
+"""`prism config` — store IRIS connection settings in the user data directory."""
 
 from __future__ import annotations
 
 import typer
 
-from prism.iris.settings import load_settings, save_settings
+from prism.settings import save_config
 
 
 def config(
@@ -26,23 +26,24 @@ def config(
         False, "--show", help="Print the saved settings (password redacted)"
     ),
 ) -> None:
-    """Save IRIS connection settings to the platform user config directory.
+    """Save IRIS connection settings to ``config.json`` in the user data directory.
 
     Overrides previous values key-by-key — unspecified options keep their current value.
     """
-    data = load_settings()
-    data["username"] = username
-    data["password"] = password
-    data["url"] = url
+    updates: dict[str, object] = {
+        "iris_username": username,
+        "iris_password": password,
+        "iris_base_url": url,
+    }
     if namespace is not None:
-        data["namespace"] = namespace
+        updates["iris_namespace"] = namespace
     if superserver_port is not None:
-        data["superserver_port"] = superserver_port
+        updates["iris_superserver_port"] = superserver_port
 
-    path = save_settings(data)
+    path = save_config(updates)
     typer.echo(f"Saved settings to {path}")
 
     if show:
-        redacted = {**data, "password": "***"}
+        redacted = {**updates, "iris_password": "***"}
         for key, value in redacted.items():
             typer.echo(f"  {key}: {value}")

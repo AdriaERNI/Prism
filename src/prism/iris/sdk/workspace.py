@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from prism.config import IRIS_WORKSPACE
+from prism.settings import settings
 
 _DOC_NAME_RE = re.compile(
     r"^[A-Za-z%][A-Za-z0-9]*(\.[A-Za-z%][A-Za-z0-9]*)*\.[a-z][a-z0-9]*$"
@@ -30,9 +30,9 @@ def workspace_root() -> Path:
 
     Raises ``RuntimeError`` if ``IRIS_WORKSPACE`` is not configured.
     """
-    if not IRIS_WORKSPACE:
+    if not settings.iris_workspace:
         raise RuntimeError("IRIS_WORKSPACE is not configured")
-    return Path(IRIS_WORKSPACE).resolve()
+    return Path(settings.iris_workspace).resolve()
 
 
 def resolve_safe(relative_path: str) -> Path:

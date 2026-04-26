@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from prism.output import format_output
+from prism.settings import settings
 
 
 class TestFormatOutput:
@@ -55,7 +56,7 @@ class TestDecoratorToonConversion:
             """Sample."""
             return {"key": "value"}
 
-        with patch("prism.mcp._decorator.PRISM_OUTPUT_FORMAT", "json"):
+        with patch.object(settings, "prism_output_format", "json"):
             result = await sample_tool()
             assert isinstance(result, dict)
             assert result == {"key": "value"}
@@ -77,7 +78,7 @@ class TestDecoratorToonConversion:
         fake_toons.dumps = lambda data: "key: value"
 
         with (
-            patch("prism.mcp._decorator.PRISM_OUTPUT_FORMAT", "toon"),
+            patch.object(settings, "prism_output_format", "toon"),
             patch.dict("sys.modules", {"toons": fake_toons}),
         ):
             result = await sample_tool()

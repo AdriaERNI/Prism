@@ -7,7 +7,7 @@ this order (highest precedence wins):
    the shell session.
 2. **`.env` file** — loaded via `python-dotenv` from the current working
    directory.
-3. **`settings.json`** — the persistent user settings written by
+3. **`config.json`** — the persistent user settings written by
    `prism config`.
 
 If none of the three provide a value, Prism falls back to the default
@@ -15,37 +15,32 @@ shown in the tables below.
 
 ## The settings file
 
-`prism config` writes a JSON file under your OS's user config directory:
+`prism config` writes a JSON file under your OS's user data directory:
 
 | OS | Path |
 |----|------|
-| Windows | `%LOCALAPPDATA%\prism\settings.json` (e.g. `C:\Users\you\AppData\Local\prism\settings.json`) |
-| Linux | `~/.config/prism/settings.json` (honours `XDG_CONFIG_HOME`) |
+| Windows | `%LOCALAPPDATA%\prism\config.json` (e.g. `C:\Users\you\AppData\Local\prism\config.json`) |
+| Linux | `~/.local/share/prism/config.json` (honours `XDG_DATA_HOME`) |
 
 On POSIX the file is `chmod 600`. On Windows it inherits the ACLs of
 `%LOCALAPPDATA%`, which is already user-scoped.
 
 ### Structure
 
+JSON keys match the lowercase environment-variable names. Example:
+
 ```json
 {
-  "url": "http://192.168.1.100:52773",
-  "username": "_SYSTEM",
-  "password": "SYS",
-  "namespace": "USER",
-  "superserver_port": 1972
+  "iris_base_url": "http://192.168.1.100:52773",
+  "iris_username": "_SYSTEM",
+  "iris_password": "SYS",
+  "iris_namespace": "USER",
+  "iris_superserver_port": 1972
 }
 ```
 
-Only five keys are supported. They map 1:1 to environment variables:
-
-| Settings key | Environment variable |
-|--------------|----------------------|
-| `url` | `IRIS_BASE_URL` |
-| `username` | `IRIS_USERNAME` |
-| `password` | `IRIS_PASSWORD` |
-| `namespace` | `IRIS_NAMESPACE` |
-| `superserver_port` | `IRIS_SUPERSERVER_PORT` |
+Any environment variable from the tables below can also live here —
+unknown keys are ignored.
 
 ### Writing with `prism config`
 

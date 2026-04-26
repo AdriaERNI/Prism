@@ -7,9 +7,9 @@ from fastmcp import Context
 from fastmcp.tools.tool import ToolResult
 from mcp.types import TextContent
 
-from prism.config import PRISM_OUTPUT_FORMAT
 from prism.iris.sdk.log import log_request, log_response
 from prism.output import format_output
+from prism.settings import settings
 
 
 def logged_tool(fn=None, *, task=None):
@@ -19,7 +19,7 @@ def logged_tool(fn=None, *, task=None):
     collect it.  Pass ``task=True`` to mark the tool as background-capable
     (forwarded to ``FastMCP.tool()`` during registration).
 
-    When ``PRISM_OUTPUT_FORMAT`` is ``"toon"`` and the tool returns a dict,
+    When ``settings.prism_output_format`` is ``"toon"`` and the tool returns a dict,
     the result is returned as a ``ToolResult`` with TOON-formatted
     ``TextContent``, bypassing FastMCP's default dict → structuredContent
     serialization.
@@ -38,7 +38,9 @@ def logged_tool(fn=None, *, task=None):
             log_request(fn.__name__, params)
             result = await fn(*args, **kwargs)
 
-            if PRISM_OUTPUT_FORMAT == "toon" and isinstance(result, (dict, list)):
+            if settings.prism_output_format == "toon" and isinstance(
+                result, (dict, list)
+            ):
                 toon_text = format_output(result, "toon")
                 log_response(fn.__name__, toon_text)
                 return ToolResult(

@@ -5,13 +5,14 @@ from unittest.mock import patch
 from fastmcp import Client
 
 from prism.mcp.server import create_mcp
+from prism.settings import settings
 
 
 class TestToolsWithWorkspace:
     """When IRIS_WORKSPACE is set, workspace tools are registered."""
 
     async def test_workspace_tools_registered(self, tmp_path):
-        with patch("prism.config.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             # Re-import to pick up patched config
             import prism.mcp as tools_pkg
 
@@ -43,7 +44,7 @@ class TestToolsWithoutWorkspace:
     """When IRIS_WORKSPACE is empty, workspace tools are NOT registered."""
 
     async def test_workspace_tools_not_registered(self):
-        with patch("prism.config.IRIS_WORKSPACE", ""):
+        with patch.object(settings, "iris_workspace", ""):
             import prism.mcp as tools_pkg
 
             orig_skip = tools_pkg._SKIP_MODULES.copy()

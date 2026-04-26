@@ -183,7 +183,7 @@ Connection settings (in order of precedence):
 
 1. Environment variables: `IRIS_BASE_URL`, `IRIS_USERNAME`, `IRIS_PASSWORD`, `IRIS_NAMESPACE`
 2. `.env` file in current directory
-3. User settings: `prism config` writes to `~/.config/prism/settings.json` (Linux) or `%LOCALAPPDATA%\prism\settings.json` (Windows)
+3. User settings: `prism config` writes to `~/.local/share/prism/config.json` (Linux) or `%LOCALAPPDATA%\prism\config.json` (Windows)
 
 ### Quick Setup
 

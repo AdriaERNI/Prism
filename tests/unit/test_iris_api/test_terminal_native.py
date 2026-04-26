@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from prism.config import IRIS_NAMESPACE
+from prism.settings import settings
 from prism.iris.sdk.terminal import (
     _parse_host,
     execute_command,
@@ -40,7 +40,7 @@ class TestExecuteCommand:
 
         assert result["output"] == "hello"
         assert result["command"] == 'Write "hello"'
-        assert result["namespace"] == IRIS_NAMESPACE
+        assert result["namespace"] == settings.iris_namespace
 
     async def test_namespace_override(self):
         with (
@@ -67,7 +67,7 @@ class TestExecuteCommand:
                 await execute_command("BadCommand")
 
     async def test_timeout_includes_helper_deploy_time(self):
-        async def _slow_deploy():
+        async def _slow_deploy(*args, **kwargs):
             await asyncio.sleep(0.05)
 
         with (
@@ -87,16 +87,19 @@ class TestExecuteCommand:
 
 class TestEnsureHelperDeployed:
     async def test_skips_if_already_deployed(self):
-        with patch("prism.iris.sdk.terminal._helper_deployed", True):
-            # Should return immediately without calling any API
-            await ensure_helper_deployed()
+        # ensure_helper_deployed short-circuits when the namespace is in the set
+        import prism.iris.sdk.terminal as mod
+
+        with patch.object(mod, "_deployed_namespaces", {settings.iris_namespace}):
+            mock_get = AsyncMock()
+            with patch("prism.iris.api.documents.get_document", mock_get):
+                await ensure_helper_deployed()
+            mock_get.assert_not_called()
 
     async def test_deploys_when_doc_missing(self):
         import prism.iris.sdk.terminal as mod
 
-        original = mod._helper_deployed
-        mod._helper_deployed = False
-        try:
+        with patch.object(mod, "_deployed_namespaces", set()):
             mock_get = AsyncMock(side_effect=Exception("not found"))
             mock_put = AsyncMock()
             mock_compile = AsyncMock()
@@ -110,16 +113,12 @@ class TestEnsureHelperDeployed:
 
             mock_put.assert_called_once()
             mock_compile.assert_called_once()
-            assert mod._helper_deployed is True
-        finally:
-            mod._helper_deployed = original
+            assert settings.iris_namespace in mod._deployed_namespaces
 
     async def test_skips_deploy_when_doc_exists(self):
         import prism.iris.sdk.terminal as mod
 
-        original = mod._helper_deployed
-        mod._helper_deployed = False
-        try:
+        with patch.object(mod, "_deployed_namespaces", set()):
             mock_get = AsyncMock(return_value={"result": {"content": []}})
             mock_put = AsyncMock()
 
@@ -130,6 +129,4 @@ class TestEnsureHelperDeployed:
                 await ensure_helper_deployed()
 
             mock_put.assert_not_called()
-            assert mod._helper_deployed is True
-        finally:
-            mod._helper_deployed = original
+            assert settings.iris_namespace in mod._deployed_namespaces

@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import json
 
-from prism.config import PRISM_OUTPUT_FORMAT
+from prism.settings import settings
 
 # Module-level format state set by the CLI global callback and read by commands.
-_output_format: str = PRISM_OUTPUT_FORMAT
+_output_format: str = settings.prism_output_format
 
 
 def get_output_format() -> str:

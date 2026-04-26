@@ -9,13 +9,14 @@ import pytest
 
 from unittest.mock import patch
 
+from prism.settings import settings
 from tests.integration.conftest import stage_file
 
 
 @pytest.fixture(autouse=True)
 def _force_native():
     """Tests require the native terminal backend."""
-    with patch("prism.iris.api.terminal.IRIS_TERMINAL_METHOD", "native"):
+    with patch.object(settings, "iris_terminal_method", "native"):
         yield
 
 

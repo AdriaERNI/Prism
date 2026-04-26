@@ -11,37 +11,38 @@ from prism.iris.sdk.workspace import (
     load_content,
     validate_doc_name,
 )
+from prism.settings import settings
 
 
 class TestWorkspaceRoot:
     def test_raises_when_not_configured(self):
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", ""):
+        with patch.object(settings, "iris_workspace", ""):
             with pytest.raises(RuntimeError, match="not configured"):
                 workspace_root()
 
     def test_returns_resolved_path(self, tmp_path):
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             assert workspace_root() == tmp_path.resolve()
 
 
 class TestResolveSafe:
     def test_resolves_within_workspace(self, tmp_path):
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             result = resolve_safe("MyApp.Person.cls")
             assert result == tmp_path / "MyApp.Person.cls"
 
     def test_resolves_nested_path(self, tmp_path):
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             result = resolve_safe("subdir/MyApp.Person.cls")
             assert result == tmp_path / "subdir" / "MyApp.Person.cls"
 
     def test_blocks_parent_traversal(self, tmp_path):
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             with pytest.raises(ValueError, match="escapes workspace"):
                 resolve_safe("../etc/passwd")
 
     def test_blocks_absolute_path_disguised(self, tmp_path):
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             with pytest.raises(ValueError, match="escapes workspace"):
                 resolve_safe("foo/../../etc/passwd")
 

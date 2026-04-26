@@ -7,9 +7,9 @@ from pathlib import Path
 
 import httpx
 
-from prism.config import IRIS_NAMESPACE, IRIS_WORKSPACE
 from prism.iris.sdk.http import base_url, auth
 from prism.iris.sdk.log import logger
+from prism.settings import settings
 
 
 def preflight_check() -> None:
@@ -39,16 +39,17 @@ def preflight_check() -> None:
     namespaces = [ns.get("name", ns) if isinstance(ns, dict) else ns for ns in raw_ns]
 
     ns_list = ", ".join(namespaces) if namespaces else "n/a"
-    logger.info(f"{version} | ns: {ns_list} | target: {IRIS_NAMESPACE}")
+    logger.info(f"{version} | ns: {ns_list} | target: {settings.iris_namespace}")
 
-    if namespaces and IRIS_NAMESPACE not in namespaces:
+    if namespaces and settings.iris_namespace not in namespaces:
         logger.error(
-            f"Namespace '{IRIS_NAMESPACE}' not found on server. Available: {ns_list}"
+            f"Namespace '{settings.iris_namespace}' not found on server. "
+            f"Available: {ns_list}"
         )
         sys.exit(1)
 
-    if IRIS_WORKSPACE:
-        ws_path = Path(IRIS_WORKSPACE).resolve()
+    if settings.iris_workspace:
+        ws_path = Path(settings.iris_workspace).resolve()
         ws_path.mkdir(parents=True, exist_ok=True)
         logger.info(f"Workspace: {ws_path}")
     else:

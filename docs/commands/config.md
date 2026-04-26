@@ -1,6 +1,6 @@
 # prism config
 
-Save IRIS connection settings to the platform user config directory so
+Save IRIS connection settings to the platform user data directory so
 subsequent `prism` invocations don't need environment variables or a
 `.env` file.
 
@@ -30,8 +30,8 @@ prism config USERNAME PASSWORD URL [OPTIONS]
 
 | OS | Path |
 |----|------|
-| Windows | `%LOCALAPPDATA%\prism\settings.json` |
-| Linux | `~/.config/prism/settings.json` (honours `XDG_CONFIG_HOME`) |
+| Windows | `%LOCALAPPDATA%\prism\config.json` |
+| Linux | `~/.local/share/prism/config.json` (honours `XDG_DATA_HOME`) |
 
 On POSIX, the file is written with mode `0600`. On Windows, it inherits
 the ACLs of the user's `LOCALAPPDATA` folder.
@@ -48,12 +48,12 @@ prism config _SYSTEM SYS http://192.168.1.100:52773 --namespace USER --superserv
 ```
 
 ```
-Saved settings to C:\Users\you\AppData\Local\prism\settings.json
-  namespace: USER
-  password: ***
-  superserver_port: 1972
-  url: http://192.168.1.100:52773
-  username: _SYSTEM
+Saved settings to C:\Users\you\AppData\Local\prism\config.json
+  iris_username: _SYSTEM
+  iris_password: ***
+  iris_base_url: http://192.168.1.100:52773
+  iris_namespace: USER
+  iris_superserver_port: 1972
 ```
 
 **Change only the namespace**, keep everything else:

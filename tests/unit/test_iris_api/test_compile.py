@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from prism.iris.api import compile as compile_api
+from prism.settings import settings
 from tests.unit.test_iris_api.conftest import mock_client, json_response, text_response
 
 
@@ -38,7 +39,7 @@ class TestCompileDocuments:
 
         with (
             patch.object(compile_api, "client", lambda: mock_client(handler)),
-            patch.object(compile_api, "IRIS_COMPILE_FLAGS", "bck"),
+            patch.object(settings, "iris_compile_flags", "bck"),
         ):
             await compile_api.compile_documents(["MyApp.cls"])
 

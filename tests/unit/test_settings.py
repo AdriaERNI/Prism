@@ -1,4 +1,4 @@
-"""Tests for prism.iris.settings — user settings persistence and env injection."""
+"""Tests for prism.settings — pydantic-settings, config.json persistence."""
 
 from __future__ import annotations
 
@@ -8,105 +8,124 @@ import stat
 
 import pytest
 
-from prism.iris import settings
+from prism import settings as settings_module
+from prism.settings import Settings, save_config
 
 
 @pytest.fixture
-def tmp_settings(tmp_path, monkeypatch):
-    """Redirect settings_path() to a tmp file and clear related env vars."""
-    path = tmp_path / "settings.json"
-    monkeypatch.setattr(settings, "settings_path", lambda: path)
-    for env_name in settings.SETTING_TO_ENV.values():
-        monkeypatch.delenv(env_name, raising=False)
+def tmp_config(tmp_path, monkeypatch):
+    """Redirect config_path() to a tmp file and clear IRIS_* env vars."""
+    path = tmp_path / "prism" / "config.json"
+    monkeypatch.setattr(settings_module, "config_path", lambda: path)
+    for var in list(os.environ):
+        if var.startswith(("IRIS_", "PRISM_")):
+            monkeypatch.delenv(var, raising=False)
     return path
 
 
-class TestSettingsPath:
-    def test_points_into_prism_config_dir(self):
-        path = settings.settings_path()
-        assert path.name == "settings.json"
+class TestConfigPath:
+    def test_lives_under_a_single_prism_dir(self):
+        # On Windows platformdirs would otherwise nest prism\prism — appauthor=False
+        # collapses that to a single segment.
+        path = settings_module.config_path()
+        assert path.name == "config.json"
         assert path.parent.name == "prism"
+        assert path.parent.parent.name != "prism"
 
 
-class TestLoadSave:
-    def test_load_returns_empty_when_file_missing(self, tmp_settings):
-        assert settings.load_settings() == {}
+class TestSaveConfig:
+    def test_creates_parent_dirs(self, tmp_config):
+        save_config({"iris_base_url": "http://x"})
+        assert tmp_config.exists()
+        assert tmp_config.parent.is_dir()
 
-    def test_save_then_load_roundtrip(self, tmp_settings):
+    def test_round_trip(self, tmp_config):
         data = {
-            "url": "http://192.168.1.100:52773",
-            "username": "_SYSTEM",
-            "password": "SYS",
-            "namespace": "USER",
-            "superserver_port": 1972,
+            "iris_base_url": "http://192.168.1.100:52773",
+            "iris_username": "_SYSTEM",
+            "iris_password": "SYS",
+            "iris_namespace": "USER",
+            "iris_superserver_port": 1972,
         }
-        path = settings.save_settings(data)
-        assert path == tmp_settings
-        assert settings.load_settings() == data
+        path = save_config(data)
+        assert path == tmp_config
+        assert json.loads(tmp_config.read_text()) == data
 
-    def test_save_creates_parent_dirs(self, tmp_path, monkeypatch):
-        path = tmp_path / "nested" / "deeper" / "settings.json"
-        monkeypatch.setattr(settings, "settings_path", lambda: path)
-        settings.save_settings({"url": "http://x"})
-        assert path.exists()
+    def test_merges_with_existing(self, tmp_config):
+        save_config({"iris_base_url": "http://a", "iris_username": "u"})
+        save_config({"iris_password": "p"})
+        loaded = json.loads(tmp_config.read_text())
+        assert loaded == {
+            "iris_base_url": "http://a",
+            "iris_username": "u",
+            "iris_password": "p",
+        }
 
-    def test_load_returns_empty_on_invalid_json(self, tmp_settings):
-        tmp_settings.write_text("not valid {")
-        assert settings.load_settings() == {}
-
-    def test_load_returns_empty_when_top_level_not_dict(self, tmp_settings):
-        tmp_settings.write_text(json.dumps([1, 2, 3]))
-        assert settings.load_settings() == {}
-
-    def test_save_writes_pretty_json(self, tmp_settings):
-        settings.save_settings({"b": 2, "a": 1})
-        text = tmp_settings.read_text()
-        # sort_keys + indent=2 => "a" appears before "b"
-        assert text.index('"a"') < text.index('"b"')
+    def test_writes_pretty_sorted_json(self, tmp_config):
+        save_config({"iris_username": "u", "iris_base_url": "http://x"})
+        text = tmp_config.read_text()
+        # sort_keys=True + indent=2 → iris_base_url comes before iris_username
+        assert text.index('"iris_base_url"') < text.index('"iris_username"')
         assert "\n  " in text
 
     @pytest.mark.skipif(os.name != "posix", reason="POSIX file mode only")
-    def test_save_chmods_to_600_on_posix(self, tmp_settings):
-        settings.save_settings({"url": "http://x"})
-        mode = stat.S_IMODE(tmp_settings.stat().st_mode)
+    def test_chmods_to_600_on_posix(self, tmp_config):
+        save_config({"iris_password": "secret"})
+        mode = stat.S_IMODE(tmp_config.stat().st_mode)
         assert mode == 0o600
 
+    def test_overwrites_existing_keys(self, tmp_config):
+        save_config({"iris_base_url": "http://old"})
+        save_config({"iris_base_url": "http://new"})
+        loaded = json.loads(tmp_config.read_text())
+        assert loaded == {"iris_base_url": "http://new"}
 
-class TestInjectSettings:
-    def test_noop_when_file_missing(self, tmp_settings):
-        settings.inject_settings()
-        assert "IRIS_BASE_URL" not in os.environ
 
-    def test_injects_all_mapped_values(self, tmp_settings):
-        settings.save_settings(
-            {
-                "url": "http://a:1",
-                "username": "u",
-                "password": "p",
-                "namespace": "N",
-                "superserver_port": 9999,
-            }
-        )
-        settings.inject_settings()
-        assert os.environ["IRIS_BASE_URL"] == "http://a:1"
-        assert os.environ["IRIS_USERNAME"] == "u"
-        assert os.environ["IRIS_PASSWORD"] == "p"
-        assert os.environ["IRIS_NAMESPACE"] == "N"
-        assert os.environ["IRIS_SUPERSERVER_PORT"] == "9999"
+class TestSettingsLoading:
+    def test_defaults_when_no_env_no_file(self, tmp_config):
+        s = Settings()
+        assert s.iris_base_url == "http://localhost:52773"
+        assert s.iris_username == "_SYSTEM"
+        assert s.iris_namespace == "USER"
+        assert s.iris_api_prefix == "api/atelier/v8"
 
-    def test_does_not_overwrite_existing_env_var(self, tmp_settings, monkeypatch):
+    def test_env_var_overrides_default(self, tmp_config, monkeypatch):
         monkeypatch.setenv("IRIS_BASE_URL", "http://from-env:52773")
-        settings.save_settings({"url": "http://from-file:52773"})
-        settings.inject_settings()
-        assert os.environ["IRIS_BASE_URL"] == "http://from-env:52773"
+        s = Settings()
+        assert s.iris_base_url == "http://from-env:52773"
 
-    def test_ignores_unmapped_keys(self, tmp_settings):
-        settings.save_settings({"url": "http://x", "unknown_key": "value"})
-        settings.inject_settings()
-        assert "UNKNOWN_KEY" not in os.environ
+    def test_config_json_overrides_default(self, tmp_config):
+        save_config({"iris_base_url": "http://from-file:52773"})
+        s = Settings()
+        assert s.iris_base_url == "http://from-file:52773"
 
-    def test_skips_null_values(self, tmp_settings):
-        settings.save_settings({"url": "http://x", "username": None})
-        settings.inject_settings()
-        assert os.environ["IRIS_BASE_URL"] == "http://x"
-        assert "IRIS_USERNAME" not in os.environ
+    def test_env_wins_over_config_json(self, tmp_config, monkeypatch):
+        save_config({"iris_base_url": "http://from-file"})
+        monkeypatch.setenv("IRIS_BASE_URL", "http://from-env")
+        s = Settings()
+        assert s.iris_base_url == "http://from-env"
+
+    def test_invalid_json_falls_back_to_defaults(self, tmp_config):
+        tmp_config.parent.mkdir(parents=True, exist_ok=True)
+        tmp_config.write_text("not valid {")
+        s = Settings()
+        assert s.iris_base_url == "http://localhost:52773"
+
+    def test_unknown_keys_in_config_json_are_ignored(self, tmp_config):
+        save_config({"iris_base_url": "http://x", "totally_unknown": "value"})
+        s = Settings()
+        assert s.iris_base_url == "http://x"
+
+    def test_int_field_coerced_from_string_env(self, tmp_config, monkeypatch):
+        monkeypatch.setenv("IRIS_SUPERSERVER_PORT", "9999")
+        s = Settings()
+        assert s.iris_superserver_port == 9999
+
+    def test_bool_field_coerced_from_string_env(self, tmp_config, monkeypatch):
+        monkeypatch.setenv("IRIS_DEBUG_ENABLED", "true")
+        s = Settings()
+        assert s.iris_debug_enabled is True
+
+        monkeypatch.setenv("IRIS_DEBUG_ENABLED", "false")
+        s2 = Settings()
+        assert s2.iris_debug_enabled is False

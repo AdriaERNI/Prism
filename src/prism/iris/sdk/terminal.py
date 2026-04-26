@@ -12,13 +12,7 @@ import functools
 import logging
 import time
 
-from prism.config import (
-    IRIS_BASE_URL,
-    IRIS_USERNAME,
-    IRIS_PASSWORD,
-    IRIS_NAMESPACE,
-    IRIS_SUPERSERVER_PORT,
-)
+from prism.settings import settings
 
 HELPER_CLASS = "MCP.Terminal"
 HELPER_DOC = "MCP.Terminal.cls"
@@ -129,11 +123,17 @@ def _connect(namespace: str | None = None):
     """Create a native connection to the IRIS SuperServer."""
     iris_mod = _load_iris()
 
-    host = _parse_host(IRIS_BASE_URL)
-    ns = namespace or IRIS_NAMESPACE
-    _log.debug("Connecting to %s:%s ns=%s ...", host, IRIS_SUPERSERVER_PORT, ns)
+    host = _parse_host(settings.iris_base_url)
+    ns = namespace or settings.iris_namespace
+    _log.debug(
+        "Connecting to %s:%s ns=%s ...", host, settings.iris_superserver_port, ns
+    )
     conn = iris_mod.createConnection(
-        host, IRIS_SUPERSERVER_PORT, ns, IRIS_USERNAME, IRIS_PASSWORD
+        host,
+        settings.iris_superserver_port,
+        ns,
+        settings.iris_username,
+        settings.iris_password,
     )
     _log.debug("Connected successfully")
     return conn
@@ -146,7 +146,7 @@ async def ensure_helper_deployed(namespace: str | None = None) -> None:
     Deployment happens via the Atelier REST API (httpx), not the native API.
     Tracks deployment per namespace so multi-namespace setups work correctly.
     """
-    ns = namespace or IRIS_NAMESPACE
+    ns = namespace or settings.iris_namespace
     if ns in _deployed_namespaces:
         return
 
@@ -214,7 +214,7 @@ async def execute_command(
             f"Terminal command timed out after {timeout}s before execution started"
         )
 
-    ns = namespace or IRIS_NAMESPACE
+    ns = namespace or settings.iris_namespace
     loop = asyncio.get_running_loop()
     run_sync = functools.partial(_run_command_sync, command, namespace)
     output = await asyncio.wait_for(

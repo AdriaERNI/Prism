@@ -19,8 +19,7 @@ cp .env.example .env
 | `IRIS_NAMESPACE` | `USER` | Default namespace for all operations |
 | `IRIS_WORKSPACE` | *(empty)* | Local directory for file I/O tools (`get_document`, `put_document`, `put_and_compile`). Disabled when empty |
 | `IRIS_COMPILE_FLAGS` | `cuk` | Compiler flags: `c`=compile, `u`=skip up-to-date, `k`=keep generated source |
-| `IRIS_API_V1` | `api/atelier/v1` | Atelier v1 API prefix |
-| `IRIS_API_V2` | `api/atelier/v2` | Atelier v2 API prefix |
+| `IRIS_API_PREFIX` | `api/atelier/v8` | Atelier REST API path prefix |
 
 ## Run
 

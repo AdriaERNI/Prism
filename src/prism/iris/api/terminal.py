@@ -9,13 +9,8 @@ from collections.abc import Awaitable, Callable
 import httpx
 import websockets
 
-from prism.config import (
-    IRIS_API_PREFIX,
-    IRIS_NAMESPACE,
-    IRIS_TERMINAL_METHOD,
-    IRIS_TERMINAL_MAX_OUTPUT_CHARS,
-)
 from prism.iris.sdk.http import auth, base_url
+from prism.settings import settings
 
 
 class TerminalError(Exception):
@@ -30,11 +25,11 @@ def _resolve_namespace(namespace: str | None) -> str:
     deterministic.
     """
     if namespace is None:
-        return IRIS_NAMESPACE
+        return settings.iris_namespace
 
     cleaned = namespace.strip()
     if not cleaned or cleaned.lower() in {"null", "none"}:
-        return IRIS_NAMESPACE
+        return settings.iris_namespace
     return cleaned
 
 
@@ -52,7 +47,7 @@ def _finalize_result(result: dict) -> dict:
         output = str(output)
     output = _clean_text(output)
 
-    max_chars = IRIS_TERMINAL_MAX_OUTPUT_CHARS
+    max_chars = settings.iris_terminal_max_output_chars
     if max_chars > 0 and len(output) > max_chars:
         omitted = len(output) - max_chars
         output = output[:max_chars]
@@ -89,7 +84,7 @@ def _ws_url() -> str:
         url = "wss://" + url[len("https://") :]
     elif url.startswith("http://"):
         url = "ws://" + url[len("http://") :]
-    return f"{url}/{IRIS_API_PREFIX}/%25SYS/terminal"
+    return f"{url}/{settings.iris_api_prefix}/%25SYS/terminal"
 
 
 async def _wait_for_prompt(
@@ -202,7 +197,7 @@ async def execute_command(
     """
     ns = _resolve_namespace(namespace)
 
-    if IRIS_TERMINAL_METHOD == "native":
+    if settings.iris_terminal_method == "native":
         from prism.iris.sdk import terminal as native_terminal
 
         # Signal progress before blocking executor call so the MCP transport

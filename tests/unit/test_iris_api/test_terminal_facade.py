@@ -2,7 +2,7 @@
 
 from unittest.mock import AsyncMock, patch
 
-from prism.config import IRIS_NAMESPACE
+from prism.settings import settings
 
 
 class TestFacadeDispatch:
@@ -17,7 +17,7 @@ class TestFacadeDispatch:
         )
 
         with (
-            patch("prism.iris.api.terminal.IRIS_TERMINAL_METHOD", "native"),
+            patch.object(settings, "iris_terminal_method", "native"),
             patch("prism.iris.sdk.terminal.execute_command", mock_native_exec),
         ):
             from prism.iris.api.terminal import execute_command
@@ -30,7 +30,7 @@ class TestFacadeDispatch:
     async def test_native_method_normalizes_null_namespace(self):
         mock_native_exec = AsyncMock(
             return_value={
-                "namespace": IRIS_NAMESPACE,
+                "namespace": settings.iris_namespace,
                 "command": "Write 1",
                 "output": "1",
                 "prompt": "",
@@ -38,7 +38,7 @@ class TestFacadeDispatch:
         )
 
         with (
-            patch("prism.iris.api.terminal.IRIS_TERMINAL_METHOD", "native"),
+            patch.object(settings, "iris_terminal_method", "native"),
             patch("prism.iris.sdk.terminal.execute_command", mock_native_exec),
         ):
             from prism.iris.api.terminal import execute_command
@@ -46,12 +46,14 @@ class TestFacadeDispatch:
             result = await execute_command("Write 1", namespace="null", timeout=10.0)
 
         assert result["output"] == "1"
-        mock_native_exec.assert_called_once_with("Write 1", IRIS_NAMESPACE, 10.0)
+        mock_native_exec.assert_called_once_with(
+            "Write 1", settings.iris_namespace, 10.0
+        )
 
     async def test_native_method_sanitizes_output(self):
         mock_native_exec = AsyncMock(
             return_value={
-                "namespace": IRIS_NAMESPACE,
+                "namespace": settings.iris_namespace,
                 "command": "Write 1",
                 "output": "ok\x00bad",
                 "prompt": "",
@@ -59,8 +61,8 @@ class TestFacadeDispatch:
         )
 
         with (
-            patch("prism.iris.api.terminal.IRIS_TERMINAL_METHOD", "native"),
-            patch("prism.iris.api.terminal.IRIS_TERMINAL_MAX_OUTPUT_CHARS", 100),
+            patch.object(settings, "iris_terminal_method", "native"),
+            patch.object(settings, "iris_terminal_max_output_chars", 100),
             patch("prism.iris.sdk.terminal.execute_command", mock_native_exec),
         ):
             from prism.iris.api.terminal import execute_command
@@ -93,7 +95,7 @@ class TestFacadeDispatch:
         mock_connect.__aexit__ = AsyncMock(return_value=False)
 
         with (
-            patch("prism.iris.api.terminal.IRIS_TERMINAL_METHOD", "ws"),
+            patch.object(settings, "iris_terminal_method", "ws"),
             patch("prism.iris.api.terminal._get_session_cookies", mock_cookies),
             patch(
                 "prism.iris.api.terminal.websockets.connect", return_value=mock_connect
@@ -104,4 +106,4 @@ class TestFacadeDispatch:
             result = await execute_command("Write 42")
 
         assert result["output"] == "42"
-        assert result["namespace"] == IRIS_NAMESPACE
+        assert result["namespace"] == settings.iris_namespace

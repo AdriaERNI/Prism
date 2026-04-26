@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from prism.config import IRIS_NAMESPACE
+from prism.settings import settings
 from prism.iris.api.terminal import (
     TerminalError,
     _ws_url,
@@ -16,7 +16,7 @@ from prism.iris.api.terminal import (
 @pytest.fixture(autouse=True)
 def _force_ws_method():
     """These tests exercise the WebSocket path — force IRIS_TERMINAL_METHOD=ws."""
-    with patch("prism.iris.api.terminal.IRIS_TERMINAL_METHOD", "ws"):
+    with patch.object(settings, "iris_terminal_method", "ws"):
         yield
 
 
@@ -96,7 +96,7 @@ class TestExecuteCommand:
 
         assert result["output"] == "hello"
         assert result["command"] == 'write "hello"'
-        assert result["namespace"] == IRIS_NAMESPACE
+        assert result["namespace"] == settings.iris_namespace
 
     async def test_multi_line_output(self):
         ws = _make_ws(
@@ -140,7 +140,7 @@ class TestExecuteCommand:
         with (
             _patch_cookies(),
             _patch_connect(ws),
-            patch("prism.iris.api.terminal.IRIS_TERMINAL_MAX_OUTPUT_CHARS", 10),
+            patch.object(settings, "iris_terminal_max_output_chars", 10),
         ):
             result = await execute_command("test")
 
@@ -203,26 +203,26 @@ class TestExecuteCommand:
         assert config_call["namespace"] == "SAMPLES"
 
     async def test_namespace_string_null_uses_default(self):
-        ws = _make_ws(_standard_messages(namespace=IRIS_NAMESPACE))
+        ws = _make_ws(_standard_messages(namespace=settings.iris_namespace))
 
         with _patch_cookies(), _patch_connect(ws):
             result = await execute_command("write 1", namespace="null")
 
-        assert result["namespace"] == IRIS_NAMESPACE
+        assert result["namespace"] == settings.iris_namespace
         calls = ws.send.call_args_list
         config_call = json.loads(calls[0][0][0])
-        assert config_call["namespace"] == IRIS_NAMESPACE
+        assert config_call["namespace"] == settings.iris_namespace
 
     async def test_namespace_empty_string_uses_default(self):
-        ws = _make_ws(_standard_messages(namespace=IRIS_NAMESPACE))
+        ws = _make_ws(_standard_messages(namespace=settings.iris_namespace))
 
         with _patch_cookies(), _patch_connect(ws):
             result = await execute_command("write 1", namespace="")
 
-        assert result["namespace"] == IRIS_NAMESPACE
+        assert result["namespace"] == settings.iris_namespace
         calls = ws.send.call_args_list
         config_call = json.loads(calls[0][0][0])
-        assert config_call["namespace"] == IRIS_NAMESPACE
+        assert config_call["namespace"] == settings.iris_namespace
 
     async def test_unexpected_init_message(self):
         """If an init message arrives where we expect output, raise TerminalError."""

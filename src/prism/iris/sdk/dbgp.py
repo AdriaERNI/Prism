@@ -20,12 +20,7 @@ from xml.etree.ElementTree import Element, fromstring as parse_xml
 import websockets
 import websockets.asyncio.client
 
-from prism.config import (
-    IRIS_BASE_URL,
-    IRIS_USERNAME,
-    IRIS_PASSWORD,
-    IRIS_API_PREFIX,
-)
+from prism.settings import settings
 
 
 class DbgpError(Exception):
@@ -62,14 +57,14 @@ class DbgpConnection:
         ns = namespace or "%SYS"
         encoded_ns = ns.replace("%", "%25")
 
-        base = IRIS_BASE_URL.rstrip("/")
+        base = settings.iris_base_url.rstrip("/")
         scheme = "wss" if base.startswith("https") else "ws"
         http_base = base.split("://", 1)[1] if "://" in base else base
-        uri = f"{scheme}://{http_base}/{IRIS_API_PREFIX}/{encoded_ns}/debug"
+        uri = f"{scheme}://{http_base}/{settings.iris_api_prefix}/{encoded_ns}/debug"
 
         # Basic auth header
         credentials = base64.b64encode(
-            f"{IRIS_USERNAME}:{IRIS_PASSWORD}".encode()
+            f"{settings.iris_username}:{settings.iris_password}".encode()
         ).decode()
 
         ssl_ctx: ssl.SSLContext | None = None

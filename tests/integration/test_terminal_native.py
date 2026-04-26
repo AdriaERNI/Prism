@@ -14,9 +14,9 @@ import time
 
 import pytest
 
-from prism.config import IRIS_NAMESPACE
 from prism.iris.api.documents import DocumentNotFound, delete_document, get_document
 from prism.iris.sdk import terminal as native_terminal
+from prism.settings import settings
 
 
 @pytest.fixture(autouse=True)
@@ -41,7 +41,7 @@ class TestBasicExecution:
         result = await native_terminal.execute_command('Write "hello"')
         assert result["output"] == "hello"
         assert result["command"] == 'Write "hello"'
-        assert result["namespace"] == IRIS_NAMESPACE
+        assert result["namespace"] == settings.iris_namespace
 
     async def test_arithmetic(self, _probe_iris):
         result = await native_terminal.execute_command("Write 2 + 3")

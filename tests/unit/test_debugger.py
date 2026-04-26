@@ -10,6 +10,7 @@ import pytest
 
 from prism.iris.sdk.dbgp import DbgpError, _check_error, _parse_dbgp_response
 from prism.iris.sdk.debug_session import DebugSession, SessionManager
+from prism.settings import settings
 from prism.iris.api.debugger import (
     _context_name,
     _parse_breakpoint_list,
@@ -161,7 +162,7 @@ class TestDebugSession:
         session = DebugSession(conn, "target", None)
         assert not session.is_expired
         # Force expiry by backdating last_active
-        with patch("prism.iris.sdk.debug_session.IRIS_DEBUG_IDLE_TIMEOUT", 0):
+        with patch.object(settings, "iris_debug_idle_timeout", 0):
             # Even with timeout=0, idle_seconds is very small right after creation
             session.last_active = time.monotonic() - 1
             assert session.is_expired
@@ -201,7 +202,7 @@ class TestSessionManager:
         conn = _mock_conn()
         session = await mgr.create(conn, "target", None)
         # Force expiry
-        with patch("prism.iris.sdk.debug_session.IRIS_DEBUG_IDLE_TIMEOUT", 0):
+        with patch.object(settings, "iris_debug_idle_timeout", 0):
             session.last_active = time.monotonic() - 1
             with pytest.raises(KeyError, match="expired"):
                 mgr.get(session.id)
@@ -472,7 +473,7 @@ class TestToolGating:
 
         from prism.mcp.server import create_mcp
 
-        with patch("prism.config.IRIS_DEBUG_ENABLED", False):
+        with patch.object(settings, "iris_debug_enabled", False):
             import prism.mcp as tools_pkg
 
             orig_skip = tools_pkg._SKIP_MODULES.copy()
@@ -500,7 +501,7 @@ class TestToolGating:
 
         from prism.mcp.server import create_mcp
 
-        with patch("prism.config.IRIS_DEBUG_ENABLED", True):
+        with patch.object(settings, "iris_debug_enabled", True):
             import prism.mcp as tools_pkg
 
             orig_skip = tools_pkg._SKIP_MODULES.copy()

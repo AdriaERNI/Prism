@@ -10,8 +10,8 @@ import asyncio
 import time
 import uuid
 
-from prism.config import IRIS_DEBUG_IDLE_TIMEOUT
 from prism.iris.sdk.dbgp import DbgpConnection
+from prism.settings import settings
 
 
 class DebugSession:
@@ -36,7 +36,7 @@ class DebugSession:
 
     @property
     def is_expired(self) -> bool:
-        return self.idle_seconds > IRIS_DEBUG_IDLE_TIMEOUT
+        return self.idle_seconds > settings.iris_debug_idle_timeout
 
 
 class SessionManager:

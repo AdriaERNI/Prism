@@ -14,6 +14,7 @@ from fastmcp import Client
 import prism.iris.sdk.http as http_mod
 import prism.mcp as tools_pkg
 from prism.mcp.server import create_mcp
+from prism.settings import settings
 
 # ── Workspace emulation ─────────────────────────────────────────────
 
@@ -55,15 +56,9 @@ def write_to_workspace(workspace: Path, name: str, lines: list[str]) -> None:
 # ── Fixtures ─────────────────────────────────────────────────────────
 
 
-def _workspace_patches(workspace: Path):
-    """Return a combined context manager that patches IRIS_WORKSPACE everywhere."""
-    ws = str(workspace)
-    return (
-        patch("prism.config.IRIS_WORKSPACE", ws),
-        patch("prism.mcp.IRIS_WORKSPACE", ws),
-        patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", ws),
-        patch("prism.mcp.server.IRIS_WORKSPACE", ws),
-    )
+def _workspace_patch(workspace: Path):
+    """Patch ``settings.iris_workspace`` for the duration of a test."""
+    return patch.object(settings, "iris_workspace", str(workspace))
 
 
 @pytest.fixture(autouse=True)
@@ -81,10 +76,7 @@ def _reset_http_client():
 def terminal_method(request):
     """Parametrize tests to run with both terminal backends."""
     method = request.param
-    with (
-        patch("prism.config.IRIS_TERMINAL_METHOD", method),
-        patch("prism.iris.api.terminal.IRIS_TERMINAL_METHOD", method),
-    ):
+    with patch.object(settings, "iris_terminal_method", method):
         yield method
 
 
@@ -100,8 +92,7 @@ def client(workspace):
     orig_skip = tools_pkg._SKIP_MODULES.copy()
     tools_pkg._SKIP_MODULES.discard("workspace")
     tools_pkg._SKIP_MODULES.discard("debugger")
-    p1, p2, p3, p4 = _workspace_patches(workspace)
-    with p1, p2, p3, p4:
+    with _workspace_patch(workspace):
         mcp = create_mcp()
         yield Client(mcp)
     tools_pkg._SKIP_MODULES = orig_skip
@@ -132,8 +123,7 @@ async def cleanup(workspace):
     orig_skip = tools_pkg._SKIP_MODULES.copy()
     tools_pkg._SKIP_MODULES.discard("workspace")
     try:
-        p1, p2, p3, p4 = _workspace_patches(workspace)
-        with p1, p2, p3, p4:
+        with _workspace_patch(workspace):
             mcp = create_mcp()
             c = Client(mcp)
             try:

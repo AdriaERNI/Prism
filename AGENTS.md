@@ -17,7 +17,7 @@ Prism is an MCP server and CLI for InterSystems IRIS development. It exposes too
 
 ```
 src/prism/
-├── config.py           # Environment/settings loading (import first)
+├── settings.py         # pydantic-settings: env, .env, and config.json loader
 ├── iris/
 │   ├── sdk/            # Shared utilities: http, logging, workspace, debug protocols
 │   └── api/            # Thin HTTP wrappers for IRIS REST API
@@ -28,7 +28,7 @@ src/prism/
 └── cli/                # Typer commands (sync wrappers around async API)
 ```
 
-**Import order matters**: `prism.config` must be imported before other modules to ensure env vars are loaded.
+**Settings access**: import the singleton `from prism.settings import settings` and read fields like `settings.iris_base_url`. Sources are merged with precedence env > `.env` > `<user-data>/prism/config.json` > field defaults.
 
 ## Adding an MCP Tool
 

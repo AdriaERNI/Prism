@@ -1013,6 +1013,7 @@ dependencies = [
     { name = "httpx" },
     { name = "intersystems-irispython" },
     { name = "platformdirs" },
+    { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "websockets" },
 ]
@@ -1039,6 +1040,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "intersystems-irispython", specifier = ">=5.0" },
     { name = "platformdirs", specifier = ">=4.0" },
+    { name = "pydantic-settings", specifier = ">=2.5" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "toons", marker = "extra == 'toon'", specifier = ">=0.5" },
     { name = "websockets", specifier = ">=13.0" },

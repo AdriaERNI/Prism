@@ -20,10 +20,10 @@ def serve(
     ),
 ) -> None:
     """Start the Prism MCP server (streamable-http transport)."""
-    from prism.config import IRIS_WORKSPACE
     from prism.iris.sdk.log import logger
     from prism.iris.sdk.preflight import preflight_check
     from prism.mcp.server import mcp
+    from prism.settings import settings
 
     logging.basicConfig(level=logging.WARNING)
 
@@ -31,7 +31,9 @@ def serve(
         preflight_check()
 
     ws_info = (
-        f" | workspace: {IRIS_WORKSPACE}" if IRIS_WORKSPACE else " | workspace: off"
+        f" | workspace: {settings.iris_workspace}"
+        if settings.iris_workspace
+        else " | workspace: off"
     )
     logger.info(f"Prism ready at http://localhost:{port}/mcp{ws_info}")
     mcp.run(

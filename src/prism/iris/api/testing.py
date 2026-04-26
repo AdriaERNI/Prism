@@ -5,24 +5,19 @@ from __future__ import annotations
 from prism.iris.api.documents import DocumentNotFound, get_document, put_document
 from prism.iris.api.compile import compile_documents
 from prism.iris.api.sql import execute_query
-from prism.config import (
-    IRIS_TEST_RUNNER_CLASS,
-    IRIS_TEST_RUNNER_METHOD,
-    IRIS_TEST_MANAGER_CLASS,
-    IRIS_TEST_AUTO_DEPLOY,
-)
+from prism.settings import settings
 
 # ── Helper class source ─────────────────────────────────────────────
 
-_RUNNER_DOC_NAME = f"{IRIS_TEST_RUNNER_CLASS}.cls"
+_RUNNER_DOC_NAME = f"{settings.iris_test_runner_class}.cls"
 
 _RUNNER_SOURCE = [
-    f"Class {IRIS_TEST_RUNNER_CLASS} Extends %RegisteredObject",
+    f"Class {settings.iris_test_runner_class} Extends %RegisteredObject",
     "{",
     "",
     "/// Run tests for a single class, optionally a specific method.",
     "/// Returns OK on success or ERROR: <message> on failure.",
-    f"ClassMethod {IRIS_TEST_RUNNER_METHOD}(",
+    f"ClassMethod {settings.iris_test_runner_method}(",
     '    testClass As %String = "",',
     '    testMethod As %String = "",',
     "    managerClass As %String = {..#DEFAULTMANAGER}",
@@ -38,7 +33,7 @@ _RUNNER_SOURCE = [
     '    Return "ERROR: " _ $System.Status.GetErrorText(sc)',
     "}",
     "",
-    f'Parameter DEFAULTMANAGER = "{IRIS_TEST_MANAGER_CLASS}";',
+    f'Parameter DEFAULTMANAGER = "{settings.iris_test_manager_class}";',
     "",
     "}",
 ]
@@ -52,7 +47,7 @@ async def ensure_runner_deployed(namespace: str | None = None) -> bool:
 
     Returns True if the runner is available (either already present or just deployed).
     """
-    if not IRIS_TEST_AUTO_DEPLOY:
+    if not settings.iris_test_auto_deploy:
         return True
 
     try:
@@ -85,11 +80,11 @@ async def run_tests(
     """
     await ensure_runner_deployed(namespace)
 
-    manager = manager_class or IRIS_TEST_MANAGER_CLASS
+    manager = manager_class or settings.iris_test_manager_class
     # SQL function name: Schema.ClassName_MethodName()
     # e.g. MCP.TestRunner → MCP.TestRunner_RunTests()
-    runner_sql_name = IRIS_TEST_RUNNER_CLASS
-    method_sql_name = IRIS_TEST_RUNNER_METHOD
+    runner_sql_name = settings.iris_test_runner_class
+    method_sql_name = settings.iris_test_runner_method
 
     query = (
         f"SELECT {runner_sql_name}_{method_sql_name}"

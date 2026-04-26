@@ -2,8 +2,8 @@
 
 from fastmcp import FastMCP
 
-from prism.config import IRIS_DEBUG_ENABLED, IRIS_WORKSPACE, PRISM_OUTPUT_FORMAT
 from prism.mcp import discover_tools
+from prism.settings import settings
 
 _BASE_INSTRUCTIONS = """\
 MCP server for InterSystems IRIS development via the Atelier REST API.
@@ -227,10 +227,10 @@ to a local directory path to enable file-based document I/O.
 
 def create_mcp() -> FastMCP:
     """Build and return a fully configured FastMCP instance."""
-    debug_tools = _DEBUG_TOOLS_LIST if IRIS_DEBUG_ENABLED else ""
-    if IRIS_WORKSPACE:
+    debug_tools = _DEBUG_TOOLS_LIST if settings.iris_debug_enabled else ""
+    if settings.iris_workspace:
         instructions = _BASE_INSTRUCTIONS + _WORKSPACE_INSTRUCTIONS.format(
-            workspace=IRIS_WORKSPACE,
+            workspace=settings.iris_workspace,
             debug_tools=debug_tools,
         )
     else:
@@ -238,14 +238,14 @@ def create_mcp() -> FastMCP:
             debug_tools=debug_tools,
         )
 
-    if IRIS_DEBUG_ENABLED:
+    if settings.iris_debug_enabled:
         instructions += _DEBUG_INSTRUCTIONS
 
     server = FastMCP("Prism", instructions=instructions)
 
     for tool_fn in discover_tools():
         extra = getattr(tool_fn, "_mcp_tool_kwargs", {})
-        if PRISM_OUTPUT_FORMAT == "toon":
+        if settings.prism_output_format == "toon":
             extra["output_schema"] = None
         server.tool(tool_fn, **extra)
 

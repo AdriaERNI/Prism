@@ -9,12 +9,12 @@ import importlib
 import pkgutil
 from pathlib import Path
 
-from prism.config import IRIS_WORKSPACE, IRIS_DEBUG_ENABLED
+from prism.settings import settings
 
 _SKIP_MODULES: set[str] = set()
-if not IRIS_WORKSPACE:
+if not settings.iris_workspace:
     _SKIP_MODULES.add("workspace")
-if not IRIS_DEBUG_ENABLED:
+if not settings.iris_debug_enabled:
     _SKIP_MODULES.add("debugger")
 
 

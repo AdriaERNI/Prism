@@ -8,7 +8,7 @@ All commands pick up connection settings from (in this order):
 
 1. Environment variables (`IRIS_BASE_URL`, `IRIS_USERNAME`, …).
 2. A `.env` file in the current directory.
-3. The user's `settings.json` (written by [`prism config`](config.md)).
+3. The user's `config.json` (written by [`prism config`](config.md)).
 
 Run any command with `--help` to see its options:
 

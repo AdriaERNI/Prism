@@ -70,18 +70,16 @@ async def _cleanup_debug_target():
     import httpx
 
     import prism.iris.sdk.http as http_mod
-    from prism.config import (
-        IRIS_API_PREFIX,
-        IRIS_BASE_URL,
-        IRIS_PASSWORD,
-        IRIS_USERNAME,
-    )
+    from prism.settings import settings
 
     http_mod._client = None
     async with httpx.AsyncClient(
-        auth=httpx.BasicAuth(IRIS_USERNAME, IRIS_PASSWORD)
+        auth=httpx.BasicAuth(settings.iris_username, settings.iris_password)
     ) as c:
-        url = f"{IRIS_BASE_URL}/{IRIS_API_PREFIX}/USER/doc/Test.MCPDebugTarget.cls"
+        url = (
+            f"{settings.iris_base_url}/{settings.iris_api_prefix}"
+            "/USER/doc/Test.MCPDebugTarget.cls"
+        )
         await c.delete(url)
         http_mod._client = None
 

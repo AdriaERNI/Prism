@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from prism.iris.api import testing as testing_api
+from prism.settings import settings
 
 
 class TestEnsureRunnerDeployed:
@@ -74,7 +75,7 @@ class TestEnsureRunnerDeployed:
     async def test_skips_when_auto_deploy_disabled(self):
         """When IRIS_TEST_AUTO_DEPLOY is False, skip deployment entirely."""
         with (
-            patch.object(testing_api, "IRIS_TEST_AUTO_DEPLOY", False),
+            patch.object(settings, "iris_test_auto_deploy", False),
             patch.object(testing_api, "get_document", AsyncMock()) as mock_get,
         ):
             result = await testing_api.ensure_runner_deployed()

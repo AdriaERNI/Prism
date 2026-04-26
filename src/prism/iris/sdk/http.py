@@ -4,28 +4,22 @@ from __future__ import annotations
 
 import httpx
 
-from prism.config import (
-    IRIS_BASE_URL,
-    IRIS_USERNAME,
-    IRIS_PASSWORD,
-    IRIS_NAMESPACE,
-    IRIS_API_PREFIX,
-)
+from prism.settings import settings
 
 
 def api_url(namespace: str | None = None) -> str:
-    ns = namespace or IRIS_NAMESPACE
+    ns = namespace or settings.iris_namespace
     # Encode '%' as '%25' for namespaces like %SYS in the URL path
     ns_encoded = ns.replace("%", "%25")
-    return f"{IRIS_BASE_URL}/{IRIS_API_PREFIX}/{ns_encoded}"
+    return f"{settings.iris_base_url}/{settings.iris_api_prefix}/{ns_encoded}"
 
 
 def base_url() -> str:
-    return IRIS_BASE_URL
+    return settings.iris_base_url
 
 
 def auth() -> httpx.BasicAuth:
-    return httpx.BasicAuth(IRIS_USERNAME, IRIS_PASSWORD)
+    return httpx.BasicAuth(settings.iris_username, settings.iris_password)
 
 
 _client: httpx.AsyncClient | None = None

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from prism.config import IRIS_COMPILE_FLAGS
 from prism.iris.sdk.http import api_url, client, parse_json
+from prism.settings import settings
 
 
 async def compile_documents(
@@ -16,7 +16,7 @@ async def compile_documents(
     r = await c.post(
         f"{api_url(namespace)}/action/compile",
         json=doc_names,
-        params={"flags": flags or IRIS_COMPILE_FLAGS},
+        params={"flags": flags or settings.iris_compile_flags},
     )
     r.raise_for_status()
     return parse_json(r)

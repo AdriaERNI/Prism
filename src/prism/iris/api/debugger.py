@@ -13,16 +13,10 @@ from xml.etree.ElementTree import Element
 
 from urllib.parse import quote
 
-from prism.config import (
-    IRIS_NAMESPACE,
-    IRIS_DEBUG_STEP_GRANULARITY,
-    IRIS_DEBUG_MAX_DATA,
-    IRIS_DEBUG_MAX_CHILDREN,
-    IRIS_DEBUG_MAX_DEPTH,
-)
 from prism.iris.sdk.dbgp import DbgpConnection, DbgpError
 from prism.iris.sdk.debug_session import get_session_manager
 from prism.iris.sdk.http import api_url, client, parse_json
+from prism.settings import settings
 
 
 # ── Session lifecycle ─────────────────────────────────────────────────
@@ -58,15 +52,19 @@ async def start_session(
         # The target value is base64-encoded (using -v_base64) to avoid
         # DBGP argument parsing issues with special characters like ##, ()
         # in ObjectScript expressions — matches VS Code ObjectScript extension.
-        await conn.send_command("feature_set", n="max_data", v=str(IRIS_DEBUG_MAX_DATA))
         await conn.send_command(
-            "feature_set", n="max_children", v=str(IRIS_DEBUG_MAX_CHILDREN)
+            "feature_set", n="max_data", v=str(settings.iris_debug_max_data)
         )
         await conn.send_command(
-            "feature_set", n="max_depth", v=str(IRIS_DEBUG_MAX_DEPTH)
+            "feature_set", n="max_children", v=str(settings.iris_debug_max_children)
         )
         await conn.send_command(
-            "feature_set", n="step_granularity", v=IRIS_DEBUG_STEP_GRANULARITY
+            "feature_set", n="max_depth", v=str(settings.iris_debug_max_depth)
+        )
+        await conn.send_command(
+            "feature_set",
+            n="step_granularity",
+            v=settings.iris_debug_step_granularity,
         )
         target_value = f"{_ns_prefix(namespace)}{target}"
         target_b64 = base64.b64encode(target_value.encode("utf-8")).decode("ascii")
@@ -203,15 +201,19 @@ async def _do_attach(pid: int, namespace: str | None) -> dict:
         await conn.send_command("feature_set", n="debug_target", v=target)
 
         # Then configure session features
-        await conn.send_command("feature_set", n="max_data", v=str(IRIS_DEBUG_MAX_DATA))
         await conn.send_command(
-            "feature_set", n="max_children", v=str(IRIS_DEBUG_MAX_CHILDREN)
+            "feature_set", n="max_data", v=str(settings.iris_debug_max_data)
         )
         await conn.send_command(
-            "feature_set", n="max_depth", v=str(IRIS_DEBUG_MAX_DEPTH)
+            "feature_set", n="max_children", v=str(settings.iris_debug_max_children)
         )
         await conn.send_command(
-            "feature_set", n="step_granularity", v=IRIS_DEBUG_STEP_GRANULARITY
+            "feature_set", n="max_depth", v=str(settings.iris_debug_max_depth)
+        )
+        await conn.send_command(
+            "feature_set",
+            n="step_granularity",
+            v=settings.iris_debug_step_granularity,
         )
 
         # Register the session
@@ -514,7 +516,7 @@ def _ns_prefix(namespace: str | None) -> str:
     IRIS debug_target requires ``NAMESPACE:expression`` format.
     Falls back to the configured default namespace.
     """
-    ns = namespace or IRIS_NAMESPACE
+    ns = namespace or settings.iris_namespace
     return f"{ns}:"
 
 
@@ -642,7 +644,7 @@ async def _set_breakpoint(
     offset = bp.get("offset", 0)
     routine = bp.get("routine", "")
     condition = bp.get("condition", "")
-    ns = namespace or IRIS_NAMESPACE
+    ns = namespace or settings.iris_namespace
 
     if cls and method:
         file_uri = f"dbgp://|{quote(ns)}|{quote(cls + '.cls')}"

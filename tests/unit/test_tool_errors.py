@@ -5,6 +5,7 @@ from unittest.mock import patch, AsyncMock
 import pytest
 
 from prism.iris.api.documents import DocumentNotFound
+from prism.settings import settings
 
 
 class TestGetDocumentErrors:
@@ -187,14 +188,14 @@ class TestPutDocumentErrors:
     async def test_file_missing_in_workspace(self, tmp_path):
         from prism.mcp import workspace as ws_tools
 
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             with pytest.raises(FileNotFoundError, match="Write the file"):
                 await ws_tools.put_document.__wrapped__("NoSuch.cls")
 
     async def test_path_traversal_blocked(self, tmp_path):
         from prism.mcp import workspace as ws_tools
 
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             with pytest.raises(ValueError, match="escapes workspace"):
                 await ws_tools.put_document.__wrapped__(
                     "Hack.cls", path="../../../etc/passwd"
@@ -207,7 +208,7 @@ class TestPutAndCompileErrors:
     async def test_file_missing_in_workspace(self, tmp_path):
         from prism.mcp import workspace as ws_tools
 
-        with patch("prism.iris.sdk.workspace.IRIS_WORKSPACE", str(tmp_path)):
+        with patch.object(settings, "iris_workspace", str(tmp_path)):
             with pytest.raises(FileNotFoundError, match="Write the file"):
                 await ws_tools.put_and_compile.__wrapped__("NoSuch.cls")
 
