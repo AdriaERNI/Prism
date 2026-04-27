@@ -188,7 +188,7 @@ Connection settings (in order of precedence):
 ### Quick Setup
 
 ```powershell
-prism config _SYSTEM SYS http://localhost:52773 --namespace USER
+prism config -u _SYSTEM -p SYS -U http://localhost:52773 -n USER
 ```
 
 ### Enable Workspace Tools

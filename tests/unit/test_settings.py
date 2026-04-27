@@ -9,7 +9,7 @@ import stat
 import pytest
 
 from prism import settings as settings_module
-from prism.settings import Settings, save_config
+from prism.settings import Settings, clear_config, reset_keys, save_config
 
 
 @pytest.fixture
@@ -129,3 +129,58 @@ class TestSettingsLoading:
         monkeypatch.setenv("IRIS_DEBUG_ENABLED", "false")
         s2 = Settings()
         assert s2.iris_debug_enabled is False
+
+
+class TestResetKeys:
+    def test_removes_specified_keys(self, tmp_config):
+        save_config(
+            {
+                "iris_base_url": "http://x",
+                "iris_username": "u",
+                "iris_password": "p",
+            }
+        )
+        reset_keys(["iris_username", "iris_password"])
+        loaded = json.loads(tmp_config.read_text())
+        assert loaded == {"iris_base_url": "http://x"}
+
+    def test_unknown_keys_are_ignored(self, tmp_config):
+        save_config({"iris_base_url": "http://x"})
+        reset_keys(["totally_unknown", "another"])
+        loaded = json.loads(tmp_config.read_text())
+        assert loaded == {"iris_base_url": "http://x"}
+
+    def test_noop_when_file_missing(self, tmp_config):
+        # Should not raise; should not create the file.
+        reset_keys(["iris_base_url"])
+        assert not tmp_config.exists()
+
+    def test_does_not_rewrite_when_no_keys_match(self, tmp_config):
+        save_config({"iris_base_url": "http://x"})
+        original_mtime = tmp_config.stat().st_mtime_ns
+        reset_keys(["iris_username"])  # not present
+        assert tmp_config.stat().st_mtime_ns == original_mtime
+
+    @pytest.mark.skipif(os.name != "posix", reason="POSIX file mode only")
+    def test_preserves_chmod_600_after_reset(self, tmp_config):
+        save_config({"iris_base_url": "http://x", "iris_password": "secret"})
+        reset_keys(["iris_password"])
+        mode = stat.S_IMODE(tmp_config.stat().st_mode)
+        assert mode == 0o600
+
+
+class TestClearConfig:
+    def test_deletes_existing_file(self, tmp_config):
+        save_config({"iris_base_url": "http://x"})
+        assert tmp_config.exists()
+        clear_config()
+        assert not tmp_config.exists()
+
+    def test_noop_when_file_missing(self, tmp_config):
+        clear_config()
+        assert not tmp_config.exists()
+
+    def test_returns_path_either_way(self, tmp_config):
+        assert clear_config() == tmp_config
+        save_config({"iris_base_url": "http://x"})
+        assert clear_config() == tmp_config

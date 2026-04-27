@@ -12,13 +12,13 @@ written to a user-local settings file (see
 [Configuration](configuration.md) for the exact path).
 
 ```powershell
-prism config _SYSTEM SYS http://192.168.1.100:52773 --namespace USER --show
+prism config -u _SYSTEM -p SYS -U http://192.168.1.100:52773 -n USER
 ```
 
 Output:
 
 ```
-Saved settings to C:\Users\you\AppData\Local\prism\config.json
+Saved 4 setting(s) to C:\Users\you\AppData\Local\prism\config.json
   iris_username: _SYSTEM
   iris_password: ***
   iris_base_url: http://192.168.1.100:52773

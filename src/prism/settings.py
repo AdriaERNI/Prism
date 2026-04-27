@@ -111,29 +111,21 @@ class Settings(BaseSettings):
 settings = Settings()
 
 
-def save_config(updates: dict[str, Any]) -> Path:
-    """Merge *updates* into ``config.json`` and atomically write it.
+def _read_existing(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
-    Existing keys not in *updates* are preserved. Returns the resolved path.
-    On POSIX the file is chmod 600 to protect the password.
-    """
-    path = config_path()
+
+def _write_atomic(path: Path, data: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-
-    existing: dict[str, Any] = {}
-    if path.is_file():
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            if isinstance(data, dict):
-                existing = data
-        except (OSError, json.JSONDecodeError):
-            pass
-
-    merged = {**existing, **updates}
-
     tmp = path.with_suffix(".json.tmp")
     with tmp.open("w", encoding="utf-8") as f:
-        json.dump(merged, f, indent=2, sort_keys=True)
+        json.dump(data, f, indent=2, sort_keys=True)
         f.write("\n")
     tmp.replace(path)
     if os.name == "posix":
@@ -141,4 +133,39 @@ def save_config(updates: dict[str, Any]) -> Path:
             os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
         except OSError:
             pass
+
+
+def save_config(updates: dict[str, Any]) -> Path:
+    """Merge *updates* into ``config.json`` and atomically write it.
+
+    Existing keys not in *updates* are preserved. Returns the resolved path.
+    On POSIX the file is chmod 600 to protect the password.
+    """
+    path = config_path()
+    merged = {**_read_existing(path), **updates}
+    _write_atomic(path, merged)
+    return path
+
+
+def reset_keys(keys: list[str]) -> Path:
+    """Remove *keys* from ``config.json`` so their defaults take over."""
+    path = config_path()
+    data = _read_existing(path)
+    if not data:
+        return path
+    removed = False
+    for key in keys:
+        if key in data:
+            del data[key]
+            removed = True
+    if removed:
+        _write_atomic(path, data)
+    return path
+
+
+def clear_config() -> Path:
+    """Delete ``config.json`` so all settings revert to env vars / defaults."""
+    path = config_path()
+    if path.is_file():
+        path.unlink()
     return path

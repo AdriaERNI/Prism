@@ -45,10 +45,12 @@ unknown keys are ignored.
 ### Writing with `prism config`
 
 ```powershell
-prism config _SYSTEM SYS http://192.168.1.100:52773 --namespace USER --superserver-port 1972
+prism config -u _SYSTEM -p SYS -U http://192.168.1.100:52773 -n USER -P 1972
 ```
 
-See [`prism config`](../commands/config.md) for all options.
+Run `prism config` (no arguments) to see every setting and its current
+effective value, or `prism config -i` for an interactive walkthrough.
+See [`prism config`](../commands/config.md) for all flags.
 
 ## Connection
 
