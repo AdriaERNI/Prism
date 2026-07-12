@@ -74,6 +74,7 @@ nav:
     - Terminal (terminal, ws): commands/terminal.md
     - Testing (test, list-tests): commands/testing.md
     - prism serve: commands/serve.md
+  - Testing: testing.md
   - MCP Server:
     - Overview: mcp/index.md
     - Client setup: mcp/client-setup.md

@@ -9,9 +9,13 @@ Prism is an MCP server and CLI for InterSystems IRIS development. It exposes too
 | Install deps | `uv sync` |
 | Run server | `uv run python main.py` or `python -m prism` |
 | Unit tests | `uv run pytest tests/unit/ -v` |
-| Integration tests | `uv run pytest tests/integration/ -v` (requires IRIS) |
+| Integration tests | `IRIS_BASE_URL=http://<iris>:52773 uv run pytest tests/integration/ -v` |
+| Windows tests | `bash vagrant/run-integration-tests.sh` (see [docs/testing.md](docs/testing.md)) |
 | Lint | `uv run ruff check . && uv run ruff format --check .` |
 | Fix lint | `uv run ruff check --fix . && uv run ruff format .` |
+
+Full testing guide: [docs/testing.md](docs/testing.md) — covers unit, integration,
+and Windows Vagrant tests with log reading and troubleshooting.
 
 ## Architecture
 

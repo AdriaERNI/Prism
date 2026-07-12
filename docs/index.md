@@ -55,6 +55,8 @@ folder to the system `PATH`. Full instructions are on the
   settings file location, and the full environment-variable reference.
 - **[Commands](commands/index.md)** — one page per CLI command, with every
   option and a runnable example.
+- **[Testing](testing.md)** — how to run unit, integration, and Windows
+  Vagrant tests, read logs, and troubleshoot failures.
 - **[MCP Server](mcp/index.md)** — how to connect an IDE / AI client,
   the list of MCP tools, and the interactive debugger.
 
