@@ -28,3 +28,6 @@ site/
 .idea/
 .vscode/
 *.swp
+
+# Agent local settings
+.claude/settings.local.json
