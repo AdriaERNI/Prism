@@ -1,0 +1,71 @@
+name: Test Windows
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Install PyInstaller and Inno Setup
+        run: |
+          uv pip install pyinstaller
+          choco install innosetup -y
+
+      - name: Build Windows exe
+        run: uv run pyinstaller --onefile --name prism src/prism/cli/app.py
+
+      - name: Start IRIS via Docker
+        run: |
+          docker run -d --name iris -p 52773:52773 intersystemsdc/iris-community:latest
+          docker ps
+
+      - name: Wait for IRIS
+        run: |
+          for ($i = 1; $i -le 30; $i++) {
+            try {
+              $response = Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/ -UseBasicParsing -TimeoutSec 2
+              if ($response.StatusCode -eq 200) {
+                Write-Host "IRIS is ready"
+                exit 0
+              }
+            } catch {}
+            Write-Host "Waiting for IRIS... ($i/30)"
+            Start-Sleep 2
+          }
+          Write-Error "IRIS did not start in time"
+          exit 1
+
+      - name: Run unit tests
+        env:
+          IRIS_BASE_URL: http://localhost:52773
+          IRIS_USERNAME: _SYSTEM
+          IRIS_PASSWORD: SYS
+        run: uv run pytest tests/unit/ -v --tb=short
+
+      - name: Run integration tests
+        env:
+          IRIS_BASE_URL: http://localhost:52773
+          IRIS_USERNAME: _SYSTEM
+          IRIS_PASSWORD: SYS
+        run: uv run pytest tests/integration/ -v --tb=short

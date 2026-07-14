@@ -1,0 +1,86 @@
+name: Test Linux
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run unit tests
+        run: uv run pytest tests/unit/ -v --tb=short
+
+  integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit
+    services:
+      iris:
+        image: intersystemsdc/iris-community:latest
+        ports:
+          - 52773:52773
+        env:
+          IRIS_PASSWORD: SYS
+        options: >-
+          --health-cmd "iris session IRIS -U %SYS '##class(%SYSTEM.Process).GetOS()' || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Wait for IRIS
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:52773/api/atelier/v8/; then
+              echo "IRIS is ready"
+              exit 0
+            fi
+            echo "Waiting for IRIS... ($i/30)"
+            sleep 2
+          done
+          echo "IRIS did not start in time"
+          exit 1
+
+      - name: Run integration tests
+        env:
+          IRIS_BASE_URL: http://localhost:52773
+          IRIS_USERNAME: _SYSTEM
+          IRIS_PASSWORD: SYS
+        run: uv run pytest tests/integration/ -v --tb=short
