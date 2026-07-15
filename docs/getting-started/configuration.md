@@ -67,9 +67,16 @@ See [`prism config`](../commands/config.md) for all flags.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `IRIS_TERMINAL_METHOD` | `native` | Which backend the MCP `execute_terminal` tool uses: `native` (irisnative via SuperServer, parallel-capable) or `ws` (Atelier WebSocket, useful when only the HTTP port is reachable) |
+| `IRIS_TERMINAL_MAX_OUTPUT_CHARS` | `100000` | Maximum characters of terminal output before truncation. When exceeded, the response includes `output_truncated: true` and `output_omitted_chars: <count>` |
 
 The CLI bypasses this switch: `prism terminal` always uses the native
 driver, `prism ws` always uses the WebSocket.
+
+## Output
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PRISM_OUTPUT_FORMAT` | `json` | Default output format for CLI commands: `json` or `toon` (requires `pip install prism-mcp[toon]`) |
 
 ## API
 
