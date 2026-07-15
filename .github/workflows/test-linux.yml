@@ -71,11 +71,11 @@ jobs:
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
         options: >-
-          --health-cmd "wget -q -O /dev/null --http-user=_SYSTEM --http-password=SYS http://localhost:52773/api/atelier/v8/ || exit 1"
-          --health-interval 10s
+          --health-cmd "/irisHealth.sh"
+          --health-interval 15s
           --health-timeout 10s
-          --health-retries 30
-          --health-start-period 60s
+          --health-retries 20
+          --health-start-period 90s
     steps:
       - name: Checkout
         uses: actions/checkout@v4
