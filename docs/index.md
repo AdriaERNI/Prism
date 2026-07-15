@@ -63,12 +63,10 @@ Full instructions are on the
 
 ## License
 
-Copyright © 2026 Adria Sanchez. All rights reserved.
+Copyright © 2026 Adria Sanchez.
 
-Licensed under the **PolyForm Noncommercial License 1.0.0** with a Share-Alike
-addendum. Commercial use requires explicit written permission. Forks must
-remain public. See [LICENSE](https://github.com/AdriaERNI/Prism/blob/main/LICENSE)
-for full terms.
+Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+See [LICENSE](https://github.com/AdriaERNI/Prism/blob/main/LICENSE) for full terms.
 
 ---
 

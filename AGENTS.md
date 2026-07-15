@@ -6,10 +6,8 @@ execution via the Atelier REST API.
 
 ## License
 
-Copyright © 2026 Adria Sanchez. All rights reserved. Licensed under the
-PolyForm Noncommercial License 1.0.0 with a Share-Alike addendum. Commercial
-use requires explicit written permission. Forks must remain public. See
-[LICENSE](LICENSE) for full terms.
+Copyright © 2026 Adria Sanchez. Licensed under the GNU Affero General Public
+License v3.0 (AGPL-3.0). See [LICENSE](LICENSE) for full terms.
 
 ## Quick Reference
 

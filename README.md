@@ -7,7 +7,7 @@
   
   [![Documentation](https://img.shields.io/badge/docs-mkdocs-indigo)](https://adriaerni.github.io/Prism/)
   [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/downloads/)
-  [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20NC-orange)](LICENSE)
+  [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3-blue)](LICENSE)
 </div>
 
 ---
@@ -138,11 +138,12 @@ Add to `.vscode/mcp.json`:
 
 ## License
 
-Copyright © 2026 Adria Sanchez. All rights reserved.
+Copyright © 2026 Adria Sanchez.
 
-Licensed under the **PolyForm Noncommercial License 1.0.0** with a Share-Alike
-addendum. You may use, modify, and distribute the software for non-commercial
-purposes. Forks must remain public and open-source. Commercial use requires
-explicit written permission from the author.
+Licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+You may use, modify, and distribute this software freely, including for
+commercial purposes, as long as you share your source code under the same
+license. SaaS/hosting providers must also share their source code (network
+clause).
 
 See [LICENSE](LICENSE) for full terms.
