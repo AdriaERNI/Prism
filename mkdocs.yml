@@ -47,8 +47,8 @@ theme:
   font:
     text: Inter
     code: JetBrains Mono
-  logo: assets/prism-logo.svg
-  favicon: assets/favicon.svg
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
 
 extra:
   social:
