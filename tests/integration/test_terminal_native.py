@@ -10,6 +10,7 @@ Exercises ``prism.iris.sdk.terminal`` directly against a live IRIS:
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 
 import pytest
@@ -84,7 +85,15 @@ class TestHelperAutoDeploy:
         assert doc is not None
 
     async def test_deploy_lock_prevents_duplicate_deploys(self, _probe_iris):
-        """Concurrent first-time calls must serialize through the asyncio.Lock."""
+        """Concurrent first-time calls must serialize through the asyncio Lock.
+
+        Skipped on CI — IRIS Community has a limited license that doesn't
+        allow 3 concurrent SuperServer connections.
+        """
+        if os.environ.get("CI") == "true":
+            pytest.skip(
+                "IRIS Community license limited — parallel native connections fail on CI"
+            )
         try:
             await delete_document(native_terminal.HELPER_DOC)
         except DocumentNotFound:
@@ -105,7 +114,15 @@ class TestHelperAutoDeploy:
 class TestParallelExecution:
     async def test_parallel_hangs_run_concurrently(self, _probe_iris):
         """Three 2-second sleeps via separate irisnative connections should
-        finish in ~2s (max), not ~6s (sum)."""
+        finish in ~2s (max), not ~6s (sum).
+
+        Skipped on CI — IRIS Community has a limited license that doesn't
+        allow 3 concurrent SuperServer connections.
+        """
+        if os.environ.get("CI") == "true":
+            pytest.skip(
+                "IRIS Community license limited — parallel native connections fail on CI"
+            )
         # Ensure the helper is already deployed so we're not measuring that.
         await native_terminal.execute_command('Write "warmup"')
 

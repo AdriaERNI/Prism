@@ -177,9 +177,9 @@ async def ensure_helper_deployed(namespace: str | None = None) -> None:
 def _run_command_sync(command: str, namespace: str | None = None) -> str:
     """Execute an ObjectScript command via the native IRIS API (blocking).
 
-    Retries once on ``<CLASS DOES NOT EXIST>`` — the helper class may have
-    been uploaded but not yet compiled when a parallel first-call races
-    ahead of ``ensure_helper_deployed``'s compile step.
+    Retries on transient errors: CLASS DOES NOT EXIST (compile race),
+    Unable to allocate a license (IRIS Community license limit),
+    COMMUNICATION LINK ERROR (SuperServer connection reset).
     """
     iris_mod = _load_iris()
 
@@ -195,9 +195,14 @@ def _run_command_sync(command: str, namespace: str | None = None) -> str:
             _log.debug("Execute returned %d chars", len(result) if result else 0)
             return result
         except RuntimeError as exc:
-            if attempt < 2 and "CLASS DOES NOT EXIST" in str(exc):
+            msg = str(exc)
+            if attempt < 2 and (
+                "CLASS DOES NOT EXIST" in msg
+                or "Unable to allocate a license" in msg
+                or "COMMUNICATION LINK ERROR" in msg
+            ):
                 _log.warning(
-                    "%s not compiled yet, retrying (attempt %d/3): %s",
+                    "%s.Execute() failed (attempt %d/3): %s",
                     HELPER_CLASS,
                     attempt + 2,
                     exc,
