@@ -3,7 +3,11 @@
   
   # Prism
   
-  **Prism lets AI see through IRIS.** MCP server for InterSystems IRIS development via the Atelier REST API.
+  **Prism lets AI see through IRIS.**
+  
+  MCP server and CLI for InterSystems IRIS development — SQL queries, document
+  management, compilation, debugging, testing, and ObjectScript execution via
+  the Atelier REST API.
   
   [![Documentation](https://img.shields.io/badge/docs-mkdocs-indigo)](https://adriaerni.github.io/Prism/)
   [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/downloads/)
@@ -12,85 +16,66 @@
 
 ---
 
-## Setup
+## Features
+
+- **SQL** — Run queries, DDL, stored procedures against any IRIS namespace
+- **Documents** — Upload, fetch, compile, and delete `.cls`, `.mac`, `.inc` files
+- **Terminal** — Execute ObjectScript via native (SuperServer) or WebSocket backend
+- **Debugging** — Interactive step-through debugger with breakpoints, variable inspection, and stack traces
+- **Testing** — Run `%UnitTest` test classes, list test methods, view historical results
+- **MCP Server** — Expose all tools to AI assistants (Claude Code, Claude Desktop, Cursor, GitHub Copilot)
+- **Cross-platform** — Windows installer, Linux/macOS via pip/uv
+
+## Quick Start
 
 ```bash
+# Install
 uv sync
-cp .env.example .env
+
+# Configure (or use environment variables)
+uv run prism config -u _SYSTEM -p SYS -U http://localhost:52773 -n USER
+
+# Run a SQL query
+uv run prism sql "SELECT TOP 5 Name FROM %Dictionary.ClassDefinition"
+
+# Start the MCP server
+uv run prism serve
 ```
 
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `IRIS_BASE_URL` | `http://localhost:52773` | IRIS instance URL |
-| `IRIS_USERNAME` | `_SYSTEM` | Authentication username |
-| `IRIS_PASSWORD` | `SYS` | Authentication password |
-| `IRIS_NAMESPACE` | `USER` | Default namespace for all operations |
-| `IRIS_WORKSPACE` | *(empty)* | Local directory for file I/O tools (`get_document`, `put_document`, `put_and_compile`). Disabled when empty |
-| `IRIS_COMPILE_FLAGS` | `cuk` | Compiler flags: `c`=compile, `u`=skip up-to-date, `k`=keep generated source |
-| `IRIS_API_PREFIX` | `api/atelier/v8` | Atelier REST API path prefix |
-
-## Run
+Need an IRIS instance? Start one with Docker:
 
 ```bash
-uv run python main.py
-# or
-python -m prism
+docker run -d --name iris -p 52773:52773 -p 1972:1972 intersystemsdc/iris-community:latest
 ```
 
-## Tools
+## CLI Commands
 
-| Tool | Description |
-|------|-------------|
-| `execute_sql` | Run SQL queries (SELECT, INSERT, UPDATE, DELETE, CALL) |
-| `execute_terminal` | Run ObjectScript commands via WebSocket terminal |
-| `list_documents` | List source code files in a namespace |
-| `get_document` | Read a document's content |
-| `put_document` | Create or update a document |
-| `delete_document` | Delete a document |
-| `compile_documents` | Compile source files |
-| `get_server_info` | Server version and namespaces |
+| Command | Description |
+|---------|-------------|
+| `prism sql` | Run an SQL query |
+| `prism terminal` | Run ObjectScript via native SuperServer |
+| `prism ws` | Run ObjectScript via WebSocket |
+| `prism put-doc` | Upload a file to IRIS |
+| `prism get-doc` | Fetch a document from IRIS |
+| `prism list-docs` | List source documents |
+| `prism delete-doc` | Delete a document |
+| `prism compile` | Compile documents |
+| `prism info` | Server version and namespaces |
+| `prism test` | Run unit test classes |
+| `prism list-tests` | Discover test classes |
+| `prism config` | View or edit settings |
+| `prism serve` | Start the MCP server |
 
-## Project Structure
+Global option: `prism --format toon` for TOON output (requires `pip install prism-mcp[toon]`).
 
-```
-src/prism/
-├── core/           # Shared infrastructure (config, HTTP, logging, preflight)
-├── api/            # Domain-specific HTTP calls (sql, documents, compile, server_info)
-├── tools/          # MCP tool wrappers with auto-discovery
-└── server.py       # FastMCP server with auto-registration
-```
+## MCP Tools
 
-Adding a new tool requires only one file in `tools/` using the `@logged_tool` decorator.
+10 tools are always available, 2 workspace-gated (`put_document`, `put_and_compile`),
+and 9 debug-gated (`debug_*`) — up to 21 total.
 
-## Tests
+See the [full tool reference](https://adriaerni.github.io/Prism/mcp/tools/) for details.
 
-```bash
-./scripts/test-unit.sh          # No IRIS needed
-./scripts/test-integration.sh   # Requires running IRIS
-./scripts/test-all.sh           # Everything
-```
-
-## Known Issues
-
-### Debug attach to PID not supported on Windows IRIS
-
-The `debug_attach` tool (attaching to an already-running IRIS process by PID) does not work on Windows IRIS. The IRIS XDebug agent drops the WebSocket connection when receiving the `feature_set debug_target PID:<pid>` command. This is a server-side limitation in the Windows build of IRIS's `%Atelier.v1.XDebugAgent` — the VS Code ObjectScript extension has the same behavior.
-
-All other debug tools (`debug_start`, `debug_step`, `debug_inspect`, `debug_variables`, `debug_stack`, `debug_breakpoints`, `debug_stop`) work correctly on Windows.
-
-**Workaround:** Use `debug_start` with breakpoints instead of attaching to a running process.
-
-## Changelog
-
-```bash
-./scripts/changelog.sh
-```
-
-Commits follow [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, etc.).
-
-## Client Configuration
+## MCP Client Configuration
 
 ### Claude Code
 
@@ -115,7 +100,7 @@ Add to `claude_desktop_config.json`:
   "mcpServers": {
     "iris": {
       "command": "uv",
-      "args": ["run", "--directory", "/path/to/prism-mcp", "python", "main.py"]
+      "args": ["run", "--directory", "/path/to/prism", "prism", "serve"]
     }
   }
 }
@@ -135,6 +120,65 @@ Add to `.vscode/mcp.json`:
   }
 }
 ```
+
+### Cursor
+
+Add to `.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "iris": {
+      "url": "http://localhost:3000/mcp"
+    }
+  }
+}
+```
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `IRIS_BASE_URL` | `http://localhost:52773` | IRIS instance URL |
+| `IRIS_USERNAME` | `_SYSTEM` | Authentication username |
+| `IRIS_PASSWORD` | `SYS` | Authentication password |
+| `IRIS_NAMESPACE` | `USER` | Default namespace |
+| `IRIS_WORKSPACE` | *(empty)* | Local directory for MCP file I/O tools |
+| `IRIS_COMPILE_FLAGS` | `cuk` | Compiler flags |
+| `IRIS_DEBUG_ENABLED` | `false` | Enable debug tools (`debug_*`) |
+| `IRIS_TERMINAL_METHOD` | `native` | Terminal backend: `native` or `ws` |
+
+See the [configuration guide](https://adriaerni.github.io/Prism/getting-started/configuration/) for all 21 settings.
+
+## Project Structure
+
+```
+src/prism/
+├── settings.py        # Pydantic settings (env, .env, config.json)
+├── iris/
+│   ├── sdk/            # HTTP client, workspace, debug protocols, terminal
+│   └── api/            # Thin IRIS REST API wrappers (sql, docs, compile, debug)
+├── mcp/               # MCP tools with @logged_tool decorator
+│   ├── _decorator.py   # Logging + auto-discovery
+│   ├── server.py       # FastMCP server
+│   └── *.py            # One module per tool domain
+└── cli/               # Typer CLI commands (async wrappers)
+```
+
+## Testing
+
+```bash
+uv run pytest tests/unit/ -v                    # No IRIS needed (249 tests)
+IRIS_BASE_URL=http://localhost:52773 \
+  uv run pytest tests/integration/ -v            # Needs IRIS (72 tests)
+uv run ruff check . && uv run ruff format --check .  # Lint
+```
+
+Full testing guide: [docs/testing.md](docs/testing.md)
+
+## Documentation
+
+Full documentation at **[adriaerni.github.io/Prism](https://adriaerni.github.io/Prism/)**
 
 ## License
 
