@@ -1,10 +1,16 @@
-# Prism
+<div align="center">
+  <img src="logo.svg" width="200" alt="Prism Logo" />
+  
+  # Prism
+  
+  **Prism lets AI see through IRIS.** MCP server for InterSystems IRIS development via the Atelier REST API.
+  
+  [![Documentation](https://img.shields.io/badge/docs-mkdocs-indigo)](https://adriaerni.github.io/Prism/)
+  [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/downloads/)
+  [![License: All Rights Reserved](https://img.shields.io/badge/license-all%20rights%20reserved-red)](LICENSE)
+</div>
 
-**Prism lets AI see through IRIS.** MCP server for InterSystems IRIS development via the Atelier REST API. Provides tools for SQL queries, document management, compilation, debugging, testing, and ObjectScript execution.
-
-[![Documentation](https://img.shields.io/badge/docs-mkdocs-indigo)](https://adriaerni.github.io/Prism/)
-[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/downloads/)
-[![License: All Rights Reserved](https://img.shields.io/badge/license-all%20rights%20reserved-red)](LICENSE)
+---
 
 ## License
 
