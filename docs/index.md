@@ -34,15 +34,16 @@ Prism ships a single executable that you can run in two modes:
     prism serve
     ```
 
-    The server listens on `http://localhost:3000/mcp` and exposes 21
-    tools covering the same operations, plus nine interactive-debugger
-    tools that have no CLI equivalent.
+    The server listens on `http://localhost:3000/mcp` and exposes 10
+    always-on tools covering the same operations, plus 2 workspace-gated
+    tools and 9 interactive-debugger tools that have no CLI equivalent.
 
 ## Install
 
 Download the latest `prism-<version>-setup.exe` and run it. The
 installer puts `prism.exe` into `C:\Program Files\prism\` and adds that
-folder to the system `PATH`. Full instructions are on the
+folder to the system `PATH`. For Linux development, use `uv` or `pip`.
+Full instructions are on the
 [Installation](getting-started/installation.md) page.
 
 ## What to read next
@@ -59,6 +60,16 @@ folder to the system `PATH`. Full instructions are on the
   Vagrant tests, read logs, and troubleshoot failures.
 - **[MCP Server](mcp/index.md)** — how to connect an IDE / AI client,
   the list of MCP tools, and the interactive debugger.
+
+## License
+
+Copyright © 2026 Adria Sanchez. All rights reserved.
+
+Commercial use requires explicit written permission. Forks must remain
+public. See [LICENSE](https://github.com/AdriaERNI/Prism/blob/main/LICENSE)
+for full terms.
+
+---
 
 ## Quick `prism --help`
 
