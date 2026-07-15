@@ -1,11 +1,25 @@
-# Changelog
 
-All notable changes to this project will be documented in this file.
+## [0.2.0-beta.2] - 2026-07-15
 
-The format is based on [Conventional Commits](https://www.conventionalcommits.org/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+
+### Bug Fixes
+
+- **ci:** Use . instead of dist for Inno Setup relative paths([f74562d](https://github.com/AdriaERNI/Prism/commit/f74562d8cbf1f502b6505cf75efe681a8be0ab01))
+
+- Simplify cliff.toml template to fix Tera parser error([67cfed2](https://github.com/AdriaERNI/Prism/commit/67cfed23906c2aedf91ff2ef1551991678861ad1))
+
+
+
+### Documentation
+
+- Add release notes for Inno Setup installer verification([d91461e](https://github.com/AdriaERNI/Prism/commit/d91461eabae983dfbf50483f7a09b18c57c86b10))
+
+
+
+## [0.2.0-beta.1] - 2026-07-15
+
+
 
 ### Bug Fixes
 
