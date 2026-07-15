@@ -184,8 +184,9 @@ def _run_command_sync(command: str, namespace: str | None = None) -> str:
     iris_mod = _load_iris()
 
     for attempt in range(3):
-        conn = _connect(namespace)
+        conn = None
         try:
+            conn = _connect(namespace)
             _log.debug("Creating IRIS object...")
             iris_obj = iris_mod.createIRIS(conn)
             _log.debug(
@@ -207,14 +208,16 @@ def _run_command_sync(command: str, namespace: str | None = None) -> str:
                     attempt + 2,
                     exc,
                 )
-                conn.close()
+                if conn is not None:
+                    conn.close()
                 import time as _time
 
                 _time.sleep(2)
                 continue
             raise
         finally:
-            conn.close()
+            if conn is not None:
+                conn.close()
     raise RuntimeError(f"Failed to execute command after 3 attempts: {command}")
 
 
