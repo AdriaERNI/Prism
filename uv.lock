@@ -1015,6 +1015,7 @@ dependencies = [
     { name = "platformdirs" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "typer" },
     { name = "websockets" },
 ]
 
@@ -1043,6 +1044,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "toons", marker = "extra == 'toon'", specifier = ">=0.5" },
+    { name = "typer", specifier = ">=0.12" },
     { name = "websockets", specifier = ">=13.0" },
 ]
 provides-extras = ["toon"]
