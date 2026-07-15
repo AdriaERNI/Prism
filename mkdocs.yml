@@ -108,3 +108,4 @@ nav:
     - Client setup: mcp/client-setup.md
     - Tool reference: mcp/tools.md
     - Interactive debugger: mcp/debugging.md
+  - Changelog: changelog.md
