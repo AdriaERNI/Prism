@@ -12,16 +12,6 @@
 
 ---
 
-## License
-
-Copyright © 2026 Adria Sanchez. All rights reserved.
-
-This software is the exclusive property of Adria Sanchez. You may use it
-for personal, educational, and non-commercial purposes only. Forks must
-remain public. Commercial use requires explicit written permission.
-
-See [LICENSE](LICENSE) for full terms.
-
 ## Setup
 
 ```bash
@@ -145,3 +135,13 @@ Add to `.vscode/mcp.json`:
   }
 }
 ```
+
+## License
+
+Copyright © 2026 Adria Sanchez. All rights reserved.
+
+This software is the exclusive property of Adria Sanchez. You may use it
+for personal, educational, and non-commercial purposes only. Forks must
+remain public. Commercial use requires explicit written permission.
+
+See [LICENSE](LICENSE) for full terms.
