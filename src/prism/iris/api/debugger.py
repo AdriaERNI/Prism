@@ -141,7 +141,7 @@ async def list_processes(system: bool = False) -> list[dict]:
     """
     c = client()
     params = {"system": "1" if system else "0"}
-    r = await c.get(f"{api_url('%25SYS')}/jobs", params=params)
+    r = await c.get(f"{api_url('%SYS')}/jobs", params=params)
     r.raise_for_status()
     data = parse_json(r)
 

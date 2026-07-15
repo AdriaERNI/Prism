@@ -6,7 +6,7 @@ Responses arrive as ``length|base64(xml)`` framed messages.
 
 References:
 - DBGP spec: https://xdebug.org/docs/dbgp
-- IRIS endpoint: /api/atelier/{version}/%25SYS/debug
+- IRIS endpoint: /api/atelier/{version}/%SYS/debug
 """
 
 from __future__ import annotations
@@ -55,6 +55,7 @@ class DbgpConnection:
     async def connect(cls, namespace: str | None = None) -> DbgpConnection:
         """Open a WebSocket to the IRIS DBGP debug endpoint and read the init packet."""
         ns = namespace or "%SYS"
+        # websockets does NOT URL-encode the path, so we must pre-encode %
         encoded_ns = ns.replace("%", "%25")
 
         base = settings.iris_base_url.rstrip("/")
