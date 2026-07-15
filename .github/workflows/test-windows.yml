@@ -8,7 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  unit:
+    name: Unit Tests
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -27,25 +28,47 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Install PyInstaller and Inno Setup
-        run: |
-          uv pip install pyinstaller
-          choco install innosetup -y
+      - name: Run unit tests
+        run: uv run pytest tests/unit/ -v --tb=short
 
-      - name: Build Windows exe
-        run: uv run pyinstaller --onefile --name prism src/prism/cli/app.py
+  integration:
+    name: Integration Tests
+    runs-on: windows-latest
+    needs: unit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
 
       - name: Start IRIS via Docker
         run: |
-          docker run -d --name iris -p 52773:52773 intersystemsdc/iris-community:latest
+          docker run -d --name iris `
+            -p 52773:52773 `
+            -p 1972:1972 `
+            -e IRIS_USERNAME=_SYSTEM `
+            -e IRIS_PASSWORD=SYS `
+            intersystemsdc/iris-community:latest
           docker ps
 
       - name: Wait for IRIS
+        shell: pwsh
         run: |
           $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("_SYSTEM:SYS"))
           for ($i = 1; $i -le 60; $i++) {
             try {
-              $code = (Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/USER -UseBasicParsing -TimeoutSec 5 -Headers @{Authorization="Basic $auth"} -SkipHttpErrorCheck).StatusCode
+              $code = (Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/ -UseBasicParsing -TimeoutSec 5 -Headers @{Authorization="Basic $auth"} -SkipHttpErrorCheck).StatusCode
               if ($code -eq 200) {
                 Write-Host "IRIS is ready"
                 exit 0
@@ -59,16 +82,9 @@ jobs:
           Write-Error "IRIS did not start in time"
           exit 1
 
-      - name: Run unit tests
-        env:
-          IRIS_BASE_URL: http://localhost:52773
-          IRIS_USERNAME: _SYSTEM
-          IRIS_PASSWORD: SYS
-        run: uv run pytest tests/unit/ -v --tb=short
-
       - name: Run integration tests
         env:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
-        run: uv run pytest tests/integration/ -v --tb=short
+        run: uv run pytest tests/integration/ -v --tb=short --continue-on-collection-errors

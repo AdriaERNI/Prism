@@ -46,14 +46,16 @@ jobs:
         image: intersystemsdc/iris-community:latest
         ports:
           - 52773:52773
+          - 1972:1972
         env:
+          IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
         options: >-
-          --health-cmd "iris session IRIS -U %SYS '##class(%SYSTEM.Process).GetOS()' || exit 1"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-          --health-start-period 30s
+          --health-cmd "curl -sf -u _SYSTEM:SYS http://localhost:52773/api/atelier/v8/ -o /dev/null || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 30
+          --health-start-period 60s
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -74,27 +76,12 @@ jobs:
       - name: Run unit tests
         run: uv run pytest tests/unit/ -v --tb=short
 
-      - name: Wait for IRIS
-        run: |
-          AUTH=$(echo -n "_SYSTEM:SYS" | base64)
-          for i in {1..60}; do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Basic $AUTH" http://localhost:52773/api/atelier/v8/USER)
-            if [ "$CODE" = "200" ]; then
-              echo "IRIS is ready"
-              exit 0
-            fi
-            echo "Waiting for IRIS... ($i/60) (HTTP $CODE)"
-            sleep 5
-          done
-          echo "IRIS did not start in time"
-          exit 1
-
       - name: Run integration tests
         env:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
-        run: uv run pytest tests/integration/ -v --tb=short
+        run: uv run pytest tests/integration/ -v --tb=short --continue-on-collection-errors
 
   test-windows:
     name: Test Windows
@@ -122,15 +109,20 @@ jobs:
 
       - name: Start IRIS via Docker
         run: |
-          docker run -d --name iris -p 52773:52773 -e IRIS_PASSWORD=SYS intersystemsdc/iris-community:latest
-          docker ps
+          docker run -d --name iris `
+            -p 52773:52773 `
+            -p 1972:1972 `
+            -e IRIS_USERNAME=_SYSTEM `
+            -e IRIS_PASSWORD=SYS `
+            intersystemsdc/iris-community:latest
 
       - name: Wait for IRIS
+        shell: pwsh
         run: |
           $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("_SYSTEM:SYS"))
           for ($i = 1; $i -le 60; $i++) {
             try {
-              $code = (Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/USER -UseBasicParsing -TimeoutSec 5 -Headers @{Authorization="Basic $auth"} -SkipHttpErrorCheck).StatusCode
+              $code = (Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/ -UseBasicParsing -TimeoutSec 5 -Headers @{Authorization="Basic $auth"} -SkipHttpErrorCheck).StatusCode
               if ($code -eq 200) {
                 Write-Host "IRIS is ready"
                 exit 0
@@ -149,7 +141,7 @@ jobs:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
-        run: uv run pytest tests/integration/ -v --tb=short
+        run: uv run pytest tests/integration/ -v --tb=short --continue-on-collection-errors
 
   build:
     name: Build Release Artifacts

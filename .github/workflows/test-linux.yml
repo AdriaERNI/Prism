@@ -8,6 +8,32 @@ on:
   workflow_dispatch:
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Ruff check
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
   unit:
     name: Unit Tests
     runs-on: ubuntu-latest
@@ -40,14 +66,16 @@ jobs:
         image: intersystemsdc/iris-community:latest
         ports:
           - 52773:52773
+          - 1972:1972
         env:
+          IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
         options: >-
-          --health-cmd "iris session IRIS -U %SYS '##class(%SYSTEM.Process).GetOS()' || exit 1"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-          --health-start-period 30s
+          --health-cmd "curl -sf -u _SYSTEM:SYS http://localhost:52773/api/atelier/v8/ -o /dev/null || exit 1"
+          --health-interval 10s
+          --health-timeout 10s
+          --health-retries 30
+          --health-start-period 60s
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,24 +93,9 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
-      - name: Wait for IRIS
-        run: |
-          AUTH=$(echo -n "_SYSTEM:SYS" | base64)
-          for i in {1..60}; do
-            CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Basic $AUTH" http://localhost:52773/api/atelier/v8/USER)
-            if [ "$CODE" = "200" ]; then
-              echo "IRIS is ready"
-              exit 0
-            fi
-            echo "Waiting for IRIS... ($i/60) (HTTP $CODE)"
-            sleep 5
-          done
-          echo "IRIS did not start in time"
-          exit 1
-
       - name: Run integration tests
         env:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
-        run: uv run pytest tests/integration/ -v --tb=short
+        run: uv run pytest tests/integration/ -v --tb=short --continue-on-collection-errors
