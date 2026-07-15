@@ -3,8 +3,6 @@ name: GitHub Pages
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -35,13 +33,11 @@ jobs:
 
       - name: Install MkDocs and Material theme
         run: |
-          uv pip install mkdocs-material
-          uv pip install mkdocs-material[imaging]
-          uv pip install pymdown-extensions
-          uv pip install mkdocs-glightbox
+          uv venv
+          uv pip install --system mkdocs-material pymdown-extensions mkdocs-glightbox
 
       - name: Build documentation
-        run: mkdocs build
+        run: mkdocs build --strict
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

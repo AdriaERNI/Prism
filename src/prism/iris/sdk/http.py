@@ -9,7 +9,8 @@ from prism.settings import settings
 
 def api_url(namespace: str | None = None) -> str:
     ns = namespace or settings.iris_namespace
-    # Encode '%' as '%25' for namespaces like %SYS in the URL path
+    # IRIS Atelier API expects %25SYS on the wire (URL-encoded %).
+    # httpx passes % through as-is (does NOT re-encode), so we must pre-encode.
     ns_encoded = ns.replace("%", "%25")
     return f"{settings.iris_base_url}/{settings.iris_api_prefix}/{ns_encoded}"
 

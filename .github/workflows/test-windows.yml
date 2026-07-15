@@ -1,0 +1,75 @@
+name: Test Windows
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run unit tests
+        run: uv run pytest tests/unit/ -v --tb=short
+
+  build:
+    name: Build Windows Executable
+    runs-on: windows-latest
+    needs: unit
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Install PyInstaller
+        run: uv pip install pyinstaller
+
+      - name: Build exe
+        run: uv run pyinstaller --onefile --name prism src/prism/cli/app.py
+
+      - name: Verify build
+        run: |
+          if (Test-Path dist\prism.exe) {
+            Write-Host "prism.exe built successfully"
+            (Get-Item dist\prism.exe).Length
+          } else {
+            Write-Error "prism.exe not found"
+            exit 1
+          }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: prism-windows-exe
+          path: dist/prism.exe

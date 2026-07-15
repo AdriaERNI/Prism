@@ -175,19 +175,47 @@ async def ensure_helper_deployed(namespace: str | None = None) -> None:
 
 
 def _run_command_sync(command: str, namespace: str | None = None) -> str:
-    """Execute an ObjectScript command via the native IRIS API (blocking)."""
+    """Execute an ObjectScript command via the native IRIS API (blocking).
+
+    Retries on transient errors: CLASS DOES NOT EXIST (compile race),
+    Unable to allocate a license (IRIS Community license limit),
+    COMMUNICATION LINK ERROR (SuperServer connection reset).
+    """
     iris_mod = _load_iris()
 
-    conn = _connect(namespace)
-    try:
-        _log.debug("Creating IRIS object...")
-        iris_obj = iris_mod.createIRIS(conn)
-        _log.debug("Calling %s.Execute()...", HELPER_CLASS)
-        result = iris_obj.classMethodString(HELPER_CLASS, "Execute", command)
-        _log.debug("Execute returned %d chars", len(result) if result else 0)
-        return result
-    finally:
-        conn.close()
+    for attempt in range(3):
+        conn = _connect(namespace)
+        try:
+            _log.debug("Creating IRIS object...")
+            iris_obj = iris_mod.createIRIS(conn)
+            _log.debug(
+                "Calling %s.Execute()... (attempt %d)", HELPER_CLASS, attempt + 1
+            )
+            result = iris_obj.classMethodString(HELPER_CLASS, "Execute", command)
+            _log.debug("Execute returned %d chars", len(result) if result else 0)
+            return result
+        except RuntimeError as exc:
+            msg = str(exc)
+            if attempt < 2 and (
+                "CLASS DOES NOT EXIST" in msg
+                or "Unable to allocate a license" in msg
+                or "COMMUNICATION LINK ERROR" in msg
+            ):
+                _log.warning(
+                    "%s.Execute() failed (attempt %d/3): %s",
+                    HELPER_CLASS,
+                    attempt + 2,
+                    exc,
+                )
+                conn.close()
+                import time as _time
+
+                _time.sleep(2)
+                continue
+            raise
+        finally:
+            conn.close()
+    raise RuntimeError(f"Failed to execute command after 3 attempts: {command}")
 
 
 async def execute_command(
