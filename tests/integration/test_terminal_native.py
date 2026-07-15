@@ -22,9 +22,9 @@ from prism.settings import settings
 @pytest.fixture(autouse=True)
 def _reset_deploy_flag():
     """Force ``ensure_helper_deployed`` to re-check IRIS on each test."""
-    native_terminal._helper_deployed = False
+    native_terminal._deployed_namespaces.clear()
     yield
-    native_terminal._helper_deployed = False
+    native_terminal._deployed_namespaces.clear()
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ class TestHelperAutoDeploy:
         except DocumentNotFound:
             pass
 
-        native_terminal._helper_deployed = False
+        native_terminal._deployed_namespaces.clear()
 
         await native_terminal.execute_command('Write "redeployed"')
 
@@ -90,7 +90,7 @@ class TestHelperAutoDeploy:
         except DocumentNotFound:
             pass
 
-        native_terminal._helper_deployed = False
+        native_terminal._deployed_namespaces.clear()
 
         results = await asyncio.gather(
             native_terminal.execute_command('Write "a"'),
