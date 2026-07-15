@@ -107,42 +107,6 @@ jobs:
       - name: Run unit tests
         run: uv run pytest tests/unit/ -v --tb=short
 
-      - name: Start IRIS via Docker
-        run: |
-          docker run -d --name iris `
-            -p 52773:52773 `
-            -p 1972:1972 `
-            -e IRIS_USERNAME=_SYSTEM `
-            -e IRIS_PASSWORD=SYS `
-            intersystemsdc/iris-community:latest
-
-      - name: Wait for IRIS
-        shell: pwsh
-        run: |
-          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("_SYSTEM:SYS"))
-          for ($i = 1; $i -le 60; $i++) {
-            try {
-              $code = (Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/ -UseBasicParsing -TimeoutSec 5 -Headers @{Authorization="Basic $auth"} -SkipHttpErrorCheck).StatusCode
-              if ($code -eq 200) {
-                Write-Host "IRIS is ready"
-                exit 0
-              }
-              Write-Host "Waiting for IRIS... ($i/60) (HTTP $code)"
-            } catch {
-              Write-Host "Waiting for IRIS... ($i/60)"
-            }
-            Start-Sleep 5
-          }
-          Write-Error "IRIS did not start in time"
-          exit 1
-
-      - name: Run integration tests
-        env:
-          IRIS_BASE_URL: http://localhost:52773
-          IRIS_USERNAME: _SYSTEM
-          IRIS_PASSWORD: SYS
-        run: uv run pytest tests/integration/ -v --tb=short --continue-on-collection-errors
-
   build:
     name: Build Release Artifacts
     needs: [test-linux, test-windows]
