@@ -2,6 +2,7 @@ name: Changelog
 
 on:
   push:
+    branches: [development]
     tags:
       - 'v*'
   workflow_dispatch:
@@ -40,14 +41,22 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(release): update changelog for ${{ github.ref_name }}"
-          title: "chore: update changelog for ${{ github.ref_name }}"
-          body: "Auto-generated changelog update from git-cliff."
-          branch: chore/changelog-${{ github.ref_name }}
+          commit-message: "chore: update changelog"
+          title: "chore: update changelog"
+          body: |
+            Auto-generated changelog update from git-cliff.
+
+            This PR keeps `CHANGELOG.md` and `docs/changelog.md` in sync with
+            the latest conventional commits. Merging this PR will update the
+            MkDocs site on the next deploy.
+          branch: chore/changelog
           base: development
           add-paths: |
             CHANGELOG.md
             docs/changelog.md
+          labels: |
+            dependencies
+            automated
 
       - name: Upload changelog artifact
         uses: actions/upload-artifact@v4

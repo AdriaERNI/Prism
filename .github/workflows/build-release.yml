@@ -146,6 +146,45 @@ jobs:
           uv pip install pyinstaller
           uv run pyinstaller --onefile --name prism src/prism/cli/app.py
 
+      - name: Build Inno Setup installer (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          # Read version from pyproject.toml
+          $pyproject = Get-Content pyproject.toml -Raw
+          $version = "0.0.0"
+          if ($pyproject -match 'version\s*=\s*"([^"]+)"') {
+            $version = $matches[1]
+          }
+          Write-Host "Building installer for version $version"
+          # Rename exe to versioned name (matches .iss Source path)
+          Copy-Item dist/prism.exe "dist/prism-$version.exe"
+          # Create a CI-compatible .iss that uses relative paths
+          $issContent = Get-Content vagrant/prism.iss -Raw
+          $issContent = $issContent -replace 'C:\\vagrant\\dist', 'dist'
+          Set-Content dist/prism.iss $issContent
+          # Find ISCC.exe
+          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $iscc) {
+            $iscc = Get-ChildItem "C:\Program Files (x86)\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          }
+          if (-not $iscc) {
+            Write-Error "Inno Setup compiler (ISCC.exe) not found"
+            exit 1
+          }
+          Write-Host "Using ISCC: $($iscc.FullName)"
+          & $iscc.FullName "/DAppVer=$version" "dist/prism.iss"
+          # Verify installer was created
+          $installer = "dist/prism-$version-setup.exe"
+          if (Test-Path $installer) {
+            $size = [math]::Round((Get-Item $installer).Length / 1MB, 1)
+            Write-Host "Installer created: $installer ($size MB)"
+          } else {
+            Write-Error "Installer not found at $installer"
+            exit 1
+          }
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -153,6 +192,7 @@ jobs:
           path: |
             dist/*.whl
             dist/prism.exe
+            dist/prism-*-setup.exe
 
   release:
     name: Create GitHub Release
