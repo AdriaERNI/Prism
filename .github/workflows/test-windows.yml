@@ -42,16 +42,19 @@ jobs:
 
       - name: Wait for IRIS
         run: |
-          for ($i = 1; $i -le 30; $i++) {
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("_SYSTEM:SYS"))
+          for ($i = 1; $i -le 60; $i++) {
             try {
-              $response = Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/ -UseBasicParsing -TimeoutSec 2
-              if ($response.StatusCode -eq 200) {
+              $code = (Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/USER -UseBasicParsing -TimeoutSec 5 -Headers @{Authorization="Basic $auth"} -SkipHttpErrorCheck).StatusCode
+              if ($code -eq 200) {
                 Write-Host "IRIS is ready"
                 exit 0
               }
-            } catch {}
-            Write-Host "Waiting for IRIS... ($i/30)"
-            Start-Sleep 2
+              Write-Host "Waiting for IRIS... ($i/60) (HTTP $code)"
+            } catch {
+              Write-Host "Waiting for IRIS... ($i/60)"
+            }
+            Start-Sleep 5
           }
           Write-Error "IRIS did not start in time"
           exit 1

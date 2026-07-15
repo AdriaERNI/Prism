@@ -41,6 +41,19 @@ jobs:
     name: Test Linux
     needs: lint
     runs-on: ubuntu-latest
+    services:
+      iris:
+        image: intersystemsdc/iris-community:latest
+        ports:
+          - 52773:52773
+        env:
+          IRIS_PASSWORD: SYS
+        options: >-
+          --health-cmd "iris session IRIS -U %SYS '##class(%SYSTEM.Process).GetOS()' || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 30s
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,20 +74,22 @@ jobs:
       - name: Run unit tests
         run: uv run pytest tests/unit/ -v --tb=short
 
+      - name: Wait for IRIS
+        run: |
+          AUTH=$(echo -n "_SYSTEM:SYS" | base64)
+          for i in {1..60}; do
+            CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Basic $AUTH" http://localhost:52773/api/atelier/v8/USER)
+            if [ "$CODE" = "200" ]; then
+              echo "IRIS is ready"
+              exit 0
+            fi
+            echo "Waiting for IRIS... ($i/60) (HTTP $CODE)"
+            sleep 5
+          done
+          echo "IRIS did not start in time"
+          exit 1
+
       - name: Run integration tests
-        services:
-          iris:
-            image: intersystemsdc/iris-community:latest
-            ports:
-              - 52773:52773
-            env:
-              IRIS_PASSWORD: SYS
-            options: >-
-              --health-cmd "iris session IRIS -U %SYS '##class(%SYSTEM.Process).GetOS()' || exit 1"
-              --health-interval 5s
-              --health-timeout 5s
-              --health-retries 20
-              --health-start-period 30s
         env:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
@@ -105,20 +120,31 @@ jobs:
       - name: Run unit tests
         run: uv run pytest tests/unit/ -v --tb=short
 
+      - name: Start IRIS via Docker
+        run: |
+          docker run -d --name iris -p 52773:52773 -e IRIS_PASSWORD=SYS intersystemsdc/iris-community:latest
+          docker ps
+
+      - name: Wait for IRIS
+        run: |
+          $auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("_SYSTEM:SYS"))
+          for ($i = 1; $i -le 60; $i++) {
+            try {
+              $code = (Invoke-WebRequest -Uri http://localhost:52773/api/atelier/v8/USER -UseBasicParsing -TimeoutSec 5 -Headers @{Authorization="Basic $auth"} -SkipHttpErrorCheck).StatusCode
+              if ($code -eq 200) {
+                Write-Host "IRIS is ready"
+                exit 0
+              }
+              Write-Host "Waiting for IRIS... ($i/60) (HTTP $code)"
+            } catch {
+              Write-Host "Waiting for IRIS... ($i/60)"
+            }
+            Start-Sleep 5
+          }
+          Write-Error "IRIS did not start in time"
+          exit 1
+
       - name: Run integration tests
-        services:
-          iris:
-            image: intersystemsdc/iris-community:latest
-            ports:
-              - 52773:52773
-            env:
-              IRIS_PASSWORD: SYS
-            options: >-
-              --health-cmd "iris session IRIS -U %SYS '##class(%SYSTEM.Process).GetOS()' || exit 1"
-              --health-interval 5s
-              --health-timeout 5s
-              --health-retries 20
-              --health-start-period 30s
         env:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
