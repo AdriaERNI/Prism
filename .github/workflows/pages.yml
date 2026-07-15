@@ -35,10 +35,8 @@ jobs:
 
       - name: Install MkDocs and Material theme
         run: |
-          uv pip install mkdocs-material
-          uv pip install mkdocs-material[imaging]
-          uv pip install pymdown-extensions
-          uv pip install mkdocs-glightbox
+          uv venv
+          uv pip install --system mkdocs-material mkdocs-material[imaging] pymdown-extensions mkdocs-glightbox
 
       - name: Build documentation
         run: mkdocs build
