@@ -89,7 +89,7 @@ You need a running IRIS server. Options:
 
     ```bash
     docker run --name my-iris -d --publish 1972:1972 --publish 52773:52773 \
-      intersystems/iris-community:latest-cd
+      intersystemsdc/iris-community:latest
     ```
 
     IRIS will be at `http://localhost:52773` with credentials `_SYSTEM / SYS`.
@@ -369,16 +369,19 @@ vagrant winrm --shell powershell -e --command \
 
 ## CI
 
-GitHub Actions runs lint and unit tests on every push and pull request to
-`main` and `development` branches. See `.github/workflows/ci.yml`.
+GitHub Actions runs on every push and pull request to `main` and
+`development` branches. The CI pipelines are:
 
-The CI pipeline runs:
+| Workflow | File | What it runs |
+|----------|------|--------------|
+| **Test Linux** | `.github/workflows/test-linux.yml` | Lint (`ruff check` + `ruff format --check`), Unit tests, Integration tests (Docker IRIS) |
+| **Test Windows** | `.github/workflows/test-windows.yml` | Unit tests, PyInstaller build verification |
+| **Build and Release** | `.github/workflows/build-release.yml` | Full pipeline: Lint → Test Linux/Windows → Build wheel + exe → GitHub Release (triggered by `v*` tags) |
+| **GitHub Pages** | `.github/workflows/pages.yml` | MkDocs build + deploy to GitHub Pages (on push to `main`) |
 
-1. **Lint** — `ruff check` + `ruff format --check`
-2. **Unit tests** — `pytest tests/unit/` (no IRIS needed)
-
-Integration and Vagrant tests are not in CI (they require a live IRIS
-instance / Windows VM). Run them manually before merging.
+The Linux integration tests run against an `intersystemsdc/iris-community:latest`
+Docker container with both port 52773 (Atelier REST API) and port 1972
+(SuperServer for native terminal) exposed.
 
 ---
 

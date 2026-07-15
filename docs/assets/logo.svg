@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <!-- ERNI shield gradient (left face - darker) -->
+    <linearGradient id="shieldLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00122C"/>
+      <stop offset="100%" stop-color="#033778"/>
+    </linearGradient>
+    <!-- ERNI shield gradient (right face - lighter) -->
+    <linearGradient id="shieldRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#033778"/>
+      <stop offset="100%" stop-color="#2864C7"/>
+    </linearGradient>
+
+    <!-- Incoming beam: white fading in from left -->
+    <linearGradient id="inBeam" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="60%" stop-color="#ffffff" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.95"/>
+    </linearGradient>
+
+    <!-- Spectrum beam gradients — vivid colors fading out to transparent -->
+    <linearGradient id="specRed" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF3355" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#FF3355" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#FF3355" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="specOrange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF8C22" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#FF8C22" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#FF8C22" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="specYellow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFDD00" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#FFDD00" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#FFDD00" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="specGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00CC66" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#00CC66" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#00CC66" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="specCyan" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00BEF4" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#00BEF4" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#00BEF4" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="specBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4488FF" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#4488FF" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#4488FF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="specViolet" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9955FF" stop-opacity="0.95"/>
+      <stop offset="80%" stop-color="#9955FF" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#9955FF" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Glow filters -->
+    <filter id="beamGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="shieldShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="8" flood-color="#00122C" flood-opacity="0.5"/>
+    </filter>
+
+    <!-- Refraction point glow -->
+    <radialGradient id="hitGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="exitGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00BEF4" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#00BEF4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- === INCOMING WHITE LIGHT BEAM === -->
+  <g filter="url(#softGlow)">
+    <polygon points="10,188 10,198 148,200 148,186" fill="url(#inBeam)"/>
+  </g>
+
+  <!-- Refraction glow where beam hits the shield -->
+  <circle cx="148" cy="193" r="12" fill="url(#hitGlow)"/>
+
+  <!-- === REFRACTED SPECTRUM BEAMS (7 colors, fanning out) === -->
+  <g filter="url(#beamGlow)">
+    <!-- Violet (top, bends most) -->
+    <polygon points="262,148 262,152 395,68  395,63"  fill="url(#specViolet)"/>
+    <!-- Blue -->
+    <polygon points="262,158 262,162 395,102 395,97"  fill="url(#specBlue)"/>
+    <!-- Cyan (ERNI accent) -->
+    <polygon points="262,168 262,173 395,140 395,134" fill="url(#specCyan)"/>
+    <!-- Green -->
+    <polygon points="262,180 262,185 395,182 395,176" fill="url(#specGreen)"/>
+    <!-- Yellow -->
+    <polygon points="262,192 262,197 395,226 395,220" fill="url(#specYellow)"/>
+    <!-- Orange -->
+    <polygon points="262,203 262,208 395,272 395,266" fill="url(#specOrange)"/>
+    <!-- Red (bottom, bends least) -->
+    <polygon points="262,214 262,219 395,320 395,314" fill="url(#specRed)"/>
+  </g>
+
+  <!-- Exit glow where spectrum leaves the shield -->
+  <circle cx="262" cy="183" r="14" fill="url(#exitGlow)"/>
+
+  <!-- === ERNI SHIELD PRISM === -->
+  <g filter="url(#shieldShadow)">
+    <!-- Shield shape — left half (darker face) -->
+    <path d="
+      M 200,85
+      L 135,85
+      C 128,85 122,90 122,97
+      C 118,170 135,240 200,305
+      L 200,85 Z
+    " fill="url(#shieldLeft)"/>
+
+    <!-- Shield shape — right half (lighter face) -->
+    <path d="
+      M 200,85
+      L 265,85
+      C 272,85 278,90 278,97
+      C 282,170 265,240 200,305
+      L 200,85 Z
+    " fill="url(#shieldRight)"/>
+
+    <!-- Shield outline for crisp edges -->
+    <path d="
+      M 135,85
+      L 265,85
+      C 272,85 278,90 278,97
+      C 282,170 265,240 200,305
+      C 135,240 118,170 122,97
+      C 122,90 128,85 135,85 Z
+    " fill="none" stroke="#2864C7" stroke-width="1.2" opacity="0.5"/>
+
+    <!-- Center divide line (3D depth) -->
+    <line x1="200" y1="85" x2="200" y2="305" stroke="#2864C7" stroke-width="0.6" opacity="0.25"/>
+
+    <!-- Top edge highlight -->
+    <line x1="140" y1="86" x2="260" y2="86" stroke="#00BEF4" stroke-width="0.8" opacity="0.3"/>
+  </g>
+</svg>
