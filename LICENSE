@@ -1,40 +1,183 @@
-Prism MCP Server - Copyright (c) 2026 Adria Sanchez
+Prism License (PolyForm Noncommercial 1.0.0 + Share-Alike Addendum)
 
-All rights reserved. This software and its associated documentation files
-(the "Software") are the exclusive property of Adria Sanchez.
+Copyright (c) 2026 Adria Sanchez. All rights reserved.
 
-This software is licensed under a custom license with the following terms:
+---
 
-1. **Ownership**: All rights, title, and interest in the Software remain
-   with Adria Sanchez. No ownership rights are transferred to any user.
+## Required Notice
 
-2. **Permitted Use**: You may use, copy, and modify the Software for personal,
-   educational, and non-commercial purposes only.
+Required Notice: Copyright Adria Sanchez (https://github.com/AdriaERNI)
 
-3. **Forking**: If you fork this repository, the fork must remain public and
-   open-source. You may not make a fork private under any circumstances.
+---
 
-4. **Commercial Use Prohibited**: You may not use the Software for any
-   commercial or lucrative purpose without the explicit written permission
-   of Adria Sanchez. This includes, but is not limited to, selling the
-   Software, incorporating it into a commercial product, or offering it as
-   a paid service.
+## License Terms
 
-5. **Distribution**: You may distribute the Software only if:
-   - The distribution is free of charge
-   - This license is included verbatim
-   - The recipient is informed that commercial use requires explicit permission
+This software is licensed under the PolyForm Noncommercial License, Version
+1.0.0, with the additional share-alike requirement set out in the
+"Distribution and Derivative Works Condition" section below.
 
-6. **Warranty Disclaimer**: THE SOFTWARE IS PROVIDED "AS IS", WITHOUT
-   WARRANTY OF ANY KIND, EXPRESS OR IMPLIED. INCLUDING BUT NOT LIMITED TO
-   THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND
-   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM,
-   DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
-   OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR
-   THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+### 1. Acceptance
 
-7. **Violation**: Any use of the Software not explicitly permitted by this
-   license constitutes a violation of the author's intellectual property
-   rights and may result in legal action.
+In order to get any license under these terms, you must agree to them as both
+strict obligations and conditions to all your licenses.
 
-For permission requests, contact: adria.sanchez@betterask.erni
+### 2. Copyright License
+
+The licensor grants you a copyright license for the software to do everything
+you might do with the software that would otherwise infringe the licensor's
+copyright in it for any permitted purpose. However, you may only distribute
+the software according to [Distribution License](#5-distribution-license) and
+make changes or new works based on the software according to
+[Changes and New Works License](#6-changes-and-new-works-license).
+
+### 3. Patent License
+
+The licensor grants you a patent license for the software that covers patent
+claims the licensor can license, or becomes able to license, that you would
+infringe by using the software.
+
+### 4. Noncommercial Purposes
+
+Any noncommercial purpose is a permitted purpose.
+
+### 4.1 Personal Uses
+
+Personal use for research, experiment, and testing for the benefit of public
+knowledge, personal study, private entertainment, hobby projects, amateur
+pursuits, or religious observance, without any anticipated commercial
+application, is use for a permitted purpose.
+
+### 4.2 Noncommercial Organizations
+
+Use by any charitable organization, educational institution, public research
+organization, public safety or health organization, environmental protection
+organization, or government institution is use for a permitted purpose
+regardless of the source of funding or obligations resulting from the funding.
+
+### 4.3 Commercial Use Prohibited Without Written Permission
+
+Any commercial or lucrative use of the Software — including, without
+limitation, selling, licensing, hosting for a fee, embedding in a commercial
+product or service, or using the Software to provide paid services — is **not**
+a permitted purpose and requires the prior express written permission of
+Adria Sanchez, the licensor.
+
+### 5. Distribution License
+
+The licensor grants you an additional copyright license to distribute copies
+of the software, subject to the Distribution and Derivative Works Condition
+(Section 8) and the Notices requirement (Section 7).
+
+### 6. Changes and New Works License
+
+The licensor grants you an additional copyright license to make changes and
+new works based on the software for any permitted purpose, subject to the
+Distribution and Derivative Works Condition (Section 8).
+
+### 7. Notices
+
+You must ensure that anyone who gets a copy of any part of the software from
+you also gets a copy of these terms or the URL for them above, as well as
+copies of any plain-text lines beginning with `Required Notice:` that the
+licensor provided with the software.
+
+### 8. Distribution and Derivative Works Condition (Share-Alike / No Private Forks)
+
+This section is an additional condition on the licenses granted in Sections 5
+and 6.
+
+8.1 **Same License Required.** If you distribute the Software, or any modified
+version or derivative work of the Software, you must license the entire
+distribution under these same terms (the PolyForm Noncommercial License 1.0.0
+plus this Share-Alike Addendum). You may not impose further restrictions on the
+recipients' exercise of the rights granted under these terms.
+
+8.2 **Source Code Required.** If you distribute the Software, or any modified
+version or derivative work of the Software, you must make the corresponding
+source code available under these same terms, in a machine-readable form, at
+no charge beyond the reasonable cost of distribution. "Source code" means the
+preferred form of the Software for making modifications to it.
+
+8.3 **Public Availability.** If you publish or distribute a modified version
+or derivative work of the Software, you must publish it under these same
+terms and make it publicly available. Private, internal, or closed-source
+forks of the Software are not permitted under this license.
+
+8.4 **No Sublicensing.** You may not sublicense the Software to third parties.
+All recipients receive their license directly from the licensor under these
+terms.
+
+### 9. Fair Use
+
+You may have "fair use" rights for the software under the law. These terms do
+not limit them.
+
+### 10. No Other Rights
+
+These terms do not allow you to sublicense or transfer any of your licenses to
+anyone else, or prevent the licensor from granting licenses to anyone else.
+These terms do not imply any other licenses.
+
+### 11. Patent Defense
+
+If you make any written claim that the software infringes or contributes to
+infringement of any patent, your patent license for the software granted under
+these terms ends immediately. If your company makes such a claim, your patent
+license ends immediately for work on behalf of your company.
+
+### 12. Violations
+
+The first time you are notified in writing that you have violated any of
+these terms, or done anything with the software not covered by your licenses,
+your licenses can nonetheless continue if you come into full compliance with
+these terms, and take practical steps to correct past violations, within 32
+days of receiving notice. Otherwise, all your licenses end immediately.
+
+### 13. No Liability
+
+***As far as the law allows, the software comes as is, without any warranty
+or condition, and the licensor will not be liable to you for any damages
+arising out of these terms or the use or nature of the software, under any
+kind of legal claim.***
+
+### 14. Definitions
+
+The **licensor** is Adria Sanchez, the individual or entity offering these
+terms, and the **software** is the software the licensor makes available under
+these terms.
+
+**You** refers to the individual or entity agreeing to these terms.
+
+**Your company** is any legal entity, sole proprietorship, or other kind of
+organization that you work for, plus all organizations that have control over,
+are under the control of, or are under common control with that organization.
+**Control** means ownership of substantially all the assets of an entity, or
+the power to direct its management and policies by vote, contract, or
+otherwise. Control can be direct or indirect.
+
+**Your licenses** are all the licenses granted to you for the software under
+these terms.
+
+**Use** means anything you do with the software requiring one of your
+licenses.
+
+**Commercial or lucrative use** means any use of the Software that is
+primarily intended for or directed toward commercial advantage or monetary
+compensation, including but not limited to selling copies, charging for
+access, hosting as a paid service, bundling with a commercial product, or
+providing paid services built on the Software. Use by a noncommercial
+organization for its own internal, noncommercial purposes is not a commercial
+or lucrative use.
+
+---
+
+## Original License Reference
+
+The base of this license is the PolyForm Noncommercial License 1.0.0,
+available at:
+
+<https://polyformproject.org/licenses/noncommercial/1.0.0>
+
+The additional Share-Alike condition (Section 8) and the Commercial Use
+clarification (Section 4.3) are additions by Adria Sanchez and are not part of
+the original PolyForm Noncommercial License.

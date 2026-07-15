@@ -7,7 +7,7 @@
   
   [![Documentation](https://img.shields.io/badge/docs-mkdocs-indigo)](https://adriaerni.github.io/Prism/)
   [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/downloads/)
-  [![License: All Rights Reserved](https://img.shields.io/badge/license-all%20rights%20reserved-red)](LICENSE)
+  [![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20NC-orange)](LICENSE)
 </div>
 
 ---
@@ -140,8 +140,9 @@ Add to `.vscode/mcp.json`:
 
 Copyright © 2026 Adria Sanchez. All rights reserved.
 
-This software is the exclusive property of Adria Sanchez. You may use it
-for personal, educational, and non-commercial purposes only. Forks must
-remain public. Commercial use requires explicit written permission.
+Licensed under the **PolyForm Noncommercial License 1.0.0** with a Share-Alike
+addendum. You may use, modify, and distribute the software for non-commercial
+purposes. Forks must remain public and open-source. Commercial use requires
+explicit written permission from the author.
 
 See [LICENSE](LICENSE) for full terms.

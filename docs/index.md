@@ -65,8 +65,9 @@ Full instructions are on the
 
 Copyright © 2026 Adria Sanchez. All rights reserved.
 
-Commercial use requires explicit written permission. Forks must remain
-public. See [LICENSE](https://github.com/AdriaERNI/Prism/blob/main/LICENSE)
+Licensed under the **PolyForm Noncommercial License 1.0.0** with a Share-Alike
+addendum. Commercial use requires explicit written permission. Forks must
+remain public. See [LICENSE](https://github.com/AdriaERNI/Prism/blob/main/LICENSE)
 for full terms.
 
 ---
