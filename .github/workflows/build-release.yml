@@ -51,7 +51,7 @@ jobs:
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
         options: >-
-          --health-cmd "curl -sf -u _SYSTEM:SYS http://localhost:52773/api/atelier/v8/ -o /dev/null || exit 1"
+          --health-cmd "wget -q -O /dev/null --http-user=_SYSTEM --http-password=SYS http://localhost:52773/api/atelier/v8/ || exit 1"
           --health-interval 10s
           --health-timeout 10s
           --health-retries 30
