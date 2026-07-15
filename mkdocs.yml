@@ -1,5 +1,10 @@
 site_name: Prism
 site_description: Prism lets AI see through IRIS — MCP server for SQL, documents, compilation, debugging, testing, and ObjectScript execution
+site_url: https://adriaerni.github.io/Prism/
+repo_url: https://github.com/AdriaERNI/Prism
+repo_name: AdriaERNI/Prism
+copyright: Copyright © 2026 Adria Sanchez. All rights reserved.
+edit_uri: edit/main/docs/
 
 theme:
   name: material
@@ -23,21 +28,39 @@ theme:
     - navigation.instant.progress
     - navigation.tracking
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.sections
+    - navigation.expand
     - navigation.top
+    - navigation.indexes
     - search.suggest
     - search.highlight
     - search.share
     - content.code.copy
     - content.code.annotate
+    - content.code.select
     - content.tabs.link
+    - content.tooltips
+    - toc.follow
   icon:
-    repo: fontawesome/brands/git-alt
+    repo: fontawesome/brands/github
+  font:
+    text: Inter
+    code: JetBrains Mono
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/AdriaERNI/Prism
+  generator: false
 
 plugins:
   - search:
       lang: en
       separator: '[\s\-\.]+'
+  - tags
 
 markdown_extensions:
   - admonition
@@ -47,8 +70,13 @@ markdown_extensions:
       alternate_style: true
   - pymdownx.highlight:
       anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
   - attr_list
   - md_in_html
   - tables
@@ -69,10 +97,10 @@ nav:
     - prism config: commands/config.md
     - prism info: commands/info.md
     - prism sql: commands/sql.md
-    - Documents (get-doc, list-docs, put-doc, delete-doc): commands/documents.md
+    - Documents: commands/documents.md
     - prism compile: commands/compile.md
-    - Terminal (terminal, ws): commands/terminal.md
-    - Testing (test, list-tests): commands/testing.md
+    - Terminal: commands/terminal.md
+    - Testing: commands/testing.md
     - prism serve: commands/serve.md
   - Testing: testing.md
   - MCP Server:
@@ -80,3 +108,4 @@ nav:
     - Client setup: mcp/client-setup.md
     - Tool reference: mcp/tools.md
     - Interactive debugger: mcp/debugging.md
+  - Changelog: changelog.md

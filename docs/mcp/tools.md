@@ -15,16 +15,16 @@ session the CLI can't hold open.
 |----------|-------------------|-------|
 | `execute_sql` | [`prism sql`](../commands/sql.md) | MCP shape is `{"rows": [...], "count": N}` (flattened), CLI shows the raw Atelier envelope. |
 | `execute_terminal` | [`prism terminal`](../commands/terminal.md) (native) or [`prism ws`](../commands/terminal.md) | MCP picks backend via `IRIS_TERMINAL_METHOD`. CLI lets you pick per-invocation. |
-| `get_server_info` | [`prism info`](../commands/info.md) | Same shape. |
-| `list_documents` | [`prism list-docs`](../commands/documents.md#list-docs) | Same shape. |
-| `get_document` | [`prism get-doc`](../commands/documents.md#get-doc) | MCP version supports slicing via `head`, `tail`, `from_line`, `to_line`. |
-| `put_document` | [`prism put-doc`](../commands/documents.md#put-doc) | **(MCP only flow)** Reads the file from `IRIS_WORKSPACE`, not a user-provided path. Requires `IRIS_WORKSPACE` to be set. |
+| `get_server_info` | [`prism info`](../commands/info.md) | MCP returns simplified `{version, api, namespaces}` (flattened, not raw Atelier envelope). |
+| `list_documents` | [`prism list-docs`](../commands/documents.md#list-docs) | MCP returns `{documents: [{name, type, modified, database}], count}` (flattened). |
+| `get_document` | [`prism get-doc`](../commands/documents.md#get-doc) | MCP version supports slicing via `head`, `tail`, `from_line`, `to_line`. Returns `{name, content, found, ...}` — `found: false` for missing docs (no exception). |
+| `put_document` | [`prism put-doc`](../commands/documents.md#put-doc) | **(MCP only flow)** Reads the file from `IRIS_WORKSPACE`, not a user-provided path. Requires `IRIS_WORKSPACE` to be set. `path` param defaults to document name. |
 | `put_and_compile` | combine [`prism put-doc`](../commands/documents.md#put-doc) + [`prism compile`](../commands/compile.md) | **(MCP only.)** Workspace-based, one-shot upload + compile. |
-| `delete_document` | [`prism delete-doc`](../commands/documents.md#delete-doc) | Same shape. |
-| `compile_documents` | [`prism compile`](../commands/compile.md) | Same shape. |
-| `list_tests` | [`prism list-tests`](../commands/testing.md#list-tests) | Same shape. |
-| `run_tests` | [`prism test`](../commands/testing.md#test) | Same shape. |
-| `get_test_results` | — | **(MCP only.)** Retrieves cached historical results without re-running. |
+| `delete_document` | [`prism delete-doc`](../commands/documents.md#delete-doc) | MCP returns `{name, deleted, reason}` — `deleted: false, reason: "not found"` for missing docs. |
+| `compile_documents` | [`prism compile`](../commands/compile.md) | MCP returns `{success: bool, errors: [...], console: [...]}` (not raw Atelier). |
+| `list_tests` | [`prism list-tests`](../commands/testing.md#list-tests) | MCP returns `{classes: [{name, methods: [...]}], count}` (grouped by class). |
+| `run_tests` | [`prism test`](../commands/testing.md#test) | MCP returns `{class, status, passed, failed, skipped, methods: [{name, status, assertions}]}` (structured, richer than CLI). |
+| `get_test_results` | — | **(MCP only.)** Returns `{runs: [{run_id, run_time, duration, test_class, status}], count}`. |
 | `debug_list_processes` | — | **(MCP only.)** See [Interactive debugger](debugging.md). |
 | `debug_start` | — | **(MCP only.)** |
 | `debug_attach` | — | **(MCP only.)** Not supported on Windows IRIS. |
@@ -35,7 +35,10 @@ session the CLI can't hold open.
 | `debug_breakpoints` | — | **(MCP only.)** |
 | `debug_stop` | — | **(MCP only.)** |
 
-21 tools by default, 30 when `IRIS_DEBUG_ENABLED=true`.
+10 tools are always registered. 2 workspace-gated tools (`put_document`,
+`put_and_compile`) are added when `IRIS_WORKSPACE` is set — 12 total.
+9 debug-gated tools are added when `IRIS_DEBUG_ENABLED=true` — up to 21
+total with both workspace and debug enabled.
 
 ## Workspace-gated tools
 
