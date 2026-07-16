@@ -180,6 +180,20 @@ uv run ruff check . && uv run ruff format --check .  # Lint
 
 Full testing guide: [docs/testing.md](docs/testing.md)
 
+## Releases
+
+Download the latest Windows installer or standalone exe from
+[GitHub Releases](https://github.com/AdriaERNI/Prism/releases).
+
+| Artifact | Description |
+|----------|-------------|
+| `prism-X.Y.Z-setup.exe` | Windows installer (Inno Setup, adds to PATH) |
+| `prism.exe` | Standalone Windows binary (PyInstaller) |
+| `prism-X.Y.Z-py3-none-any.whl` | Python wheel (`pip install prism`) |
+
+See the [release guide](https://adriaerni.github.io/Prism/releases/) for
+the full release workflow, versioning, and branch protection details.
+
 ## Documentation
 
 Full documentation at **[adriaerni.github.io/Prism](https://adriaerni.github.io/Prism/)**

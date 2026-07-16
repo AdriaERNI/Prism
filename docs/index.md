@@ -61,6 +61,8 @@ Full instructions are on the
   and get shell completion for free.
 - **[Testing](testing.md)** — how to run unit, integration, and Windows
   Vagrant tests, read logs, and troubleshoot failures.
+- **[Releases](releases.md)** — versioning, release workflow, branch
+  protection, and CI pipelines.
 - **[MCP Server](mcp/index.md)** — how to connect an IDE / AI client,
   the list of MCP tools, and the interactive debugger.
 

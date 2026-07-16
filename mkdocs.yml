@@ -111,3 +111,4 @@ nav:
     - Tool reference: mcp/tools.md
     - Interactive debugger: mcp/debugging.md
   - Changelog: changelog.md
+  - Releases: releases.md
