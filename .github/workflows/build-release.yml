@@ -136,6 +136,27 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen
 
+      - name: Sync version from tag
+        shell: pwsh
+        run: |
+          # Determine the tag version
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $TAG = "${{ github.event.inputs.tag }}"
+          } else {
+            $TAG = "${{ github.ref }}".Replace("refs/tags/", "")
+          }
+          # Strip leading 'v' from the tag
+          $VERSION = $TAG.TrimStart("v")
+          Write-Host "Syncing version to $VERSION (from tag $TAG)"
+          # Update pyproject.toml
+          $content = Get-Content pyproject.toml -Raw
+          $content = $content -replace 'version\s*=\s*"[^"]*"', "version = `"$VERSION`""
+          Set-Content pyproject.toml $content
+          # Update version.txt for frozen builds
+          Set-Content -Path src/prism/version.txt -Value $VERSION
+          # Re-sync so uv build uses the new version
+          uv sync
+
       - name: Build wheel (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: uv build
@@ -145,14 +166,9 @@ jobs:
         shell: pwsh
         run: |
           uv pip install pyinstaller
-          # Write version.txt for --version flag (works in frozen builds where
-          # importlib.metadata is unavailable)
-          $pyproject = Get-Content pyproject.toml -Raw
-          $version = "0.0.0"
-          if ($pyproject -match 'version\s*=\s*"([^"]+)"') {
-            $version = $matches[1]
-          }
-          Set-Content -Path src/prism/version.txt -Value $version
+          # Read version (already synced from tag in the sync step)
+          $version = Get-Content src/prism/version.txt -Raw
+          Write-Host "Building exe for version $version"
           # Build with:
           #   --icon: Prism logo on the .exe
           #   --copy-metadata: bundle .dist-info for packages that call
