@@ -194,6 +194,14 @@ jobs:
             $version = $matches[1]
           }
           Write-Host "Building installer for version $version"
+          # Normalize version for Inno Setup (requires X.Y.Z.W format)
+          $issVersion = $version -replace '-beta\.?(\d*)', '.$1'
+          $issVersion = $issVersion -replace '-[a-zA-Z].*', ''
+          # Ensure at least 3 parts
+          $parts = $issVersion.Split('.')
+          while ($parts.Count -lt 4) { $parts += "0" }
+          $issVersion = $parts -join "."
+          Write-Host "Inno Setup version: $issVersion (from $version)"
           # Rename exe to versioned name (matches .iss Source path)
           Copy-Item dist/prism.exe "dist/prism-$version.exe"
           # Find ISCC.exe
@@ -207,7 +215,7 @@ jobs:
           }
           Write-Host "Using ISCC: $($iscc.FullName)"
           # Compile from dist/ (where prism-$version.exe and the .iss assets are)
-          & $iscc.FullName "/DAppVer=$version" "dist/prism.iss"
+          & $iscc.FullName "/DAppVer=$issVersion" "dist/prism.iss"
           # Verify installer was created
           $installer = "dist/prism-$version-setup.exe"
           if (Test-Path $installer) {
