@@ -50,6 +50,12 @@ prism <command> --help
 | [`prism list-tests`](testing.md#list-tests) | Discover `%UnitTest.TestCase` classes and their `Test*` methods. |
 | [`prism test`](testing.md#test) | Run a unit test class (or a single method). |
 
+### Code indexing
+
+| Command | Summary |
+|---------|---------|
+| [`prism index`](indexing.md) | Build a compact index of all classes in a namespace. Token-efficient alternative to reading every source file. |
+
 ### MCP server
 
 | Command | Summary |

@@ -25,6 +25,7 @@ session the CLI can't hold open.
 | `list_tests` | [`prism list-tests`](../commands/testing.md#list-tests) | MCP returns `{classes: [{name, methods: [...]}], count}` (grouped by class). |
 | `run_tests` | [`prism test`](../commands/testing.md#test) | MCP returns `{class, status, passed, failed, skipped, methods: [{name, status, assertions}]}` (structured, richer than CLI). |
 | `get_test_results` | — | **(MCP only.)** Returns `{runs: [{run_id, run_time, duration, test_class, status}], count}`. |
+| `index_code` | [`prism index`](../commands/indexing.md) | Builds a compact index of all classes using `%Dictionary` SQL metadata. Returns `{namespace, statistics, classes, dependencies}`. Token-efficient alternative to reading every source file (93% reduction). |
 | `debug_list_processes` | — | **(MCP only.)** See [Interactive debugger](debugging.md). |
 | `debug_start` | — | **(MCP only.)** |
 | `debug_attach` | — | **(MCP only.)** Not supported on Windows IRIS. |
@@ -35,10 +36,11 @@ session the CLI can't hold open.
 | `debug_breakpoints` | — | **(MCP only.)** |
 | `debug_stop` | — | **(MCP only.)** |
 
-10 tools are always registered. 2 workspace-gated tools (`put_document`,
-`put_and_compile`) are added when `IRIS_WORKSPACE` is set — 12 total.
-9 debug-gated tools are added when `IRIS_DEBUG_ENABLED=true` — up to 21
-total with both workspace and debug enabled.
+11 tools are always registered (including `index_code`). 2 workspace-gated
+tools (`put_document`, `put_and_compile`) are added when `IRIS_WORKSPACE`
+is set — 13 total. 9 debug-gated tools are added when
+`IRIS_DEBUG_ENABLED=true` — up to 22 total with both workspace and debug
+enabled.
 
 ## Workspace-gated tools
 
