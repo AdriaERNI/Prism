@@ -95,3 +95,59 @@ or on Linux:
 ```bash
 prism sql "SELECT 1" | jq .result.content
 ```
+
+## Shell completion
+
+Prism includes built-in tab completion for **bash**, **zsh**, **fish**, and
+**PowerShell**. Once installed, pressing Tab after `prism ` will suggest
+matching commands, subcommands, and options.
+
+### Install
+
+```bash
+# Auto-detect your current shell
+prism --install-completion
+
+# Or specify a shell explicitly
+prism --install-completion bash
+prism --install-completion zsh
+prism --install-completion fish
+prism --install-completion powershell
+```
+
+After installing, **restart your terminal** (or source your shell profile)
+for the completion to take effect.
+
+### Verify it works
+
+Type `prism conf` and press Tab -- it should auto-complete to `prism config`.
+
+Type `prism s` and press Tab -- it should cycle through `sql` and `serve`.
+
+Type `prism cast template ` and press Tab -- it should list all available
+template commands (`headers`, `ip`, `portcheck`, `timestamp`, `uuid`,
+`weather`).
+
+### Windows (PowerShell)
+
+The Inno Setup installer does **not** install completion automatically.
+After installing Prism, run:
+
+```powershell
+prism --install-completion powershell
+```
+
+Then restart your PowerShell session. Tab completion will work in any new
+PowerShell window.
+
+### Show completion script
+
+If you prefer to install the completion manually (e.g. in a CI environment
+or a managed shell profile), you can print the script:
+
+```bash
+prism --show-completion bash    # for bash
+prism --show-completion zsh     # for zsh
+prism --show-completion fish    # for fish
+prism --show-completion powershell  # for PowerShell
+```

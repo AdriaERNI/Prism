@@ -41,7 +41,7 @@ app = typer.Typer(
     name="prism",
     help="Prism — InterSystems IRIS CLI and MCP server.",
     no_args_is_help=True,
-    add_completion=False,
+    add_completion=True,
     pretty_exceptions_enable=False,
 )
 
