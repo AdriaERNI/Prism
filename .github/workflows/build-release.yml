@@ -185,6 +185,8 @@ jobs:
             --copy-metadata platformdirs `
             --copy-metadata python-dotenv `
             --collect-all lupa `
+            --collect-all fakeredis `
+            --collect-all docket `
             --hidden-import importlib.metadata `
             src/prism/cli/app.py
 
@@ -242,6 +244,34 @@ jobs:
             Write-Error "Installer not found at $installer"
             exit 1
           }
+
+      - name: Test frozen binary (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          Write-Host "=== Testing frozen prism.exe ==="
+          # 1. --version
+          $v = & ./dist/prism.exe --version 2>&1
+          Write-Host "Version: $v"
+          if ($v -notmatch "Prism") { Write-Error "--version failed: $v"; exit 1 }
+          # 2. --help (no crash)
+          $h = & ./dist/prism.exe --help 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "--help failed"; exit 1 }
+          # 3. cast --list (empty, should not crash)
+          $c = & ./dist/prism.exe cast --list 2>&1
+          if ($LASTEXITCODE -ne 0) { Write-Error "cast --list failed: $c"; exit 1 }
+          # 4. serve (must start without crashing — lupa/fakeredis/docket fix)
+          $job = Start-Job -ScriptBlock { param($exe) & $exe serve --skip-preflight --port 29999 2>&1 } -ArgumentList (Resolve-Path ./dist/prism.exe).Path
+          Start-Sleep -Seconds 5
+          $out = Receive-Job $job
+          Stop-Job $job -ErrorAction SilentlyContinue
+          Remove-Job $job -Force -ErrorAction SilentlyContinue
+          if ($out -notmatch "Prism ready") {
+            Write-Error "prism serve did not start correctly. Output: $out"
+            exit 1
+          }
+          Write-Host "serve output: $out"
+          Write-Host "=== All frozen binary tests passed ==="
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
