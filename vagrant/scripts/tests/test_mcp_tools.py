@@ -145,9 +145,9 @@ def main():
     tests = [
         ("get_server_info", {}),
         ("execute_sql", {"query": "SELECT 1 AS One, 2 AS Two"}),
-        ("list_documents", {"type": "cls", "filter": "%ASQ"}),
+        ("list_documents", {"doc_type": "cls", "filter": "%ASQ"}),
         ("get_document", {"name": "%ASQ.AST.cls"}),
-        ("index_code", {"summary": True}),
+        ("index_code", {"summary_only": True}),
         ("execute_terminal", {"command": 'WRITE "Hello from MCP",!'}),
         ("list_tests", {"filter": "%UnitTest"}),
     ]
@@ -206,7 +206,9 @@ def main():
         print()
 
     if "run_tests" in tool_names:
-        status, output = client.call_tool("run_tests", {"filter": "%UnitTest.Manager"})
+        status, output = client.call_tool(
+            "run_tests", {"test_class": "%UnitTest.Manager"}
+        )
         results["run_tests"] = status
         print(f"=== run_tests === {status}")
         print(output[:300])
