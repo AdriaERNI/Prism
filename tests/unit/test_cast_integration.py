@@ -10,7 +10,7 @@ the real Prism-CastTemplate-Public structure:
 5. Run commands via the manager's run_command
 6. Verify commands that import Prism's own modules work
 
-No network or git access required — repos are created locally.
+No network or git access required - repos are created locally.
 """
 
 from __future__ import annotations
@@ -103,7 +103,7 @@ def _make_template_repo(path: Path) -> Path:
 
     # ── commands/echo_settings.py (imports Prism's own API) ──
     (commands_dir / "echo_settings.py").write_text(
-        '"""Echo Prism connection settings — demonstrates Prism API access."""\n'
+        '"""Echo Prism connection settings - demonstrates Prism API access."""\n'
         "import typer\n\n"
         "def echo_settings() -> None:\n"
         '    """Show the IRIS base URL from Prism settings."""\n'
@@ -132,7 +132,7 @@ def _make_template_repo(path: Path) -> Path:
     )
 
     # ── Root __init__.py ──
-    init_content = '''"""Cast template repo — useful everyday tools."""
+    init_content = '''"""Cast template repo - useful everyday tools."""
 
 import typer
 
