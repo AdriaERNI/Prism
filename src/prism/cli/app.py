@@ -52,7 +52,7 @@ app = typer.Typer(
 )
 
 app.command(name="config")(config)
-app.command(name="cast")(cast)
+app.command(name="cast", context_settings={"allow_extra_args": True})(cast)
 app.command(name="sql")(sql)
 app.command(name="terminal")(terminal)
 app.command(name="ws")(ws)

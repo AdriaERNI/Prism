@@ -8,16 +8,20 @@ executable scripts (shell, Python, etc.).  Users run them with
 Repository layout (example)::
 
     <user-data>/prism/cast/
-    ├── customcasttemplate/       # cloned repo (folder name = repo slug)
+    ├── template/                    # cloned repo (folder = slug or alias)
     │   ├── commands/
-    │   │   ├── weather.sh
-    │   │   ├── ip.py
-    │   │   └── uuid.sh
-    │   └── cast.json            # optional metadata
+    │   │   ├── weather.sh           # shell script
+    │   │   ├── uuid.py              # bare Python script
+    │   │   └── ip/                  # Python package directory
+    │   │       ├── __init__.py
+    │   │       ├── __main__.py      # entry point — run via `python -m ip`
+    │   │       └── core.py          # sub-module with real logic
+    │   └── cast.json               # optional metadata
 
 ``cast.json`` (optional)::
 
     {
+      "name": "template",
       "description": "Useful everyday tools",
       "commands": {
         "weather": "Show current weather (wttr.in)",
@@ -25,11 +29,16 @@ Repository layout (example)::
         "uuid": "Generate a UUID"
       }
     }
+
+The ``name`` field lets a repo self-alias.  If absent, the slug is
+derived from the repo URL (e.g. ``Prism-CastTemplate.git`` →
+``casttemplate``).
 """
 
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import stat
 import subprocess
@@ -62,7 +71,7 @@ def cast_registry_path() -> Path:
 class CastRepo:
     """A single registered cast repository."""
 
-    name: str  # slug used in `prism cast <name>.<cmd>`
+    name: str  # alias used in `prism cast <name>.<cmd>`
     url: str  # original Git URL
     path: Path  # local clone path
     description: str = ""
@@ -94,7 +103,7 @@ def _save_registry(repos: list[dict[str, str]]) -> None:
 
 
 def _slug_from_url(url: str) -> str:
-    """Derive a slug from a Git URL.
+    """Derive a default slug from a Git URL.
 
     ``https://github.com/user/Prism-CustomCastTemplate.git`` →
     ``customcasttemplate``
@@ -106,15 +115,11 @@ def _slug_from_url(url: str) -> str:
     - Lowercase
     """
     parsed = urlparse(url)
-    # pathlib works on the path portion
     path = parsed.path or url
-    # Remove leading slash and trailing .git
     path = path.strip("/")
     if path.endswith(".git"):
         path = path[: -len(".git")]
-    # Get the last segment (the repo name)
     name = Path(path).name
-    # Strip a leading "Prism-" prefix to keep slugs short
     if name.lower().startswith("prism-"):
         name = name[len("prism-") :]
     return name.lower()
@@ -124,14 +129,12 @@ def _resolve_clone_url(url: str) -> str:
     """Resolve a URL that git can actually clone.
 
     For public repos, the original HTTPS URL works. For private repos,
-    HTTPS will fail without credentials; if ``gh`` is authenticated we
-    convert to the SSH URL form (``git@github.com:owner/repo.git``).
+    HTTPS will fail without credentials; convert GitHub HTTPS URLs to
+    SSH form (``git@github.com:owner/repo.git``).
     """
-    # If it's already SSH, use as-is
     if url.startswith("git@") or url.startswith("ssh://"):
         return url
 
-    # Try to extract owner/repo from HTTPS GitHub URLs
     parsed = urlparse(url)
     if parsed.hostname and "github.com" in parsed.hostname:
         path = parsed.path.strip("/")
@@ -145,8 +148,35 @@ def _resolve_clone_url(url: str) -> str:
     return url
 
 
+def _load_cast_json(repo_path: Path) -> dict[str, object]:
+    """Load ``cast.json`` from *repo_path*. Returns empty dict on error."""
+    meta = repo_path / "cast.json"
+    if not meta.is_file():
+        return {}
+    try:
+        data = json.loads(meta.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def _resolve_alias(repo_path: Path, url_slug: str) -> str:
+    """Determine the repo alias — from ``cast.json:name`` or fallback to slug."""
+    meta = _load_cast_json(repo_path)
+    name = meta.get("name", "")
+    if isinstance(name, str) and name.strip():
+        # Sanitize: lowercase, replace spaces/dots with hyphens
+        return name.strip().lower().replace(" ", "-").replace(".", "-")
+    return url_slug
+
+
 def list_repos() -> list[CastRepo]:
-    """Return all registered cast repos (in registration order)."""
+    """Return all registered cast repos (in registration order).
+
+    The on-disk directory is always the URL-derived slug (never the
+    alias), because the alias can change via cast.json but the clone
+    path is fixed at registration time.
+    """
     raw = _load_registry()
     result: list[CastRepo] = []
     for entry in raw:
@@ -154,7 +184,7 @@ def list_repos() -> list[CastRepo]:
         url = entry.get("url", "")
         if not name:
             continue
-        repo_path = cast_dir() / name
+        repo_path = cast_dir() / _slug_from_url(url)
         desc = entry.get("description", "")
         result.append(CastRepo(name=name, url=url, path=repo_path, description=desc))
     return result
@@ -163,25 +193,23 @@ def list_repos() -> list[CastRepo]:
 def add_repo(url: str) -> CastRepo:
     """Clone *url* into the cast directory and register it.
 
-    Raises ``RuntimeError`` if the URL is already registered.
+    Raises ``RuntimeError`` if the URL or alias is already registered.
     """
     repos = list_repos()
-    slug = _slug_from_url(url)
+    url_slug = _slug_from_url(url)
 
-    # Check for duplicate URL or slug
+    # Check for duplicate URL
     for r in repos:
-        if r.url == url or r.name == slug:
+        if r.url == url:
             raise RuntimeError(
                 f"Repository already registered as '{r.name}' (URL: {r.url})"
             )
 
-    target = cast_dir() / slug
+    target = cast_dir() / url_slug
     if target.exists():
-        # Folder exists but not in registry — remove it and re-clone
         shutil.rmtree(target)
 
-    # Clone — try the original URL first; if it fails (e.g. private repo
-    # without HTTPS credentials), retry with SSH.
+    # Clone — try SSH for GitHub URLs (private repo support), fallback to original
     clone_url = _resolve_clone_url(url)
     result = subprocess.run(
         ["git", "clone", "--depth", "1", clone_url, str(target)],
@@ -189,7 +217,6 @@ def add_repo(url: str) -> CastRepo:
         text=True,
     )
     if result.returncode != 0 and clone_url != url:
-        # SSH fallback failed — try original URL as last resort
         result = subprocess.run(
             ["git", "clone", "--depth", "1", url, str(target)],
             capture_output=True,
@@ -200,15 +227,26 @@ def add_repo(url: str) -> CastRepo:
             f"Failed to clone {url}: {result.stderr.strip() or 'unknown error'}"
         )
 
-    # Load description from cast.json if present
-    desc = _load_description(target)
+    # Determine alias from cast.json or fallback to URL slug
+    alias = _resolve_alias(target, url_slug)
 
-    # Register
+    # Check for duplicate alias
+    for r in repos:
+        if r.name == alias:
+            raise RuntimeError(
+                f"Alias '{alias}' is already in use by '{r.url}'. "
+                f"Change the 'name' field in cast.json."
+            )
+
+    desc = _load_cast_json(target).get("description", "")
+    if not isinstance(desc, str):
+        desc = ""
+
     raw = _load_registry()
-    raw.append({"name": slug, "url": url, "description": desc})
+    raw.append({"name": alias, "url": url, "description": desc})
     _save_registry(raw)
 
-    return CastRepo(name=slug, url=url, path=target, description=desc)
+    return CastRepo(name=alias, url=url, path=target, description=desc)
 
 
 def del_repo(index: int) -> CastRepo:
@@ -222,11 +260,9 @@ def del_repo(index: int) -> CastRepo:
 
     repo = repos[index - 1]
 
-    # Remove from disk
     if repo.path.exists():
         shutil.rmtree(repo.path)
 
-    # Remove from registry
     raw = _load_registry()
     raw = [r for r in raw if r.get("name") != repo.name]
     _save_registry(raw)
@@ -253,8 +289,6 @@ def update_repos() -> list[tuple[str, str]]:
         if result.returncode != 0:
             results.append((repo.name, f"error: {result.stderr.strip() or 'unknown'}"))
         else:
-            # Update description in case it changed
-            desc = _load_description(repo.path)
             results.append(
                 (
                     repo.name,
@@ -265,7 +299,9 @@ def update_repos() -> list[tuple[str, str]]:
                 )
             )
             # Refresh description in registry
-            _update_registry_description(repo.name, desc)
+            desc = _load_cast_json(repo.path).get("description", "")
+            if isinstance(desc, str):
+                _update_registry_field(repo.name, "description", desc)
     return results
 
 
@@ -274,26 +310,12 @@ def update_repos() -> list[tuple[str, str]]:
 COMMANDS_SUBDIR = "commands"
 
 
-def _load_description(repo_path: Path) -> str:
-    """Load description from ``cast.json`` if it exists."""
-    meta = repo_path / "cast.json"
-    if not meta.is_file():
-        return ""
-    try:
-        data = json.loads(meta.read_text(encoding="utf-8"))
-        if isinstance(data, dict):
-            return data.get("description", "")
-    except (OSError, json.JSONDecodeError):
-        pass
-    return ""
-
-
-def _update_registry_description(name: str, desc: str) -> None:
-    """Update the description for *name* in the registry."""
+def _update_registry_field(name: str, key: str, value: str) -> None:
+    """Update a field for *name* in the registry."""
     raw = _load_registry()
     for entry in raw:
         if entry.get("name") == name:
-            entry["description"] = desc
+            entry[key] = value
     _save_registry(raw)
 
 
@@ -303,9 +325,10 @@ def discover_commands(repo_path: Path) -> dict[str, str]:
     Looks in ``commands/`` subdirectory (or repo root if it doesn't exist).
     Returns ``{command_name: description}``.
 
-    A file is considered a command if:
-    - It is a regular file (not a directory)
-    - It is executable (POSIX) OR has a known script extension (.sh, .py, .ps1)
+    A command is:
+    - A directory with ``__main__.py`` (Python package)
+    - A regular file that is executable (POSIX) OR has a known script
+      extension (.sh, .py, .ps1, .bash)
     """
     cmds_dir = repo_path / COMMANDS_SUBDIR
     if not cmds_dir.is_dir():
@@ -313,32 +336,30 @@ def discover_commands(repo_path: Path) -> dict[str, str]:
 
     result: dict[str, str] = {}
 
-    # First, try to load descriptions from cast.json
+    # Load descriptions from cast.json
     desc_map: dict[str, str] = {}
-    meta = repo_path / "cast.json"
-    if meta.is_file():
-        try:
-            data = json.loads(meta.read_text(encoding="utf-8"))
-            if isinstance(data, dict):
-                for cmd_name, cmd_desc in data.get("commands", {}).items():
-                    desc_map[cmd_name] = cmd_desc
-        except (OSError, json.JSONDecodeError):
-            pass
+    meta = _load_cast_json(repo_path)
+    if meta:
+        cmds_meta = meta.get("commands", {})
+        if isinstance(cmds_meta, dict):
+            for cmd_name, cmd_desc in cmds_meta.items():
+                desc_map[str(cmd_name)] = str(cmd_desc) if cmd_desc else ""
 
     known_extensions = {".sh", ".py", ".ps1", ".bash"}
     ignored = {"README", "README.md", "LICENSE", ".gitignore", "cast.json"}
 
     for entry in sorted(cmds_dir.iterdir()):
-        if entry.is_dir():
+        if entry.name in ignored or entry.name.startswith("."):
             continue
-        name = entry.name
-        if name in ignored or name.startswith("."):
+        if entry.is_dir():
+            # Python package: directory with __main__.py
+            if (entry / "__main__.py").is_file():
+                result[entry.name] = desc_map.get(entry.name, "")
             continue
 
-        stem = entry.stem if entry.suffix in known_extensions else name
+        stem = entry.stem if entry.suffix in known_extensions else entry.name
         if stem in ignored:
             continue
-        # Skip non-executable, non-script files
         is_exec = bool(entry.stat().st_mode & stat.S_IXUSR)
         has_known_ext = entry.suffix in known_extensions
         if not is_exec and not has_known_ext:
@@ -350,7 +371,11 @@ def discover_commands(repo_path: Path) -> dict[str, str]:
 
 
 def resolve_command(repo_slug: str, command_name: str) -> tuple[CastRepo, Path]:
-    """Resolve ``repo_slug.command_name`` to a (repo, file_path) pair.
+    """Resolve ``repo_slug.command_name`` to a (repo, path) pair.
+
+    *path* points to either:
+    - A directory containing ``__main__.py`` (Python package command)
+    - A script file (.sh, .py, .ps1, etc.)
 
     Raises ``RuntimeError`` if the repo or command is not found.
     """
@@ -370,7 +395,12 @@ def resolve_command(repo_slug: str, command_name: str) -> tuple[CastRepo, Path]:
     if not cmds_dir.is_dir():
         cmds_dir = repo.path
 
-    # Try exact match, then with known extensions
+    # 1. Directory with __main__.py (Python package)
+    pkg_dir = cmds_dir / command_name
+    if pkg_dir.is_dir() and (pkg_dir / "__main__.py").is_file():
+        return repo, pkg_dir
+
+    # 2. Exact file match, then with known extensions
     candidates = [
         cmds_dir / command_name,
         cmds_dir / f"{command_name}.sh",
@@ -382,7 +412,6 @@ def resolve_command(repo_slug: str, command_name: str) -> tuple[CastRepo, Path]:
         if candidate.is_file():
             return repo, candidate
 
-    # List available commands for helpful error
     available = discover_commands(repo.path)
     names = ", ".join(sorted(available)) or "(none)"
     raise RuntimeError(
@@ -390,18 +419,34 @@ def resolve_command(repo_slug: str, command_name: str) -> tuple[CastRepo, Path]:
     )
 
 
-def run_command(repo_slug: str, command_name: str) -> int:
+def run_command(
+    repo_slug: str, command_name: str, extra_args: list[str] | None = None
+) -> int:
     """Resolve and execute ``repo_slug.command_name``.
 
     Returns the exit code of the executed command.
     """
     repo, script_path = resolve_command(repo_slug, command_name)
+    extra = extra_args or []
 
-    # Determine how to run the script
+    # ── Python package directory (has __main__.py) ───────────────────
+    # Run via `python -m <name>` with PYTHONPATH set to commands/
+    # so relative imports and sibling sub-modules work correctly.
+    if script_path.is_dir() and (script_path / "__main__.py").is_file():
+        cmds_dir = script_path.parent
+        env = {**os.environ, "PYTHONPATH": str(cmds_dir)}
+        cmd = [sys.executable, "-m", script_path.name, *extra]
+        result = subprocess.run(cmd, cwd=str(repo.path), env=env)
+        return result.returncode
+
+    # ── Bare Python script (.py) ─────────────────────────────────────
+    # -P prevents the script's own directory from being added to
+    # sys.path[0], which avoids stdlib shadowing (e.g. uuid.py
+    # shadowing the uuid module). Unlike -I, it preserves PYTHONPATH
+    # and user site-packages so dependencies still work.
     if script_path.suffix == ".py":
-        # -I: isolated mode — prevents the script's directory from
-        # shadowing stdlib modules (e.g. a script named ``uuid.py``).
-        cmd = [sys.executable, "-I", str(script_path)]
+        cmd = [sys.executable, "-P", str(script_path), *extra]
+
     elif script_path.suffix == ".ps1" and sys.platform == "win32":
         cmd = [
             "powershell",
@@ -410,10 +455,11 @@ def run_command(repo_slug: str, command_name: str) -> int:
             "Bypass",
             "-File",
             str(script_path),
+            *extra,
         ]
     else:
-        # Shell scripts — use bash on Windows too (Git Bash)
-        cmd = ["bash", str(script_path)]
+        # Shell scripts — bash on all platforms (Git Bash on Windows)
+        cmd = ["bash", str(script_path), *extra]
 
     result = subprocess.run(cmd, cwd=str(repo.path))
     return result.returncode

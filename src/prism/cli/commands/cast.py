@@ -7,7 +7,7 @@ Usage::
     prism cast --del <N>             Delete repo #N
     prism cast --update              Pull latest for all repos
     prism cast <repo>.<command>      Run a command from a repo
-    prism cast <repo>.<command> -- args...   Pass extra arguments
+    prism cast <repo>.<cmd> args...  Pass extra arguments to the command
 """
 
 from __future__ import annotations
@@ -20,9 +20,10 @@ from prism.cast import manager
 
 
 def cast(
+    ctx: typer.Context,
     target: str | None = typer.Argument(
         None,
-        help="Command to run as '<repo>.<command>' (e.g. customcasttemplate.weather)",
+        help="Command to run as '<repo>.<command>' (e.g. template.weather)",
     ),
     add: str | None = typer.Option(
         None,
@@ -44,13 +45,23 @@ def cast(
         "--update",
         help="Pull latest changes for all repos.",
     ),
-    extra_args: list[str] = typer.Argument(
-        None,
-        help="Extra arguments passed to the command (after -- ).",
-        metavar="...",
-    ),
 ) -> None:
-    """Manage and run custom command repositories (casts)."""
+    """Manage and run custom command repositories (casts).
+
+    Repos are Git repos with scripts in a ``commands/`` directory.
+    Each repo can include a ``cast.json`` with a custom ``name`` alias,
+    descriptions, and command metadata.
+
+    \b
+    Examples:
+      prism cast --add https://github.com/user/Prism-CastTemplate.git
+      prism cast --list
+      prism cast template.weather
+      prism cast template.portcheck example.com 443
+      prism cast --del 1
+    """
+    extra_args: list[str] = list(ctx.args)
+
     # ── Mutating options take priority ───────────────────────────────
 
     if add is not None:
@@ -116,8 +127,7 @@ def cast(
 
     if "." not in target:
         typer.echo(
-            f"Error: '{target}' must be '<repo>.<command>' "
-            f"(e.g. customcasttemplate.weather)",
+            f"Error: '{target}' must be '<repo>.<command>' (e.g. template.weather)",
             err=True,
         )
         sys.exit(1)
@@ -125,7 +135,7 @@ def cast(
     repo_slug, command_name = target.rsplit(".", 1)
 
     try:
-        exit_code = manager.run_command(repo_slug, command_name)
+        exit_code = manager.run_command(repo_slug, command_name, extra_args)
     except Exception as exc:
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
