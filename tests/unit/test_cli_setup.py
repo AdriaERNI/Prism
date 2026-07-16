@@ -109,10 +109,7 @@ class TestConfigPath:
         assert _config_path(CODEX) == tmp_home / ".codex" / "config.toml"
 
     def test_opencode_path(self, tmp_home: Path) -> None:
-        assert (
-            _config_path(OPENCODE)
-            == _expected_opencode_path(tmp_home)
-        )
+        assert _config_path(OPENCODE) == _expected_opencode_path(tmp_home)
 
     def test_hermes_path(self, tmp_home: Path) -> None:
         assert _config_path(HERMES) == tmp_home / ".hermes" / "config.yaml"
