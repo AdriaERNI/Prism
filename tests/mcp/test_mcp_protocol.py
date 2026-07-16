@@ -23,7 +23,7 @@ import httpx
 
 DEFAULT_URL = "http://127.0.0.1:29999/mcp"
 PROTOCOL_VERSION = "2025-06-18"
-CLIENT_INFO = {"name": "prism-mcp-test", "version": "1.0.0"}
+CLIENT_INFO = {"name": "prism-test", "version": "1.0.0"}
 TIMEOUT = 30.0
 
 # Expected tool names (must match the names registered by discover_tools()).

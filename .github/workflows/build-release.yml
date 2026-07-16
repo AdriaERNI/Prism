@@ -268,7 +268,7 @@ jobs:
           # 3. cast --list (empty, should not crash)
           $c = & ./dist/prism.exe cast --list 2>&1
           if ($LASTEXITCODE -ne 0) { Write-Error "cast --list failed: $c"; exit 1 }
-          # 4. serve (must start without crashing — lupa/fakeredis/docket fix)
+          # 4. serve (must start without crashing -- lupa/fakeredis/docket fix)
           $job = Start-Job -ScriptBlock { param($exe) & $exe serve --skip-preflight --port 29999 2>&1 } -ArgumentList (Resolve-Path ./dist/prism.exe).Path
           Start-Sleep -Seconds 5
           $out = Receive-Job $job
