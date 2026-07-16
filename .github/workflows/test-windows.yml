@@ -142,11 +142,12 @@ jobs:
           Write-Host "=== Testing prism serve (reproduces lupa + fakeredis crashes) ==="
           # Start serve in background
           $logFile = "serve_test.log"
+          $errFile = "serve_test.err"
           $proc = Start-Process -FilePath ".\dist\prism.exe" `
             -ArgumentList @("serve", "--skip-preflight", "--port", "29999") `
             -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput $logFile `
-            -RedirectStandardError "serve_test.err"
+            -RedirectStandardError $errFile
 
           # Wait up to 15 seconds for the port to open
           $ready = $false
@@ -157,7 +158,7 @@ jobs:
               Write-Host "=== stdout ==="
               Get-Content $logFile -ErrorAction SilentlyContinue
               Write-Host "=== stderr ==="
-              Get-Content "serve_test.err" -ErrorAction SilentlyContinue
+              Get-Content $errFile -ErrorAction SilentlyContinue
               Write-Error "prism serve crashed before binding the port"
               exit 1
             }
@@ -172,12 +173,12 @@ jobs:
             Write-Host "=== stdout ==="
             Get-Content $logFile -ErrorAction SilentlyContinue
             Write-Host "=== stderr ==="
-            Get-Content "serve_test.err" -ErrorAction SilentlyContinue
+            Get-Content $errFile -ErrorAction SilentlyContinue
             Write-Error "prism serve did not bind port 29999 within 15 seconds"
             exit 1
           }
 
-          Write-Host "prism serve started successfully — port 29999 is listening"
+          Write-Host "prism serve started successfully -- port 29999 is listening"
 
           # Verify HTTP responds on /mcp
           try {
@@ -185,7 +186,7 @@ jobs:
             Write-Host "HTTP response: $($resp.StatusCode)"
           } catch {
             $code = $_.Exception.Response.StatusCode.value__
-            Write-Host "HTTP response: $code (expected — MCP requires POST)"
+            Write-Host "HTTP response: $code (expected -- MCP requires POST)"
           }
 
           Write-Host "=== All frozen binary tests passed ==="
@@ -194,6 +195,56 @@ jobs:
           if (-not $proc.HasExited) {
             Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
           }
+
+      - name: Test MCP protocol (deep extensive)
+        shell: pwsh
+        run: |
+          Write-Host "=== Deep MCP Protocol Test Suite ==="
+
+          # Install httpx for the test client
+          uv pip install httpx
+
+          # Start serve in background
+          $proc = Start-Process -FilePath ".\dist\prism.exe" `
+            -ArgumentList @("serve", "--skip-preflight", "--port", "29999") `
+            -PassThru -WindowStyle Hidden `
+            -RedirectStandardOutput "mcp_serve.log" `
+            -RedirectStandardError "mcp_serve.err"
+
+          # Wait for port
+          $ready = $false
+          for ($i = 0; $i -lt 30; $i++) {
+            Start-Sleep -Milliseconds 500
+            if ($proc.HasExited) {
+              Write-Host "serve crashed"
+              Get-Content "mcp_serve.err" -ErrorAction SilentlyContinue
+              exit 1
+            }
+            $tcp = Test-NetConnection -ComputerName 127.0.0.1 -Port 29999 -InformationLevel Quiet -WarningAction SilentlyContinue
+            if ($tcp) { $ready = $true; break }
+          }
+          if (-not $ready) {
+            Write-Error "serve did not bind port"
+            exit 1
+          }
+
+          Write-Host "prism serve ready, running MCP protocol tests..."
+
+          # Run the deep test suite
+          $exitCode = 0
+          uv run python tests/mcp/test_mcp_protocol.py "http://127.0.0.1:29999/mcp"
+          $exitCode = $LASTEXITCODE
+
+          # Cleanup
+          if (-not $proc.HasExited) {
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          }
+
+          if ($exitCode -ne 0) {
+            Write-Error "MCP protocol tests failed (exit code $exitCode)"
+            exit 1
+          }
+          Write-Host "=== MCP protocol tests passed ==="
 
       - name: Upload artifact
         if: always()
