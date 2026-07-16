@@ -56,6 +56,9 @@ Full instructions are on the
   settings file location, and the full environment-variable reference.
 - **[Commands](commands/index.md)** — one page per CLI command, with every
   option and a runnable example.
+- **[Cast Plugins](commands/cast.md)** — extend Prism with custom commands
+  from any Git repository. Add repos, run commands with typed arguments,
+  and get shell completion for free.
 - **[Testing](testing.md)** — how to run unit, integration, and Windows
   Vagrant tests, read logs, and troubleshoot failures.
 - **[MCP Server](mcp/index.md)** — how to connect an IDE / AI client,
@@ -79,6 +82,7 @@ Usage: prism [OPTIONS] COMMAND [ARGS]...
 
 Commands:
   config      Save IRIS connection settings to the platform user config directory.
+  cast        Manage and run custom command repositories (casts).
   sql         Run an SQL query and print the IRIS response as JSON.
   terminal    Run an ObjectScript command via irisnative (SuperServer).
   ws          Run an ObjectScript command via the Atelier WebSocket terminal.

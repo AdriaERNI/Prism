@@ -60,7 +60,7 @@ prism <command> --help
 
 | Command | Summary |
 |---------|---------|
-| [`prism cast`](cast.md) | Run custom commands from Git repositories. |
+| [`prism cast`](cast.md) | Extend Prism with custom commands from Git repositories. Add repos, run commands with typed arguments and shell completion, and manage updates — all without installing packages. |
 
 ## Common options
 

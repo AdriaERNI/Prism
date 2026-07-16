@@ -108,6 +108,9 @@ prism delete-doc MyApp.Hello.cls
 
 - **[Commands](../commands/index.md)** — every CLI command and its
   options.
+- **[Cast Plugins](../commands/cast.md)** — extend Prism with custom
+  commands from any Git repository. Add a repo, run commands with typed
+  arguments, and get Tab completion for free.
 - **[MCP Server](../mcp/index.md)** — run `prism serve` and hook an AI
   client into the same operations.
 - **[Configuration](configuration.md)** — full settings and
