@@ -10,8 +10,8 @@ installing any packages.
 ## Quick start
 
 ```bash
-# Add the official template repo (private — requires GitHub access)
-prism cast --add https://github.com/AdriaERNI/Prism-CastTemplate.git
+# Add the official template repo
+prism cast --add https://github.com/AdriaERNI/Prism-CastTemplate-Public.git
 
 # List registered repos
 prism cast --list
@@ -246,9 +246,11 @@ Each command automatically gets:
 ### Reference implementation
 
 The official template repo is
-[Prism-CastTemplate](https://github.com/AdriaERNI/Prism-CastTemplate) — a
-private repo with 6 example commands (weather, ip, uuid, timestamp,
+[Prism-CastTemplate-Public](https://github.com/AdriaERNI/Prism-CastTemplate-Public) — a
+public repo with 6 example commands (weather, ip, uuid, timestamp,
 portcheck, headers). Use it as a starting point for your own cast repos.
+
+Fork it, change `__prism_name__` in `__init__.py`, and add your own commands.
 
 ## Where repos are stored
 
