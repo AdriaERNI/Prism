@@ -31,3 +31,4 @@ site/
 
 # Agent local settings
 .claude/settings.local.json
+.worktrees/
