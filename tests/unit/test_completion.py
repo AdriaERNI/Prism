@@ -129,11 +129,30 @@ class TestCommandCompletion:
 # --- Phase 3: Subcommand completion (cast) ---
 #
 # Cast subcommand completion depends on installed cast repos. On CI (fresh
-# checkout, no casts cloned), only the 'template' subcommand of 'cast' itself
-# is testable. The cast template *commands* (weather, uuid, etc.) require the
-# template repo to be cloned, so we skip those if it's not available.
+# checkout, no casts cloned), 'prism cast ' returns no subcommands because
+# cast repos are registered dynamically from ~/.prism/cast/registry.json.
+# We skip cast subcommand tests when no casts are installed.
 
 
+def _casts_installed() -> bool:
+    """Check if any cast repos are registered."""
+    import json
+
+    registry = Path.home().joinpath(".prism", "cast", "registry.json")
+    if not registry.exists():
+        return False
+    try:
+        data = json.loads(registry.read_text())
+        repos = data if isinstance(data, list) else data.get("repos", [])
+        return len(repos) > 0
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(
+    not _casts_installed(),
+    reason="no cast repos installed (fresh CI environment)",
+)
 class TestCastSubcommandCompletion:
     """Tab-completion for 'prism cast' subcommands."""
 
@@ -147,20 +166,12 @@ class TestCastSubcommandCompletion:
         result = _run_completion("prism cast t", 2)
         assert result == ["template"]
 
-    @pytest.mark.skipif(
-        not Path.home().joinpath(".prism", "cast", "template").exists(),
-        reason="cast template repo not installed (fresh CI environment)",
-    )
     def test_complete_cast_template_commands(self):
         """'prism cast template ' + Tab should return template commands."""
         result = _run_completion("prism cast template ", 3)
         expected = {"headers", "ip", "portcheck", "timestamp", "uuid", "weather"}
         assert expected.issubset(set(result))
 
-    @pytest.mark.skipif(
-        not Path.home().joinpath(".prism", "cast", "template").exists(),
-        reason="cast template repo not installed (fresh CI environment)",
-    )
     def test_complete_cast_template_w(self):
         """'prism cast template w' + Tab should return 'weather'."""
         result = _run_completion("prism cast template w", 3)
