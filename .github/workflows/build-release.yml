@@ -184,6 +184,7 @@ jobs:
             --copy-metadata websockets `
             --copy-metadata platformdirs `
             --copy-metadata python-dotenv `
+            --collect-all lupa `
             --hidden-import importlib.metadata `
             src/prism/cli/app.py
 
