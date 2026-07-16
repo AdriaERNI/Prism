@@ -215,7 +215,7 @@ jobs:
           }
           Write-Host "Using ISCC: $($iscc.FullName)"
           # Compile from dist/ (where prism-$version.exe and the .iss assets are)
-          & $iscc.FullName "/DAppVer=$issVersion" "dist/prism.iss"
+          & $iscc.FullName "/DAppVer=$issVersion" "/DAppVerFile=$version" "dist/prism.iss"
           # Verify installer was created
           $installer = "dist/prism-$version-setup.exe"
           if (Test-Path $installer) {
