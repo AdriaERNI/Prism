@@ -250,6 +250,14 @@ class TestIndexMCPTool:
             names = {t.name for t in tools}
             assert "index_code" in names
 
+    async def test_index_code_in_instructions(self):
+        """index_code is mentioned in the server instructions sent to clients."""
+        from prism.mcp.server import create_mcp
+
+        mcp = create_mcp()
+        instructions = mcp.instructions or ""
+        assert "index_code" in instructions
+
     async def test_index_code_summary_only(self):
         """index_code with summary_only=True calls index_summary."""
         from fastmcp import Client
