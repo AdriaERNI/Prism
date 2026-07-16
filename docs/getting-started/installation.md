@@ -56,27 +56,26 @@ uv run prism info
 ### Install with pip
 
 ```bash
-pip install prism
+pip install prism-mcp
 
 # Verify
 prism --help
 prism info
 ```
 
-### TOON output format
-
-TOON is included by default. Use it with:
+### Optional: TOON output format
 
 ```bash
-prism --format toon info
+pip install prism-mcp[toon]
+# or with uv:
+uv pip install toons
 ```
 
 ## Standalone executable (Windows)
 
 If you'd rather not run an installer, grab the standalone
-`prism-<version>.exe`. It's a fully self-contained PyInstaller bundle with
-the Prism logo icon — drop it anywhere on your `PATH` (or invoke it with a
-full path).
+`prism-<version>.exe`. It's a fully self-contained PyInstaller bundle —
+drop it anywhere on your `PATH` (or invoke it with a full path).
 
 ```
 prism-0.1.3.exe --help
@@ -85,10 +84,10 @@ prism-0.1.3.exe --help
 ## Uninstall
 
 Windows: **Settings → Apps → Installed apps → Prism → Uninstall**, or
-run `unins000.exe` inside `C:\Program Files\Prism\`. The uninstaller
+run `unins000.exe` inside `C:\Program Files\prism\`. The uninstaller
 also removes Prism from the system `PATH`.
 
-Linux: `pip uninstall prism` or remove the cloned directory.
+Linux: `pip uninstall prism-mcp` or remove the cloned directory.
 
 ## Prerequisites
 

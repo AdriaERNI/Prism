@@ -76,7 +76,7 @@ driver, `prism ws` always uses the WebSocket.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PRISM_OUTPUT_FORMAT` | `json` | Default output format for CLI commands: `json` or `toon` |
+| `PRISM_OUTPUT_FORMAT` | `json` | Default output format for CLI commands: `json` or `toon` (requires `pip install prism-mcp[toon]`) |
 
 ## API
 

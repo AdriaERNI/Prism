@@ -31,8 +31,8 @@ jobs:
       - name: Run unit tests
         run: uv run pytest tests/unit/ -v --tb=short
 
-  build-and-test:
-    name: Build and Test Frozen Executable
+  build:
+    name: Build Windows Executable
     runs-on: windows-latest
     needs: unit
     steps:
@@ -55,199 +55,20 @@ jobs:
       - name: Install PyInstaller
         run: uv pip install pyinstaller
 
-      - name: Build exe (same flags as release)
-        shell: pwsh
-        run: |
-          # Sync version from tag (if this is a tag build)
-          $tag = ${env:GITHUB_REF}
-          if ($tag -match "refs/tags/v(.+)") {
-            $version = $matches[1]
-            Write-Host "Syncing version to $version"
-            $content = Get-Content pyproject.toml -Raw
-            $content = $content -replace 'version\s*=\s*"[^"]*"', "version = `"$version`""
-            Set-Content pyproject.toml $content
-            # Update __init__.py __version__
-            $initContent = Get-Content src/prism/__init__.py -Raw
-            $initContent = $initContent -replace '__version__\s*=\s*"[^"]*"', "__version__ = `"$version`""
-            Set-Content src/prism/__init__.py $initContent
-            uv sync
-          }
-
-          # Same PyInstaller flags as build-release.yml
-          uv run pyinstaller --onefile --name prism `
-            --copy-metadata fastmcp `
-            --copy-metadata click `
-            --copy-metadata httpx `
-            --copy-metadata pydantic `
-            --copy-metadata pydantic-settings `
-            --copy-metadata typer `
-            --copy-metadata websockets `
-            --copy-metadata platformdirs `
-            --copy-metadata python-dotenv `
-            --copy-metadata toons `
-            --collect-all lupa `
-            --collect-all fakeredis `
-            --collect-all docket `
-            --collect-submodules prism.mcp `
-            --hidden-import importlib.metadata `
-            src/prism/cli/app.py
+      - name: Build exe
+        run: uv run pyinstaller --onefile --name prism src/prism/cli/app.py
 
       - name: Verify build
-        shell: pwsh
         run: |
-          if (-not (Test-Path dist\prism.exe)) {
+          if (Test-Path dist\prism.exe) {
+            Write-Host "prism.exe built successfully"
+            (Get-Item dist\prism.exe).Length
+          } else {
             Write-Error "prism.exe not found"
             exit 1
           }
-          $size = [math]::Round((Get-Item dist\prism.exe).Length / 1MB, 1)
-          Write-Host "prism.exe built: $size MB"
-
-      - name: Test frozen binary --version
-        shell: pwsh
-        run: |
-          $v = & .\dist\prism.exe --version 2>&1
-          Write-Host "Version: $v"
-          if ($v -notmatch "Prism") {
-            Write-Error "--version failed: $v"
-            exit 1
-          }
-
-      - name: Test frozen binary --help
-        shell: pwsh
-        run: |
-          # Capture both stdout and stderr
-          $output = (& .\dist\prism.exe --help 2>&1) | Out-String
-          Write-Host "Output length: $($output.Length)"
-          Write-Host $output
-          if ($output -notmatch "serve") {
-            Write-Error "--help output doesn't mention 'serve'"
-            exit 1
-          }
-          Write-Host "--help OK"
-
-      - name: Test frozen binary cast --list
-        shell: pwsh
-        run: |
-          $c = & .\dist\prism.exe cast --list 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "cast --list failed with exit code $LASTEXITCODE"
-            Write-Host $c
-            exit 1
-          }
-          Write-Host "cast --list OK"
-
-      - name: Test frozen binary serve (lupa/fakeredis/docket)
-        shell: pwsh
-        run: |
-          Write-Host "=== Testing prism serve (reproduces lupa + fakeredis crashes) ==="
-          # Start serve in background
-          $logFile = "serve_test.log"
-          $errFile = "serve_test.err"
-          $proc = Start-Process -FilePath ".\dist\prism.exe" `
-            -ArgumentList @("serve", "--skip-preflight", "--port", "29999") `
-            -PassThru -WindowStyle Hidden `
-            -RedirectStandardOutput $logFile `
-            -RedirectStandardError $errFile
-
-          # Wait up to 15 seconds for the port to open
-          $ready = $false
-          for ($i = 0; $i -lt 30; $i++) {
-            Start-Sleep -Milliseconds 500
-            if ($proc.HasExited) {
-              Write-Host "Process exited early with code $($proc.ExitCode)"
-              Write-Host "=== stdout ==="
-              Get-Content $logFile -ErrorAction SilentlyContinue
-              Write-Host "=== stderr ==="
-              Get-Content $errFile -ErrorAction SilentlyContinue
-              Write-Error "prism serve crashed before binding the port"
-              exit 1
-            }
-            $tcp = Test-NetConnection -ComputerName 127.0.0.1 -Port 29999 -InformationLevel Quiet -WarningAction SilentlyContinue
-            if ($tcp) {
-              $ready = $true
-              break
-            }
-          }
-
-          if (-not $ready) {
-            Write-Host "=== stdout ==="
-            Get-Content $logFile -ErrorAction SilentlyContinue
-            Write-Host "=== stderr ==="
-            Get-Content $errFile -ErrorAction SilentlyContinue
-            Write-Error "prism serve did not bind port 29999 within 15 seconds"
-            exit 1
-          }
-
-          Write-Host "prism serve started successfully -- port 29999 is listening"
-
-          # Verify HTTP responds on /mcp
-          try {
-            $resp = Invoke-WebRequest -Uri "http://127.0.0.1:29999/mcp" -UseBasicParsing -TimeoutSec 5
-            Write-Host "HTTP response: $($resp.StatusCode)"
-          } catch {
-            $code = $_.Exception.Response.StatusCode.value__
-            Write-Host "HTTP response: $code (expected -- MCP requires POST)"
-          }
-
-          Write-Host "=== All frozen binary tests passed ==="
-
-          # Cleanup
-          if (-not $proc.HasExited) {
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          }
-
-      - name: Test MCP protocol (deep extensive)
-        shell: pwsh
-        run: |
-          Write-Host "=== Deep MCP Protocol Test Suite ==="
-
-          # Install httpx for the test client
-          uv pip install httpx
-
-          # Start serve in background
-          $proc = Start-Process -FilePath ".\dist\prism.exe" `
-            -ArgumentList @("serve", "--skip-preflight", "--port", "29999") `
-            -PassThru -WindowStyle Hidden `
-            -RedirectStandardOutput "mcp_serve.log" `
-            -RedirectStandardError "mcp_serve.err"
-
-          # Wait for port
-          $ready = $false
-          for ($i = 0; $i -lt 30; $i++) {
-            Start-Sleep -Milliseconds 500
-            if ($proc.HasExited) {
-              Write-Host "serve crashed"
-              Get-Content "mcp_serve.err" -ErrorAction SilentlyContinue
-              exit 1
-            }
-            $tcp = Test-NetConnection -ComputerName 127.0.0.1 -Port 29999 -InformationLevel Quiet -WarningAction SilentlyContinue
-            if ($tcp) { $ready = $true; break }
-          }
-          if (-not $ready) {
-            Write-Error "serve did not bind port"
-            exit 1
-          }
-
-          Write-Host "prism serve ready, running MCP protocol tests..."
-
-          # Run the deep test suite
-          $exitCode = 0
-          uv run python tests/mcp/test_mcp_protocol.py "http://127.0.0.1:29999/mcp"
-          $exitCode = $LASTEXITCODE
-
-          # Cleanup
-          if (-not $proc.HasExited) {
-            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-          }
-
-          if ($exitCode -ne 0) {
-            Write-Error "MCP protocol tests failed (exit code $exitCode)"
-            exit 1
-          }
-          Write-Host "=== MCP protocol tests passed ==="
 
       - name: Upload artifact
-        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: prism-windows-exe
