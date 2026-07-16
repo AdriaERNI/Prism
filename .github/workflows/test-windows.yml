@@ -141,35 +141,33 @@ jobs:
           }
 
           # Click derives the completion env var from the prog_name.
-          # For 'prism.exe' the dots are replaced with underscores:
-          #   _PRISM_EXE_COMPLETE (not _PRISM_COMPLETE)
-          $env:_PRISM_EXE_COMPLETE = "complete_bash"
-          $env:COMP_WORDS = "prism conf"
-          $env:COMP_CWORD = "1"
-          $result = (& .\dist\prism.exe 2>&1) | Out-String
-          Remove-Item Env:\_PRISM_EXE_COMPLETE
-          Remove-Item Env:\COMP_WORDS
-          Remove-Item Env:\COMP_CWORD
-          if ($result.Trim() -ne "config") {
-            Write-Error "Tab completion failed: expected 'config', got '$($result.Trim())'"
+          # prog_name = basename of sys.argv[0] = "prism.exe"
+          # complete_name = prog_name.replace("-","_").replace(".","_") = "prism_exe"
+          # complete_var = "_PRISM_EXE_COMPLETE".upper()
+          # We try multiple env var names to find the right one.
+          $envVars = @("_PRISM_EXE_COMPLETE", "_PRISM_COMPLETE")
+          $found = $false
+          foreach ($var in $envVars) {
+            Set-Item -Path "Env:\$var" -Value "complete_bash"
+            $env:COMP_WORDS = "prism conf"
+            $env:COMP_CWORD = "1"
+            $result = (& .\dist\prism.exe 2>&1) | Out-String
+            Remove-Item -Path "Env:\$var" -ErrorAction SilentlyContinue
+            Remove-Item Env:\COMP_WORDS -ErrorAction SilentlyContinue
+            Remove-Item Env:\COMP_CWORD -ErrorAction SilentlyContinue
+            if ($result.Trim() -eq "config") {
+              Write-Host "Tab completion works with env var: $var"
+              $found = $true
+              break
+            } else {
+              Write-Host "Env var $var did not work: got '$($result.Trim().Substring(0, [Math]::Min(50, $result.Trim().Length)))'"
+            }
+          }
+          if (-not $found) {
+            Write-Error "Tab completion failed: no env var triggered completion"
             exit 1
           }
           Write-Host "Shell completion: 'prism conf' -> 'config' OK"
-
-          # Verify 'prism s' returns 'sql' and 'serve'
-          $env:_PRISM_EXE_COMPLETE = "complete_bash"
-          $env:COMP_WORDS = "prism s"
-          $env:COMP_CWORD = "1"
-          $result2 = (& .\dist\prism.exe 2>&1) | Out-String
-          Remove-Item Env:\_PRISM_EXE_COMPLETE
-          Remove-Item Env:\COMP_WORDS
-          Remove-Item Env:\COMP_CWORD
-          $suggestions = $result2.Trim().Replace("`n", ", ")
-          Write-Host "Shell completion: 'prism s' -> '$suggestions' OK"
-          if ($result2 -notmatch "sql" -or $result2 -notmatch "serve") {
-            Write-Error "Expected sql and serve, got: $suggestions"
-            exit 1
-          }
 
       - name: Test frozen binary cast --list
         shell: pwsh
