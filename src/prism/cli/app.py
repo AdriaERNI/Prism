@@ -21,6 +21,7 @@ from prism.cli.commands.documents import (  # noqa: E402
     list_docs,
     put_doc,
 )
+from prism.cli.commands.install import install  # noqa: E402
 from prism.cli.commands.serve import serve  # noqa: E402
 from prism.cli.commands.server_info import info  # noqa: E402
 from prism.cli.commands.index import index as index_cmd  # noqa: E402
@@ -86,6 +87,7 @@ app.command(name="test")(test)
 app.command(name="list-tests")(list_tests)
 app.command(name="index")(index_cmd)
 app.command(name="serve")(serve)
+app.command(name="setup")(install)
 
 
 def main() -> None:

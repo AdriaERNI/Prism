@@ -96,6 +96,7 @@ class TestCommandCompletion:
             "list-tests",
             "index",
             "serve",
+            "setup",
             "cast",
         }
         assert expected.issubset(set(result))
@@ -105,10 +106,10 @@ class TestCommandCompletion:
         result = _run_completion("prism conf", 1)
         assert result == ["config"]
 
-    def test_complete_s_returns_sql_serve(self):
-        """'prism s' + Tab should return 'sql' and 'serve'."""
+    def test_complete_s_returns_sql_serve_setup(self):
+        """'prism s' + Tab should return 'sql', 'serve', and 'setup'."""
         result = _run_completion("prism s", 1)
-        assert set(result) == {"sql", "serve"}
+        assert set(result) == {"sql", "serve", "setup"}
 
     def test_complete_c_returns_config_compile_cast(self):
         """'prism c' + Tab should return commands starting with 'c'."""
