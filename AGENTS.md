@@ -41,7 +41,22 @@ via PR):
 | GitHub Pages | `.github/workflows/pages.yml` | MkDocs build + deploy (on push to `main`) |
 
 Branch protection is enabled on `main` and `development`. Required status checks:
-Lint, Unit Tests. PRs must pass CI before merge.
+Lint, Unit Tests. PRs must pass CI before merge. Linear history enforced
+(squash merges only). See [docs/releases.md](docs/releases.md) for the full
+release workflow.
+
+### Branch model (Git Flow)
+
+| Branch | Purpose |
+|--------|---------|
+| `main` | Production-ready. Only accepts PRs from `release/*` or `hotfix/*`. |
+| `development` | Active development. Target for all `feature/*` branches and Dependabot. |
+| `feature/*` | Cut from `development`, PR'd back to `development`. |
+| `release/X.Y.Z` | Cut from `development`, PR'd to `main`, then merged back to `development`. |
+| `hotfix/X.Y.Z` | Cut from `main`, PR'd to `main`, then synced back to `development`. |
+
+Branch naming: no `v` prefix on branches (e.g. `release/0.2.0`), `v` only on
+tags (e.g. `v0.2.0`).
 
 Dependabot is configured to target `development` (not `main`) in
 `.github/dependabot.yml`.

@@ -1,7 +1,30 @@
 # Releases
 
-Prism uses a tag-driven release pipeline. Push a tag, and GitHub Actions
-builds everything automatically.
+Prism follows a [Git Flow][gitflow]-inspired release workflow adapted for a
+small project with one maintainer and two protected branches.
+
+This page documents the branch model, release procedure, hotfix procedure,
+and the CI pipeline that automates artifact builds.
+
+## Branch model
+
+| Branch | Purpose | Protection |
+|--------|---------|------------|
+| `main` | Production-ready code. Every commit on `main` is a released version. | PR required, strict CI, linear history |
+| `development` | Active development. All features and fixes land here first. | PR required, strict CI, linear history |
+| `feature/*` | Individual features or bug fixes. Cut from `development`, PR'd back to `development`. | None (deleted after merge) |
+| `release/X.Y.Z` | Release preparation. Cut from `development`, PR'd to `main`. | None (deleted after merge) |
+| `hotfix/X.Y.Z` | Emergency fix for a released version. Cut from `main`, PR'd to both `main` and `development`. | None (deleted after merge) |
+
+### Branch naming conventions
+
+- **Feature branches**: `feature/<short-description>` (e.g. `feature/cast-plugins`)
+- **Release branches**: `release/X.Y.Z` -- no `v` prefix (e.g. `release/0.2.0`)
+- **Hotfix branches**: `hotfix/X.Y.Z` -- no `v` prefix (e.g. `hotfix/0.2.1`)
+- **Tags**: `vX.Y.Z` -- with `v` prefix (e.g. `v0.2.0`)
+
+The `v` prefix is used **only for tags**, never for branch names. This is
+the standard Git Flow convention.
 
 ## Versioning
 
@@ -11,57 +34,68 @@ Prism follows [semantic versioning](https://semver.org/):
 |---------|---------|-------------|
 | `vX.Y.Z` | `v0.2.0` | Stable release |
 | `vX.Y.Z-beta.N` | `v0.2.0-beta.5` | Pre-release (testing before stable) |
+| `vX.Y.Z-rc.N` | `v0.2.0-rc.1` | Release candidate (optional) |
 
-Tags are always prefixed with `v`. The CI pipeline strips the `v` and
-syncs the version into `pyproject.toml` and `src/prism/__init__.py` at
-build time -- you never edit version numbers manually for a release.
+The CI pipeline syncs the version from the git tag into `pyproject.toml`
+and `src/prism/__init__.py` at build time. You never edit version numbers
+manually for a release -- just tag and push.
 
-## Release workflow
+## Release procedure
 
-### 1. Prepare the branch
+### 1. Cut a release branch
 
-All releases go through a PR from `development` to `main`. Both branches
-are protected -- direct pushes are blocked.
+When `development` is ready for release, cut a release branch:
 
 ```bash
-# Create a release branch from development
 git checkout development
 git pull origin development
-git checkout -b release/vX.Y.Z
-
-# If bumping the version, edit pyproject.toml and src/prism/__init__.py
-# (for stable releases, the version should already be set)
-
-git push -u origin release/vX.Y.Z
+git checkout -b release/0.2.0
 ```
 
-### 2. Open a PR to main
+### 2. Prepare the release
+
+On the release branch, do any final preparation:
+
+- Bump version in `pyproject.toml` and `src/prism/__init__.py` (if not already set)
+- Update `CHANGELOG.md` if needed
+- Final documentation review
 
 ```bash
-gh pr create --base main --head release/vX.Y.Z \
-  --title "release: vX.Y.Z" \
-  --body "Stable release vX.Y.Z"
+# Example: ensure version is set for stable release
+# pyproject.toml: version = "0.2.0"
+# src/prism/__init__.py: __version__ = "0.2.0"
+
+git add -A
+git commit -m "release: prepare v0.2.0"
 ```
 
-The PR must pass all CI checks:
+### 3. Open PR to main
+
+```bash
+git push -u origin release/0.2.0
+gh pr create --base main --head release/0.2.0 \
+  --title "release: v0.2.0" \
+  --body "Stable release v0.2.0"
+```
+
+All CI checks must pass before merging:
 
 - **Lint** -- ruff check + format
 - **Unit Tests** (Linux + Windows) -- 324 tests
 - **Build and Test Frozen Executable** (Windows) -- PyInstaller build + frozen binary tests + deep MCP protocol tests (32 tests)
 - **Integration Tests** (Linux) -- against a live IRIS container
 
-### 3. Merge the PR
+### 4. Merge to main
 
-Merge the PR into `main` once all checks pass. Use **squash merge** to
-keep the history clean (linear history is enforced on both branches).
+Merge the PR using **squash merge** (linear history is enforced on `main`).
 
-### 4. Tag the release
+### 5. Tag the release
 
 ```bash
 git checkout main
 git pull origin main
-git tag vX.Y.Z
-git push origin vX.Y.Z
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 Pushing the tag triggers the **Build and Release** workflow, which:
@@ -74,32 +108,35 @@ Pushing the tag triggers the **Build and Release** workflow, which:
 6. Tests the frozen binary (`--version`, `--help`, `cast --list`, `prism serve`)
 7. Creates a GitHub Release with auto-generated changelog
 
-### 5. Verify the release
+### 6. Sync development
+
+After the release, merge `main` back into `development` so the release
+branch changes propagate:
 
 ```bash
-# Check the release
-gh release view vX.Y.Z
-
-# Download and test the exe
-gh release download vX.Y.Z --pattern "prism.exe" --dir /tmp/prism-release
-/tmp/prism-release/prism.exe --version
+git checkout development
+git merge main --no-edit  # or use a PR if you prefer
+git push origin development
 ```
 
-## Release artifacts
+### 7. Clean up
 
-Each release includes:
+Delete the release branch (local + remote):
 
-| Artifact | Platform | Description |
-|----------|----------|-------------|
-| `prism.exe` | Windows | Standalone PyInstaller binary (36 MB) |
-| `prism-X.Y.Z-setup.exe` | Windows | Inno Setup installer with Prism branding |
-| `prism-X.Y.Z-py3-none-any.whl` | Cross-platform | Python wheel (pip install) |
+```bash
+git branch -d release/0.2.0
+git push origin --delete release/0.2.0
+```
 
 ## Pre-releases
 
-Pre-releases follow the same workflow but use a `-beta.N` suffix:
+Pre-releases follow a lighter process. Tag directly from `development`
+or a release branch without merging to `main`:
 
 ```bash
+# Tag a pre-release from development
+git checkout development
+git pull origin development
 git tag v0.2.0-beta.1
 git push origin v0.2.0-beta.1
 ```
@@ -108,40 +145,134 @@ GitHub automatically marks the release as a **Pre-release** when the tag
 contains a hyphen. Pre-release tags do not affect the `latest` release
 pointer on GitHub.
 
-You can tag as many pre-releases as needed from any branch before
-cutting the stable release.
+You can tag as many pre-releases as needed before cutting the stable
+release. When ready, follow the full release procedure above.
 
-## Branch protection
+## Hotfix procedure
 
-Both `main` and `development` are protected:
+When a critical bug is found in a released version:
 
-- **Direct pushes**: blocked (PR required)
-- **Reviews**: 0 required (user merges manually)
-- **Status checks**: Lint + Unit Tests must pass
-- **Strict**: branch must be up to date before merging
-- **Linear history**: enforced (no merge commits on PR merge)
-- **Force pushes**: disabled
-- **enforce_admins**: false (admin can bypass in emergencies)
+### 1. Cut a hotfix branch from main
 
-`main` only accepts PRs from `development` (or a release branch created
-from `development`). `development` is the active working branch for all
-features and fixes.
+```bash
+git checkout main
+git pull origin main
+git checkout -b hotfix/0.2.1
+```
+
+### 2. Fix and bump version
+
+```bash
+# Bump the patch version
+# pyproject.toml: version = "0.2.1"
+# src/prism/__init__.py: __version__ = "0.2.1"
+
+git add -A
+git commit -m "fix: critical bug in SQL execution"
+```
+
+### 3. PR to main
+
+```bash
+git push -u origin hotfix/0.2.1
+gh pr create --base main --head hotfix/0.2.1 \
+  --title "hotfix: v0.2.1" \
+  --body "Critical fix for v0.2.0"
+```
+
+### 4. Merge, tag, and sync
+
+```bash
+# Merge the PR to main (squash)
+git checkout main
+git pull origin main
+git tag v0.2.1
+git push origin v0.2.1
+
+# Sync back to development
+git checkout development
+git merge main --no-edit
+git push origin development
+
+# Clean up
+git branch -d hotfix/0.2.1
+git push origin --delete hotfix/0.2.1
+```
+
+## Visual workflow
+
+```
+development  feature/cast   release/0.2.0     main
+    |              |               |            |
+    |--- CUT ------|               |            |
+    |              |               |            |
+    |<-- MERGE ----|               |            |
+    |                              |            |
+    |---------- CUT ---------------|            |
+    |                              |            |
+    |                              |--- PR ---->|
+    |                              |            |
+    |                              |      MERGE |
+    |                              |            |
+    |                              |       TAG v0.2.0
+    |                              |            |
+    |<----------- SYNC (merge main into dev) ---|
+    |                                           |
+    |                                     DELETE release/0.2.0
+```
 
 ## CI pipelines
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `test-linux.yml` | PR to development/main | Unit + integration tests on Linux with IRIS |
-| `test-windows.yml` | PR to development/main | Unit tests + frozen binary build + MCP protocol tests on Windows |
-| `build-release.yml` | Tag push (`v*`) | Full build pipeline + GitHub Release |
-| `pages.yml` | Push to main | MkDocs documentation deploy |
+| `test-linux.yml` | PR to `development` or `main` | Lint, unit tests, integration tests (Docker IRIS) |
+| `test-windows.yml` | PR to `development` or `main` | Unit tests, PyInstaller frozen binary tests, MCP protocol tests (32 tests) |
+| `build-release.yml` | Tag push (`v*`) | Full build pipeline + GitHub Release creation |
+| `pages.yml` | Push to `main` | MkDocs documentation deploy to GitHub Pages |
+
+## Branch protection rules
+
+Both `main` and `development` are protected:
+
+| Rule | Value |
+|------|-------|
+| Required PR reviews | 0 (user merges manually) |
+| Required status checks | Lint, Unit Tests |
+| Strict (up-to-date) | Yes |
+| Linear history | Yes (squash merges only) |
+| Force pushes | Disabled |
+| enforce_admins | False (admin can bypass in emergencies) |
+
+`main` only accepts PRs from `release/*` or `hotfix/*` branches.
+`development` is the target for all `feature/*` branches and Dependabot PRs.
 
 ## Changelog
 
 Release notes are auto-generated by [git-cliff](https://git-cliff.github.io/)
-using the configuration in `cliff.toml`. Conventional commit prefixes
-(`feat:`, `fix:`, `docs:`, `ci:`, `refactor:`) are used to categorize
-entries.
+using the configuration in `cliff.toml`. Commits should follow
+[Conventional Commits](https://www.conventionalcommits.org/) so they are
+categorized correctly:
+
+| Prefix | Category in changelog |
+|--------|----------------------|
+| `feat:` | Features |
+| `fix:` | Bug Fixes |
+| `docs:` | Documentation |
+| `ci:` | CI/CD |
+| `refactor:` | Refactoring |
+| `test:` | Tests |
 
 For stable releases, pre-release tags are excluded from the changelog
 so their commits roll up into the stable release notes.
+
+## Release artifacts
+
+Each release includes:
+
+| Artifact | Platform | Description |
+|----------|----------|-------------|
+| `prism.exe` | Windows | Standalone PyInstaller binary (~36 MB) |
+| `prism-X.Y.Z-setup.exe` | Windows | Inno Setup installer with Prism branding |
+| `prism-X.Y.Z-py3-none-any.whl` | Cross-platform | Python wheel (`pip install prism`) |
+
+[gitflow]: https://nvie.com/posts/a-successful-git-branching-model/

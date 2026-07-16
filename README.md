@@ -182,6 +182,10 @@ Full testing guide: [docs/testing.md](docs/testing.md)
 
 ## Releases
 
+Prism follows a [Git Flow](https://nvie.com/posts/a-successful-git-branching-model/)
+release workflow with two protected branches: `development` (active work)
+and `main` (stable releases).
+
 Download the latest Windows installer or standalone exe from
 [GitHub Releases](https://github.com/AdriaERNI/Prism/releases).
 
@@ -191,8 +195,8 @@ Download the latest Windows installer or standalone exe from
 | `prism.exe` | Standalone Windows binary (PyInstaller) |
 | `prism-X.Y.Z-py3-none-any.whl` | Python wheel (`pip install prism`) |
 
-See the [release guide](https://adriaerni.github.io/Prism/releases/) for
-the full release workflow, versioning, and branch protection details.
+See the [release guide](https://adriaerni.github.io/Prism/releases/) for the
+full release workflow, branch model, hotfix procedure, and CI pipeline details.
 
 ## Documentation
 
