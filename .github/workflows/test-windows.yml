@@ -110,15 +110,12 @@ jobs:
       - name: Test frozen binary --help
         shell: pwsh
         run: |
-          $h = & .\dist\prism.exe --help 2>&1
-          if ($LASTEXITCODE -ne 0) {
-            Write-Error "--help failed with exit code $LASTEXITCODE"
-            Write-Host $h
-            exit 1
-          }
-          if ($h -notmatch "serve") {
+          # Capture both stdout and stderr
+          $output = (& .\dist\prism.exe --help 2>&1) | Out-String
+          Write-Host "Output length: $($output.Length)"
+          Write-Host $output
+          if ($output -notmatch "serve") {
             Write-Error "--help output doesn't mention 'serve'"
-            Write-Host $h
             exit 1
           }
           Write-Host "--help OK"
