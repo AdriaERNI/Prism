@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import stat
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -327,6 +328,10 @@ class TestResolveCommand:
 
 
 class TestRunCommand:
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="bash not available on Windows CI without WSL",
+    )
     def test_run_executes_script(self, tmp_cast_dir):
         repo_path = tmp_cast_dir / "myrepo"
         _make_fake_repo(repo_path, {"hello": "#!/bin/bash\necho hello-world"})
