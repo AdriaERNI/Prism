@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate changelog
         uses: orhun/git-cliff-action@v4
@@ -37,26 +38,34 @@ jobs:
             cat CHANGELOG.md
           } > docs/changelog.md
 
-      - name: Create pull request for changelog
+      - name: Create PR and auto-merge
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update changelog"
+          commit-message: "chore: update changelog [skip ci]"
           title: "chore: update changelog"
-          body: |
-            Auto-generated changelog update from git-cliff.
-
-            This PR keeps `CHANGELOG.md` and `docs/changelog.md` in sync with
-            the latest conventional commits. Merging this PR will update the
-            MkDocs site on the next deploy.
+          body: "Auto-generated changelog update from git-cliff. This PR is auto-merged."
           branch: chore/changelog
           base: development
           add-paths: |
             CHANGELOG.md
             docs/changelog.md
           labels: |
-            dependencies
             automated
+
+      - name: Auto-merge changelog PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Find the changelog PR and merge it with admin flag
+          sleep 5
+          PR_NUMBER=$(gh pr list --head chore/changelog --base development --state open --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$PR_NUMBER" ] && [ "$PR_NUMBER" != "null" ]; then
+            echo "Auto-merging PR #$PR_NUMBER"
+            gh pr merge "$PR_NUMBER" --squash --admin --delete-branch
+          else
+            echo "No changelog PR to merge (may already be up to date)"
+          fi
 
       - name: Upload changelog artifact
         uses: actions/upload-artifact@v4

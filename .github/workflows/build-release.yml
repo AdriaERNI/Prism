@@ -162,7 +162,7 @@ jobs:
           Copy-Item dist/prism.exe "dist/prism-$version.exe"
           # Create a CI-compatible .iss that uses relative paths
           $issContent = Get-Content vagrant/prism.iss -Raw
-          $issContent = $issContent -replace 'C:\\vagrant\\dist', 'dist'
+          $issContent = $issContent -replace 'C:\\vagrant\\dist', '.'
           Set-Content dist/prism.iss $issContent
           # Find ISCC.exe
           $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
