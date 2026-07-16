@@ -45,6 +45,10 @@ footer = """
 conventional_commits = true
 filter_unconventional = true
 split_commits = false
+# When generating a stable release (e.g. v0.2.0), pre-release tags are
+# ignored as section breaks so all beta commits roll up into the stable
+# release notes. Pre-release tags still get their own notes when pushed.
+# The workflow passes --ignore-tags for stable releases only.
 commit_preprocessors = [
   { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "([#${2}](https://github.com/AdriaERNI/Prism/issues/${2}))" },
 ]
