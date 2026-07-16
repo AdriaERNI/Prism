@@ -70,6 +70,19 @@ docker run -d --name iris -p 52773:52773 -p 1972:1972 intersystemsdc/iris-commun
 
 Global option: `prism --format toon` for TOON output.
 
+## Shell completion
+
+Tab completion is available for bash, zsh, fish, and PowerShell:
+
+```bash
+prism --install-completion    # auto-detect shell
+```
+
+After running, restart your terminal. Then `prism conf` + Tab auto-completes
+to `prism config`, `prism s` + Tab cycles through `sql` and `serve`, etc.
+
+See the [commands overview](https://adriaerni.github.io/Prism/commands/) for details.
+
 ## MCP Tools
 
 10 tools are always available, 2 workspace-gated (`put_document`, `put_and_compile`),

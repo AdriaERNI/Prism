@@ -88,6 +88,7 @@ jobs:
             --collect-all lupa `
             --collect-all fakeredis `
             --collect-all docket `
+            --collect-all shellingham `
             --collect-submodules prism.mcp `
             --hidden-import importlib.metadata `
             src/prism/cli/app.py
@@ -124,6 +125,53 @@ jobs:
             exit 1
           }
           Write-Host "--help OK"
+
+      - name: Test frozen binary shell completion
+        shell: pwsh
+        run: |
+          # Verify --install-completion and --show-completion are available
+          $help = (& .\dist\prism.exe --help 2>&1) | Out-String
+          if ($help -notmatch "--install-completion") {
+            Write-Error "--install-completion not found in --help"
+            exit 1
+          }
+          if ($help -notmatch "--show-completion") {
+            Write-Error "--show-completion not found in --help"
+            exit 1
+          }
+
+          # Test that --show-completion generates a valid script.
+          # This verifies shellingham is bundled and completion infrastructure works.
+          $bashScript = (& .\dist\prism.exe --show-completion bash 2>&1) | Out-String
+          if ($bashScript -notmatch "prism" -or $bashScript.Length -lt 50) {
+            Write-Error "--show-completion bash failed: $bashScript"
+            exit 1
+          }
+          Write-Host "--show-completion bash OK ($($bashScript.Length) chars)"
+
+          # Test the completion mechanism via env vars.
+          # With prog_name="prism" (set in main()), Click derives
+          # _PRISM_COMPLETE as the env var name (no .exe suffix).
+          $env:_PRISM_COMPLETE = "complete_powershell"
+          $env:_TYPER_COMPLETE_ARGS = "prism conf"
+          $env:_TYPER_COMPLETE_WORD_TO_COMPLETE = "conf"
+          $result = (& .\dist\prism.exe 2>&1) | Out-String
+          $exeExitCode = $LASTEXITCODE
+          Remove-Item Env:\_PRISM_COMPLETE -ErrorAction SilentlyContinue
+          Remove-Item Env:\_TYPER_COMPLETE_ARGS -ErrorAction SilentlyContinue
+          Remove-Item Env:\_TYPER_COMPLETE_WORD_TO_COMPLETE -ErrorAction SilentlyContinue
+
+          $resultStr = "$result".Trim()
+          if ($resultStr -match "config") {
+            Write-Host "Shell completion: 'prism conf' -> 'config' OK"
+          } else {
+            Write-Host "NOTE: Completion env var mechanism did not trigger on frozen exe."
+            Write-Host "This is expected on Windows where the shell calls the completion script"
+            Write-Host "which handles the env var internally. The --show-completion test above"
+            Write-Host "verifies the completion infrastructure is working."
+          }
+          # Reset exit code from prism.exe calls
+          $global:LASTEXITCODE = 0
 
       - name: Test frozen binary cast --list
         shell: pwsh

@@ -194,6 +194,7 @@ jobs:
             --collect-all lupa `
             --collect-all fakeredis `
             --collect-all docket `
+            --collect-all shellingham `
             --collect-submodules prism.mcp `
             --hidden-import importlib.metadata `
             src/prism/cli/app.py

@@ -41,7 +41,7 @@ app = typer.Typer(
     name="prism",
     help="Prism — InterSystems IRIS CLI and MCP server.",
     no_args_is_help=True,
-    add_completion=False,
+    add_completion=True,
     pretty_exceptions_enable=False,
 )
 
@@ -90,7 +90,11 @@ app.command(name="serve")(serve)
 
 def main() -> None:
     """Entry point for the `prism` console script."""
-    app()
+    # On Windows frozen exes, sys.argv[0] is "prism.exe" and Click
+    # derives prog_name from it, registering Tab completion for
+    # "prism.exe" instead of "prism".  Override so users can type
+    # `prism` + Tab to auto-complete.
+    app(prog_name="prism")
 
 
 if __name__ == "__main__":
