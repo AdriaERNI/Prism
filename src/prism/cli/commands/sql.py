@@ -5,11 +5,10 @@ from __future__ import annotations
 import asyncio
 import sys
 
-import httpx
 import typer
 
+from prism.cli.errors import handle_command_error
 from prism.iris.api.sql import execute_query
-from prism.iris.sdk.http import base_url
 from prism.output import format_output, get_output_format
 
 
@@ -26,27 +25,7 @@ def sql(
 
     try:
         response = asyncio.run(execute_query(query, namespace=namespace))
-    except httpx.ConnectError:
-        typer.echo(
-            f"Error: Cannot connect to IRIS at {base_url()}. Is the server running?",
-            err=True,
-        )
-        sys.exit(1)
-    except httpx.ConnectTimeout:
-        typer.echo(
-            f"Error: Connection to IRIS at {base_url()} timed out.",
-            err=True,
-        )
-        sys.exit(1)
-    except httpx.HTTPStatusError as exc:
-        typer.echo(
-            f"Error: IRIS returned HTTP {exc.response.status_code}: "
-            f"{exc.response.text[:200]}",
-            err=True,
-        )
-        sys.exit(1)
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        handle_command_error(exc)
 
     typer.echo(format_output(response, get_output_format()))

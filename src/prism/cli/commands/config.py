@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import click
 import typer
 
 from prism.settings import (
@@ -113,7 +112,7 @@ def _interactive() -> None:
                 .lower()
                 or "k"
             )
-        except (EOFError, click.exceptions.Abort):
+        except (EOFError, typer.Abort):
             typer.echo("\n  Input ended — keeping current values.\n")
             break
 
@@ -131,7 +130,7 @@ def _interactive() -> None:
                 new_raw = typer.prompt(
                     "        New value", default="", show_default=False
                 )
-            except (EOFError, click.exceptions.Abort):
+            except (EOFError, typer.Abort):
                 typer.echo("\n  Input ended — keeping current.\n")
                 break
             try:

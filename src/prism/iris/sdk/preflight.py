@@ -5,8 +5,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import click
 import httpx
+import typer
 
 from prism.iris.sdk.http import base_url, auth
 from prism.iris.sdk.log import logger
@@ -21,28 +21,28 @@ def preflight_check() -> None:
         r = httpx.get(url, auth=auth(), timeout=10.0)
         r.raise_for_status()
     except httpx.ConnectError:
-        click.echo(
+        typer.echo(
             f"Error: Cannot connect to IRIS at {base_url()}. "
             f"Is the server running? Use --skip-preflight to bypass.",
             err=True,
         )
         sys.exit(1)
     except httpx.ConnectTimeout:
-        click.echo(
+        typer.echo(
             f"Error: Connection to IRIS at {base_url()} timed out. "
             f"Use --skip-preflight to bypass.",
             err=True,
         )
         sys.exit(1)
     except httpx.HTTPStatusError as exc:
-        click.echo(
+        typer.echo(
             f"Error: IRIS responded with HTTP {exc.response.status_code}. "
             f"Check your credentials and URL. Use --skip-preflight to bypass.",
             err=True,
         )
         sys.exit(1)
     except httpx.RequestError as exc:
-        click.echo(
+        typer.echo(
             f"Error: Failed to connect to IRIS: {exc}. Use --skip-preflight to bypass.",
             err=True,
         )
@@ -58,7 +58,7 @@ def preflight_check() -> None:
     logger.info(f"{version} | ns: {ns_list} | target: {settings.iris_namespace}")
 
     if namespaces and settings.iris_namespace not in namespaces:
-        click.echo(
+        typer.echo(
             f"Error: Namespace '{settings.iris_namespace}' not found on server. "
             f"Available: {ns_list}",
             err=True,

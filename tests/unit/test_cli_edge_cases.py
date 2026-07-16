@@ -26,8 +26,7 @@ class TestFormatValidation:
     def test_invalid_format_warns_but_continues(self):
         """Unknown formats warn on stderr and fall back to JSON."""
         result = runner.invoke(app, ["--format", "xml", "info"])
-        # Should warn about unknown format
-        assert "unknown format 'xml'" in result.output.lower() or result.exit_code == 0
+        assert "unknown format 'xml'" in result.output.lower()
 
     def test_format_json_works(self):
         """--format json should work without warnings."""
@@ -71,8 +70,18 @@ class TestTerminalEdgeCases:
         assert result.exit_code == 1
         assert "cannot be empty" in result.output.lower()
 
+    def test_whitespace_terminal_command_errors(self):
+        result = runner.invoke(app, ["terminal", "   "])
+        assert result.exit_code == 1
+        assert "cannot be empty" in result.output.lower()
+
     def test_empty_ws_command_errors(self):
         result = runner.invoke(app, ["ws", ""])
+        assert result.exit_code == 1
+        assert "cannot be empty" in result.output.lower()
+
+    def test_whitespace_ws_command_errors(self):
+        result = runner.invoke(app, ["ws", "   "])
         assert result.exit_code == 1
         assert "cannot be empty" in result.output.lower()
 
@@ -88,6 +97,16 @@ class TestCompileEdgeCases:
         assert result.exit_code == 1
         assert "cannot be empty" in result.output.lower()
 
+    def test_whitespace_document_name_errors(self):
+        result = runner.invoke(app, ["compile", "   "])
+        assert result.exit_code == 1
+        assert "cannot be empty" in result.output.lower()
+
+    def test_no_documents_errors(self):
+        """Compile with no document names should error."""
+        result = runner.invoke(app, ["compile"])
+        assert result.exit_code != 0
+
 
 # ── Document command edge cases ───────────────────────────────────────
 
@@ -97,6 +116,11 @@ class TestDocumentEdgeCases:
 
     def test_get_doc_empty_name_errors(self):
         result = runner.invoke(app, ["get-doc", ""])
+        assert result.exit_code == 1
+        assert "cannot be empty" in result.output.lower()
+
+    def test_get_doc_whitespace_name_errors(self):
+        result = runner.invoke(app, ["get-doc", "   "])
         assert result.exit_code == 1
         assert "cannot be empty" in result.output.lower()
 
@@ -116,6 +140,11 @@ class TestDocumentEdgeCases:
         assert result.exit_code == 1
         assert "cannot be empty" in result.output.lower()
 
+    def test_delete_doc_whitespace_name_errors(self):
+        result = runner.invoke(app, ["delete-doc", "   "])
+        assert result.exit_code == 1
+        assert "cannot be empty" in result.output.lower()
+
 
 # ── Test command edge cases ───────────────────────────────────────────
 
@@ -125,6 +154,11 @@ class TestTestEdgeCases:
 
     def test_empty_test_class_errors(self):
         result = runner.invoke(app, ["test", ""])
+        assert result.exit_code == 1
+        assert "cannot be empty" in result.output.lower()
+
+    def test_whitespace_test_class_errors(self):
+        result = runner.invoke(app, ["test", "   "])
         assert result.exit_code == 1
         assert "cannot be empty" in result.output.lower()
 
