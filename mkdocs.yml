@@ -101,7 +101,9 @@ nav:
     - prism compile: commands/compile.md
     - Terminal: commands/terminal.md
     - Testing: commands/testing.md
+    - prism index: commands/indexing.md
     - prism serve: commands/serve.md
+    - prism cast: commands/cast.md
   - Testing: testing.md
   - MCP Server:
     - Overview: mcp/index.md
@@ -109,3 +111,4 @@ nav:
     - Tool reference: mcp/tools.md
     - Interactive debugger: mcp/debugging.md
   - Changelog: changelog.md
+  - Releases: releases.md
