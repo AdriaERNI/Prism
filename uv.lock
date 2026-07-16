@@ -1005,8 +1005,8 @@ wheels = [
 ]
 
 [[package]]
-name = "prism-mcp"
-version = "0.1.5"
+name = "prism"
+version = "0.2.0b5"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
@@ -1015,12 +1015,9 @@ dependencies = [
     { name = "platformdirs" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
-    { name = "websockets" },
-]
-
-[package.optional-dependencies]
-toon = [
     { name = "toons" },
+    { name = "typer" },
+    { name = "websockets" },
 ]
 
 [package.dev-dependencies]
@@ -1042,10 +1039,10 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.0" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "python-dotenv", specifier = ">=1.2.1" },
-    { name = "toons", marker = "extra == 'toon'", specifier = ">=0.5" },
+    { name = "toons", specifier = ">=0.5" },
+    { name = "typer", specifier = ">=0.12" },
     { name = "websockets", specifier = ">=13.0" },
 ]
-provides-extras = ["toon"]
 
 [package.metadata.requires-dev]
 dev = [

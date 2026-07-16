@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "prism-mcp"
-version = "0.1.5"
+name = "prism"
+version = "0.2.0"
 description = "Prism lets AI see through IRIS — MCP server for SQL, documents, compilation, debugging, testing, and ObjectScript execution"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -15,6 +15,8 @@ dependencies = [
     "platformdirs>=4.0",
     "pydantic-settings>=2.14.2",
     "python-dotenv>=1.2.1",
+    "typer>=0.12",
+    "toons>=0.5",
     "websockets>=13.0",
 ]
 
@@ -23,9 +25,6 @@ prism = "prism.cli.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/prism"]
-
-[project.optional-dependencies]
-toon = ["toons>=0.5"]
 
 [dependency-groups]
 dev = [

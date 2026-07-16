@@ -78,7 +78,8 @@ uv run pyinstaller --noconfirm --onefile --name prism --clean `
   --collect-submodules prism `
   --collect-submodules fastmcp `
   --copy-metadata fastmcp `
-  --copy-metadata prism-mcp `
+  --copy-metadata python-dotenv `
+  --copy-metadata toons `
   --collect-all fakeredis `
   --collect-submodules lupa `
   --collect-binaries lupa `

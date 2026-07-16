@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a Windows .exe and Inno Setup installer for prism-mcp
+# Build a Windows .exe and Inno Setup installer for prism
 # using the Vagrant Windows VM with KVM/QEMU (libvirt).
 # Usage: ./vagrant/build-windows.sh
 #
