@@ -31,23 +31,10 @@ from prism.output import set_output_format  # noqa: E402
 
 
 def _get_version() -> str:
-    """Return the Prism version.
+    """Return the Prism version from __init__.__version__."""
+    from prism import __version__
 
-    Tries importlib.metadata first (works in dev mode), then falls back
-    to a frozen-app approach (PyInstaller bundles version.txt).
-    """
-    try:
-        from importlib.metadata import version
-
-        return version("prism-mcp")
-    except Exception:
-        pass
-    try:
-        from importlib.resources import files
-
-        return (files("prism") / "version.txt").read_text().strip()
-    except Exception:
-        return "unknown"
+    return __version__
 
 
 app = typer.Typer(

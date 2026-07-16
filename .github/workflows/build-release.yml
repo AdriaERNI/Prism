@@ -152,8 +152,11 @@ jobs:
           $content = Get-Content pyproject.toml -Raw
           $content = $content -replace 'version\s*=\s*"[^"]*"', "version = `"$VERSION`""
           Set-Content pyproject.toml $content
-          # Update version.txt for frozen builds
-          Set-Content -Path src/prism/version.txt -Value $VERSION
+          # Update __init__.py __version__
+          $initPath = "src/prism/__init__.py"
+          $initContent = Get-Content $initPath -Raw
+          $initContent = $initContent -replace '__version__\s*=\s*"[^"]*"', "__version__ = `"$VERSION`""
+          Set-Content $initPath $initContent
           # Re-sync so uv build uses the new version
           uv sync
 

@@ -186,12 +186,11 @@ class TestVersion:
     """Verify prism --version works."""
 
     def test_version_string_available(self):
-        """The version must be available via importlib.metadata or version.txt."""
-        from prism.cli.app import _get_version
+        """The version must be available via prism.__version__."""
+        from prism import __version__
 
-        v = _get_version()
-        assert v != "unknown", "Version is 'unknown' — version.txt not bundled?"
-        assert len(v) > 0
+        assert __version__, "prism.__version__ is empty"
+        assert __version__ != "unknown"
 
     def test_version_in_pyproject(self):
         """pyproject.toml must have a version (checked via importlib.metadata)."""

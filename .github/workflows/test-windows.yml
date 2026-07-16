@@ -66,7 +66,10 @@ jobs:
             $content = Get-Content pyproject.toml -Raw
             $content = $content -replace 'version\s*=\s*"[^"]*"', "version = `"$version`""
             Set-Content pyproject.toml $content
-            Set-Content -Path src/prism/version.txt -Value $version
+            # Update __init__.py __version__
+            $initContent = Get-Content src/prism/__init__.py -Raw
+            $initContent = $initContent -replace '__version__\s*=\s*"[^"]*"', "__version__ = `"$version`""
+            Set-Content src/prism/__init__.py $initContent
             uv sync
           }
 
