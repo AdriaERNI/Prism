@@ -127,13 +127,18 @@ class TestCommandCompletion:
 
 
 # --- Phase 3: Subcommand completion (cast) ---
+#
+# Cast subcommand completion depends on installed cast repos. On CI (fresh
+# checkout, no casts cloned), only the 'template' subcommand of 'cast' itself
+# is testable. The cast template *commands* (weather, uuid, etc.) require the
+# template repo to be cloned, so we skip those if it's not available.
 
 
 class TestCastSubcommandCompletion:
     """Tab-completion for 'prism cast' subcommands."""
 
     def test_complete_cast_subcommands(self):
-        """'prism cast ' + Tab should return 'template'."""
+        """'prism cast ' + Tab should return 'template' (always registered)."""
         result = _run_completion("prism cast ", 2)
         assert "template" in result
 
@@ -142,12 +147,20 @@ class TestCastSubcommandCompletion:
         result = _run_completion("prism cast t", 2)
         assert result == ["template"]
 
+    @pytest.mark.skipif(
+        not Path.home().joinpath(".prism", "cast", "template").exists(),
+        reason="cast template repo not installed (fresh CI environment)",
+    )
     def test_complete_cast_template_commands(self):
         """'prism cast template ' + Tab should return template commands."""
         result = _run_completion("prism cast template ", 3)
         expected = {"headers", "ip", "portcheck", "timestamp", "uuid", "weather"}
         assert expected.issubset(set(result))
 
+    @pytest.mark.skipif(
+        not Path.home().joinpath(".prism", "cast", "template").exists(),
+        reason="cast template repo not installed (fresh CI environment)",
+    )
     def test_complete_cast_template_w(self):
         """'prism cast template w' + Tab should return 'weather'."""
         result = _run_completion("prism cast template w", 3)
