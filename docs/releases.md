@@ -115,8 +115,8 @@ branch changes propagate:
 
 ```bash
 git checkout development
-git merge main --no-edit  # or use a PR if you prefer
-git push origin development
+git rebase main  # rebase, not merge, to preserve linear history
+git push origin development  # may require a PR if enforce_admins=true
 ```
 
 ### 7. Clean up
@@ -236,15 +236,21 @@ Both `main` and `development` are protected:
 
 | Rule | Value |
 |------|-------|
-| Required PR reviews | 0 (user merges manually) |
+| Required PR reviews | 0 (PR itself is required) |
 | Required status checks | Lint, Unit Tests |
 | Strict (up-to-date) | Yes |
 | Linear history | Yes (squash merges only) |
 | Force pushes | Disabled |
-| enforce_admins | False (admin can bypass in emergencies) |
+| Branch deletion | Disabled |
+| enforce_admins | True (no bypasses, even for admins) |
 
 `main` only accepts PRs from `release/*` or `hotfix/*` branches.
 `development` is the target for all `feature/*` branches and Dependabot PRs.
+
+With `enforce_admins=true`, all changes must go through pull requests --
+even for repository admins. To sync `main` back to `development` after a
+release, use `git rebase main` (not merge) and open a PR to preserve
+linear history.
 
 ## Changelog
 
