@@ -243,13 +243,15 @@ Both `main` and `development` are protected:
 | Force pushes | Disabled |
 | Branch deletion | Disabled |
 | enforce_admins | True (no bypasses, even for admins) |
+| require_last_push_approval | True (PRs cannot be self-merged or auto-merged without explicit review) |
 
 `main` only accepts PRs from `release/*` or `hotfix/*` branches.
 `development` is the target for all `feature/*` branches and Dependabot PRs.
 
-With `enforce_admins=true`, all changes must go through pull requests --
-even for repository admins. To sync `main` back to `development` after a
-release, use `git rebase main` (not merge) and open a PR to preserve
+With `enforce_admins=true` and `require_last_push_approval=true`, all changes
+must go through pull requests and cannot be merged without an explicit approving
+review -- even for repository admins. To sync `main` back to `development`
+after a release, use `git rebase main` (not merge) and open a PR to preserve
 linear history.
 
 ## Changelog
