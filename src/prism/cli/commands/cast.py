@@ -153,7 +153,16 @@ def _register_lazy_command(
 ) -> None:
     """Register a stub command that lazy-imports and delegates on execution."""
 
-    @repo_typer.command(name=cmd_name, help=cmd_help or None)
+    @repo_typer.command(
+        name=cmd_name,
+        help=cmd_help or None,
+        add_help_option=False,
+        context_settings={
+            "allow_extra_args": True,
+            "ignore_unknown_options": True,
+            "help_option_names": [],
+        },
+    )
     def _lazy_cmd(
         ctx: typer.Context,
         args: list[str] = typer.Argument(
