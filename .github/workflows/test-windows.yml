@@ -88,6 +88,7 @@ jobs:
             --collect-all lupa `
             --collect-all fakeredis `
             --collect-all docket `
+            --collect-all shellingham `
             --collect-submodules prism.mcp `
             --hidden-import importlib.metadata `
             src/prism/cli/app.py
@@ -124,6 +125,43 @@ jobs:
             exit 1
           }
           Write-Host "--help OK"
+
+      - name: Test frozen binary shell completion
+        shell: pwsh
+        run: |
+          # Verify --install-completion and --show-completion are available
+          $help = (& .\dist\prism.exe --help 2>&1) | Out-String
+          if ($help -notmatch "--install-completion") {
+            Write-Error "--install-completion not found in --help"
+            exit 1
+          }
+          if ($help -notmatch "--show-completion") {
+            Write-Error "--show-completion not found in --help"
+            exit 1
+          }
+          # Verify completion env var mechanism works (bash mode)
+          $env:_PRISM_COMPLETE = "complete_bash"
+          $env:COMP_WORDS = "prism conf"
+          $env:COMP_CWORD = "1"
+          $result = (& .\dist\prism.exe 2>&1) | Out-String
+          Remove-Item Env:\_PRISM_COMPLETE
+          Remove-Item Env:\COMP_WORDS
+          Remove-Item Env:\COMP_CWORD
+          if ($result.Trim() -ne "config") {
+            Write-Error "Tab completion failed: expected 'config', got '$result'"
+            exit 1
+          }
+          Write-Host "Shell completion: 'prism conf' -> 'config' OK"
+
+          # Verify 'prism s' returns 'sql' and 'serve'
+          $env:_PRISM_COMPLETE = "complete_bash"
+          $env:COMP_WORDS = "prism s"
+          $env:COMP_CWORD = "1"
+          $result2 = (& .\dist\prism.exe 2>&1) | Out-String
+          Remove-Item Env:\_PRISM_COMPLETE
+          Remove-Item Env:\COMP_WORDS
+          Remove-Item Env:\COMP_CWORD
+          Write-Host "Shell completion: 'prism s' -> '$($result2.Trim().Replace("`n", ", "))' OK"
 
       - name: Test frozen binary cast --list
         shell: pwsh
