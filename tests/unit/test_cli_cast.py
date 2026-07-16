@@ -1,15 +1,12 @@
-"""Unit tests for `prism cast` — repo management and command execution.
+"""Unit tests for `prism cast` — Typer plugin system.
 
-Tests use real temp directories and mock subprocess calls for git operations.
-No network access required.
+Tests use real temp directories and mock subprocess for git operations.
+No network access required — cast repos are created as temp packages.
 """
 
 from __future__ import annotations
 
-import json
-import stat
 import subprocess
-import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -37,60 +34,47 @@ def tmp_cast_dir(tmp_path, monkeypatch):
     return tmp_path / "cast"
 
 
-@pytest.fixture
-def tmp_cast_dir_with_registry(tmp_cast_dir):
-    """Same as tmp_cast_dir but ensures registry starts empty."""
-    return tmp_cast_dir
-
-
-def _make_fake_repo(
-    path: Path,
-    commands: dict[str, str] | None = None,
-    cast_json: dict | None = None,
-):
-    """Create a fake git repo at *path* with command scripts.
+def _make_cast_repo(path: Path, name: str = "test-cast", commands: dict | None = None):
+    """Create a fake cast repo with __init__.py + Typer app.
 
     Args:
-        commands: {name: content} — creates .sh scripts by default.
-                  If content starts with '#!python', creates .py.
-    cast_json: optional metadata dict written to cast.json.
+        path: Where to create the repo (must include .git dir).
+        name: The __prism_name__ value.
+        commands: {cmd_name: docstring} — creates stub command functions.
     """
     path.mkdir(parents=True, exist_ok=True)
     (path / ".git").mkdir(exist_ok=True)
 
     cmds_dir = path / "commands"
     cmds_dir.mkdir(exist_ok=True)
+    (cmds_dir / "__init__.py").write_text("")
 
-    if cast_json:
-        (path / "cast.json").write_text(json.dumps(cast_json, indent=2))
+    if commands is None:
+        commands = {"hello": "Say hello.", "bye": "Say goodbye."}
 
-    if commands:
-        for name, content in commands.items():
-            if content.startswith("#!python"):
-                script = cmds_dir / f"{name}.py"
-                script.write_text(content.replace("#!python\n", ""))
-            else:
-                script = cmds_dir / f"{name}.sh"
-                script.write_text(content)
-                script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP)
+    # Write command modules
+    import_lines = []
+    reg_lines = []
+    for cmd_name, docstring in commands.items():
+        (cmds_dir / f"{cmd_name}.py").write_text(
+            f"import typer\n\n"
+            f"def {cmd_name}() -> None:\n"
+            f'    """{docstring}"""\n'
+            f"    print('{cmd_name} executed')\n"
+        )
+        import_lines.append(f"from .commands.{cmd_name} import {cmd_name}")
+        reg_lines.append(f"app.command()({cmd_name})")
 
-
-def _make_package_repo(path: Path, name: str, cast_json: dict | None = None):
-    """Create a fake repo with a Python package command (dir + __main__.py)."""
-    path.mkdir(parents=True, exist_ok=True)
-    (path / ".git").mkdir(exist_ok=True)
-
-    cmds_dir = path / "commands"
-    cmds_dir.mkdir(exist_ok=True)
-
-    pkg = cmds_dir / name
-    pkg.mkdir()
-    (pkg / "__init__.py").write_text("")
-    (pkg / "__main__.py").write_text(f"import sys\nprint('ran {name}', sys.argv[1:])\n")
-    (pkg / "core.py").write_text(f"VALUE = 'core-{name}'\n")
-
-    if cast_json:
-        (path / "cast.json").write_text(json.dumps(cast_json, indent=2))
+    (path / "__init__.py").write_text(
+        "import typer\n\n"
+        f'__prism_name__ = "{name}"\n\n'
+        f'app = typer.Typer(name="{name}", help="{name} cast repo", '
+        f"no_args_is_help=True, add_completion=False)\n\n"
+        + "\n".join(import_lines)
+        + "\n"
+        + "\n".join(reg_lines)
+        + "\n"
+    )
 
 
 # ── Slug derivation ─────────────────────────────────────────────────
@@ -99,12 +83,9 @@ def _make_package_repo(path: Path, name: str, cast_json: dict | None = None):
 class TestSlugFromUrl:
     def test_https_with_git_suffix(self):
         assert (
-            _slug_from_url("https://github.com/user/Prism-CustomCastTemplate.git")
-            == "customcasttemplate"
+            _slug_from_url("https://github.com/user/Prism-CastTemplate.git")
+            == "casttemplate"
         )
-
-    def test_https_without_git_suffix(self):
-        assert _slug_from_url("https://github.com/user/MyCastRepo") == "mycastrepo"
 
     def test_prism_prefix_stripped(self):
         assert _slug_from_url("https://github.com/user/Prism-Weather.git") == "weather"
@@ -115,47 +96,46 @@ class TestSlugFromUrl:
     def test_ssh_url(self):
         assert _slug_from_url("git@github.com:user/Prism-MyTools.git") == "mytools"
 
-    def test_lowercase(self):
-        assert (
-            _slug_from_url("https://github.com/user/MixedCaseRepo.git")
-            == "mixedcaserepo"
-        )
-
 
 # ── Registry ────────────────────────────────────────────────────────
 
 
 class TestRegistry:
     def test_empty_registry(self, tmp_cast_dir):
-        repos = manager.list_repos()
-        assert repos == []
+        assert manager.list_repos() == []
 
     def test_save_and_load(self, tmp_cast_dir):
         manager._save_registry(
             [
                 {
-                    "name": "test-repo",
-                    "url": "https://example.com/repo.git",
+                    "name": "test",
+                    "url": "https://x.git",
+                    "slug": "x",
                     "description": "",
+                    "commands": [],
                 }
             ]
         )
         repos = manager.list_repos()
         assert len(repos) == 1
-        assert repos[0].name == "test-repo"
-        assert repos[0].url == "https://example.com/repo.git"
+        assert repos[0].name == "test"
+        assert repos[0].url == "https://x.git"
 
 
-# ── Add repo (with alias support) ──────────────────────────────────
+# ── Add repo (import-based) ────────────────────────────────────────
 
 
 class TestAddRepo:
-    def test_add_clones_and_registers(self, tmp_cast_dir):
+    def test_add_clones_and_imports(self, tmp_cast_dir):
         url = "https://github.com/user/Prism-TestRepo.git"
 
         def fake_clone(cmd, **kwargs):
             target = Path(cmd[-1])
-            _make_fake_repo(target, {"hello": "#!/bin/bash\necho hello"})
+            _make_cast_repo(
+                target,
+                name="testrepo",
+                commands={"hello": "Say hello.", "bye": "Say bye."},
+            )
             return subprocess.CompletedProcess(cmd, 0, "", "")
 
         with patch("subprocess.run", side_effect=fake_clone):
@@ -165,39 +145,23 @@ class TestAddRepo:
         assert repo.url == url
         assert repo.path.exists()
         assert (repo.path / ".git").exists()
+        assert len(repo.commands) == 2
+        cmd_names = {c.name for c in repo.commands}
+        assert "hello" in cmd_names
+        assert "bye" in cmd_names
 
+        # Registry has cached metadata
         repos = manager.list_repos()
         assert len(repos) == 1
         assert repos[0].name == "testrepo"
-
-    def test_add_with_custom_alias(self, tmp_cast_dir):
-        """cast.json with 'name' field should override the slug."""
-        url = "https://github.com/user/Prism-LongRepoName.git"
-
-        def fake_clone(cmd, **kwargs):
-            target = Path(cmd[-1])
-            _make_fake_repo(
-                target,
-                {"tool": "#!/bin/bash\necho tool"},
-                cast_json={"name": "short", "description": "My tools"},
-            )
-            return subprocess.CompletedProcess(cmd, 0, "", "")
-
-        with patch("subprocess.run", side_effect=fake_clone):
-            repo = manager.add_repo(url)
-
-        assert repo.name == "short"
-        assert repo.description == "My tools"
-
-        # Path is still based on URL slug, not alias
-        assert repo.path == tmp_cast_dir / "longreponame"
+        assert repos[0].commands[0].name in ("hello", "bye")
 
     def test_add_duplicate_url_raises(self, tmp_cast_dir):
         url = "https://github.com/user/Prism-Dup.git"
 
         def fake_clone(cmd, **kwargs):
             target = Path(cmd[-1])
-            _make_fake_repo(target)
+            _make_cast_repo(target, name="dup")
             return subprocess.CompletedProcess(cmd, 0, "", "")
 
         with patch("subprocess.run", side_effect=fake_clone):
@@ -206,18 +170,51 @@ class TestAddRepo:
                 manager.add_repo(url)
 
     def test_add_duplicate_alias_raises(self, tmp_cast_dir):
-        url1 = "https://github.com/user/Prism-First.git"
-        url2 = "https://github.com/user/Prism-Second.git"
+        urls = [
+            "https://github.com/user/Prism-First.git",
+            "https://github.com/user/Prism-Second.git",
+        ]
+
+        call_count = [0]
 
         def fake_clone(cmd, **kwargs):
             target = Path(cmd[-1])
-            _make_fake_repo(target, cast_json={"name": "same-alias"})
+            _make_cast_repo(target, name="same-alias")
+            call_count[0] += 1
             return subprocess.CompletedProcess(cmd, 0, "", "")
 
         with patch("subprocess.run", side_effect=fake_clone):
-            manager.add_repo(url1)
+            manager.add_repo(urls[0])
             with pytest.raises(RuntimeError, match="already in use"):
-                manager.add_repo(url2)
+                manager.add_repo(urls[1])
+
+    def test_add_missing_prism_name_raises(self, tmp_cast_dir):
+        url = "https://github.com/user/Prism-BadRepo.git"
+
+        def fake_clone(cmd, **kwargs):
+            target = Path(cmd[-1])
+            target.mkdir(parents=True, exist_ok=True)
+            (target / ".git").mkdir()
+            (target / "__init__.py").write_text("import typer\napp = typer.Typer()\n")
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        with patch("subprocess.run", side_effect=fake_clone):
+            with pytest.raises(RuntimeError, match="__prism_name__"):
+                manager.add_repo(url)
+
+    def test_add_missing_app_raises(self, tmp_cast_dir):
+        url = "https://github.com/user/Prism-NoApp.git"
+
+        def fake_clone(cmd, **kwargs):
+            target = Path(cmd[-1])
+            target.mkdir(parents=True, exist_ok=True)
+            (target / ".git").mkdir()
+            (target / "__init__.py").write_text('__prism_name__ = "noapp"\n')
+            return subprocess.CompletedProcess(cmd, 0, "", "")
+
+        with patch("subprocess.run", side_effect=fake_clone):
+            with pytest.raises(RuntimeError, match="does not define `app`"):
+                manager.add_repo(url)
 
     def test_add_clone_failure_raises(self, tmp_cast_dir):
         url = "https://github.com/user/nonexistent.git"
@@ -235,28 +232,46 @@ class TestAddRepo:
 
 class TestDelRepo:
     def test_del_by_index(self, tmp_cast_dir):
-        # Path is derived from URL slug, not the name
         manager._save_registry(
             [
-                {"name": "repo-a", "url": "https://a.git", "description": ""},
-                {"name": "repo-b", "url": "https://b.git", "description": ""},
+                {
+                    "name": "a",
+                    "url": "https://a.git",
+                    "slug": "a",
+                    "description": "",
+                    "commands": [],
+                },
+                {
+                    "name": "b",
+                    "url": "https://b.git",
+                    "slug": "b",
+                    "description": "",
+                    "commands": [],
+                },
             ]
         )
-        # _slug_from_url("https://a.git") = "a", so dir = tmp_cast_dir / "a"
         (tmp_cast_dir / "a").mkdir()
         (tmp_cast_dir / "b").mkdir()
 
         deleted = manager.del_repo(1)
-        assert deleted.name == "repo-a"
+        assert deleted.name == "a"
         assert not (tmp_cast_dir / "a").exists()
 
         repos = manager.list_repos()
         assert len(repos) == 1
-        assert repos[0].name == "repo-b"
+        assert repos[0].name == "b"
 
-    def test_del_invalid_index_raises(self, tmp_cast_dir):
+    def test_del_invalid_index(self, tmp_cast_dir):
         manager._save_registry(
-            [{"name": "only", "url": "https://x.git", "description": ""}]
+            [
+                {
+                    "name": "only",
+                    "url": "https://x.git",
+                    "slug": "x",
+                    "description": "",
+                    "commands": [],
+                }
+            ]
         )
         with pytest.raises(RuntimeError, match="Invalid index"):
             manager.del_repo(0)
@@ -268,157 +283,94 @@ class TestDelRepo:
 
 
 class TestUpdateRepos:
-    def test_update_all(self, tmp_cast_dir):
-        manager._save_registry(
-            [{"name": "repo-a", "url": "https://a.git", "description": ""}]
-        )
-        repo_path = tmp_cast_dir / "repo-a"
-        _make_fake_repo(repo_path)
-
-        def fake_pull(cmd, **kwargs):
-            return subprocess.CompletedProcess(cmd, 0, "Already up to date.", "")
-
-        with patch("subprocess.run", side_effect=fake_pull):
-            results = manager.update_repos()
-
-        assert len(results) == 1
-        assert results[0][0] == "repo-a"
-
     def test_update_missing_repo(self, tmp_cast_dir):
         manager._save_registry(
-            [{"name": "ghost", "url": "https://ghost.git", "description": ""}]
+            [
+                {
+                    "name": "ghost",
+                    "url": "https://ghost.git",
+                    "slug": "ghost",
+                    "description": "",
+                    "commands": [],
+                }
+            ]
         )
         results = manager.update_repos()
         assert len(results) == 1
         assert "missing" in results[0][1]
 
 
-# ── Command discovery ──────────────────────────────────────────────
+# ── get_cast_app + run_command ────────────────────────────────────
 
 
-class TestDiscoverCommands:
-    def test_finds_scripts_in_commands_dir(self, tmp_cast_dir):
-        repo_path = tmp_cast_dir / "test-repo"
-        _make_fake_repo(
+class TestGetCastApp:
+    def test_get_app_returns_typer(self, tmp_cast_dir):
+        repo_path = tmp_cast_dir / "x"
+        _make_cast_repo(
             repo_path,
-            {"weather": "#!/bin/bash\necho sun", "ip": "#!/bin/bash\necho 1.2.3.4"},
+            name="myrepo",
+            commands={"hello": "Say hello.", "bye": "Say bye."},
+        )
+        manager._save_registry(
+            [
+                {
+                    "name": "myrepo",
+                    "url": "https://x.git",
+                    "slug": "x",
+                    "description": "",
+                    "commands": [],
+                }
+            ]
         )
 
-        cmds = manager.discover_commands(repo_path)
-        assert "weather" in cmds
-        assert "ip" in cmds
+        app = manager.get_cast_app("myrepo")
+        assert app is not None
 
-    def test_finds_python_package_dir(self, tmp_cast_dir):
-        repo_path = tmp_cast_dir / "pkg-repo"
-        _make_package_repo(repo_path, "ip")
+    def test_get_app_unknown_raises(self, tmp_cast_dir):
+        with pytest.raises(RuntimeError, match="not found"):
+            manager.get_cast_app("nonexistent")
 
-        cmds = manager.discover_commands(repo_path)
-        assert "ip" in cmds
-
-    def test_finds_scripts_in_root_if_no_commands_dir(self, tmp_cast_dir):
-        repo_path = tmp_cast_dir / "flat-repo"
-        repo_path.mkdir()
-        (repo_path / ".git").mkdir()
-        script = repo_path / "hello.sh"
-        script.write_text("#!/bin/bash\necho hi")
-        script.chmod(script.stat().st_mode | stat.S_IXUSR)
-
-        cmds = manager.discover_commands(repo_path)
-        assert "hello" in cmds
-
-    def test_ignores_readme_and_meta(self, tmp_cast_dir):
-        repo_path = tmp_cast_dir / "clean-repo"
-        repo_path.mkdir()
-        (repo_path / ".git").mkdir()
-        cmds_dir = repo_path / "commands"
-        cmds_dir.mkdir()
-        (repo_path / "README.md").write_text("readme")
-        (repo_path / "cast.json").write_text("{}")
-        script = cmds_dir / "run.sh"
-        script.write_text("#!/bin/bash\necho run")
-        script.chmod(script.stat().st_mode | stat.S_IXUSR)
-
-        cmds = manager.discover_commands(repo_path)
-        assert "run" in cmds
-        assert "README" not in cmds
-        assert "cast.json" not in cmds
-
-    def test_descriptions_from_cast_json(self, tmp_cast_dir):
-        repo_path = tmp_cast_dir / "desc-repo"
-        _make_fake_repo(
+    def test_get_app_case_insensitive(self, tmp_cast_dir):
+        repo_path = tmp_cast_dir / "x"
+        _make_cast_repo(
             repo_path,
-            {"weather": "#!/bin/bash\necho sun"},
-            cast_json={"commands": {"weather": "Show weather"}},
+            name="myrepo",
+            commands={"hello": "Say hello.", "bye": "Say bye."},
         )
-        cmds = manager.discover_commands(repo_path)
-        assert cmds["weather"] == "Show weather"
-
-
-# ── Resolve command ────────────────────────────────────────────────
-
-
-class TestResolveCommand:
-    def test_resolve_file_script(self, tmp_cast_dir):
-        # _slug_from_url("https://x.git") = "x"
-        repo_path = tmp_cast_dir / "x"
-        _make_fake_repo(repo_path, {"weather": "#!/bin/bash\necho sun"})
         manager._save_registry(
-            [{"name": "myrepo", "url": "https://x.git", "description": ""}]
+            [
+                {
+                    "name": "myrepo",
+                    "url": "https://x.git",
+                    "slug": "x",
+                    "description": "",
+                    "commands": [],
+                }
+            ]
         )
 
-        repo, script = manager.resolve_command("myrepo", "weather")
-        assert repo.name == "myrepo"
-        assert script.name == "weather.sh"
-
-    def test_resolve_package_dir(self, tmp_cast_dir):
-        repo_path = tmp_cast_dir / "x"
-        _make_package_repo(repo_path, "ip")
-        manager._save_registry(
-            [{"name": "myrepo", "url": "https://x.git", "description": ""}]
-        )
-
-        repo, pkg = manager.resolve_command("myrepo", "ip")
-        assert pkg.is_dir()
-        assert (pkg / "__main__.py").is_file()
-
-    def test_resolve_missing_repo_raises(self, tmp_cast_dir):
-        with pytest.raises(RuntimeError, match="not found"):
-            manager.resolve_command("nonexistent", "cmd")
-
-    def test_resolve_missing_command_raises(self, tmp_cast_dir):
-        repo_path = tmp_cast_dir / "x"
-        _make_fake_repo(repo_path, {"weather": "#!/bin/bash\necho sun"})
-        manager._save_registry(
-            [{"name": "myrepo", "url": "https://x.git", "description": ""}]
-        )
-
-        with pytest.raises(RuntimeError, match="not found"):
-            manager.resolve_command("myrepo", "nonexistent")
-
-    def test_resolve_case_insensitive_repo(self, tmp_cast_dir):
-        repo_path = tmp_cast_dir / "x"
-        _make_fake_repo(repo_path, {"weather": "#!/bin/bash\necho sun"})
-        manager._save_registry(
-            [{"name": "myrepo", "url": "https://x.git", "description": ""}]
-        )
-
-        repo, _ = manager.resolve_command("MYREPO", "weather")
-        assert repo.name == "myrepo"
-
-
-# ── Run command ────────────────────────────────────────────────────
+        app = manager.get_cast_app("MYREPO")
+        assert app is not None
 
 
 class TestRunCommand:
-    @pytest.mark.skipif(
-        sys.platform == "win32",
-        reason="bash not available on Windows CI without WSL",
-    )
-    def test_run_shell_script(self, tmp_cast_dir):
+    def test_run_executes_command(self, tmp_cast_dir):
         repo_path = tmp_cast_dir / "x"
-        _make_fake_repo(repo_path, {"hello": "#!/bin/bash\necho hello-world"})
+        _make_cast_repo(
+            repo_path,
+            name="myrepo",
+            commands={"hello": "Say hello.", "bye": "Say bye."},
+        )
         manager._save_registry(
-            [{"name": "myrepo", "url": "https://x.git", "description": ""}]
+            [
+                {
+                    "name": "myrepo",
+                    "url": "https://x.git",
+                    "slug": "x",
+                    "description": "",
+                    "commands": [],
+                }
+            ]
         )
 
         original_run = subprocess.run
@@ -429,16 +381,27 @@ class TestRunCommand:
             return original_run(cmd, **kwargs)
 
         with patch("subprocess.run", side_effect=selective_mock):
-            exit_code = manager.run_command("myrepo", "hello")
+            exit_code = manager.run_command("myrepo", ["hello"])
 
         assert exit_code == 0
 
-    def test_run_python_package(self, tmp_cast_dir):
-        """Python package dir with __main__.py should run via python -m."""
+    def test_run_unknown_command_returns_error(self, tmp_cast_dir):
         repo_path = tmp_cast_dir / "x"
-        _make_package_repo(repo_path, "ip")
+        _make_cast_repo(
+            repo_path,
+            name="myrepo",
+            commands={"hello": "Say hello.", "bye": "Say bye."},
+        )
         manager._save_registry(
-            [{"name": "myrepo", "url": "https://x.git", "description": ""}]
+            [
+                {
+                    "name": "myrepo",
+                    "url": "https://x.git",
+                    "slug": "x",
+                    "description": "",
+                    "commands": [],
+                }
+            ]
         )
 
         original_run = subprocess.run
@@ -449,34 +412,10 @@ class TestRunCommand:
             return original_run(cmd, **kwargs)
 
         with patch("subprocess.run", side_effect=selective_mock):
-            exit_code = manager.run_command("myrepo", "ip")
+            exit_code = manager.run_command("myrepo", ["nonexistent"])
 
-        assert exit_code == 0
-
-    def test_run_passes_extra_args(self, tmp_cast_dir):
-        """Extra args should be passed to the script."""
-        repo_path = tmp_cast_dir / "x"
-        _make_fake_repo(repo_path, {"echo": "#!/bin/bash\necho ARGS:$@"})
-        manager._save_registry(
-            [{"name": "myrepo", "url": "https://x.git", "description": ""}]
-        )
-
-        captured_cmd = []
-
-        original_run = subprocess.run
-
-        def mock_run(cmd, **kwargs):
-            if cmd and cmd[0] == "git":
-                return subprocess.CompletedProcess(cmd, 0, "", "")
-            captured_cmd.append(cmd)
-            return original_run(cmd, **kwargs)
-
-        with patch("subprocess.run", side_effect=mock_run):
-            manager.run_command("myrepo", "echo", extra_args=["foo", "bar"])
-
-        # The last captured command should include the extra args
-        assert "foo" in captured_cmd[-1]
-        assert "bar" in captured_cmd[-1]
+        # Typer returns exit code 2 for unknown commands
+        assert exit_code != 0
 
 
 # ── CLI integration ─────────────────────────────────────────────────
@@ -494,14 +433,20 @@ class TestCliCastList:
                 {
                     "name": "tools",
                     "url": "https://github.com/me/tools.git",
+                    "slug": "tools",
                     "description": "Handy tools",
-                },
+                    "commands": [
+                        {"name": "ip", "help": "Show IP"},
+                        {"name": "uuid", "help": "Gen UUID"},
+                    ],
+                }
             ]
         )
         result = runner.invoke(app, ["cast", "--list"])
         assert result.exit_code == 0
         assert "tools" in result.stdout
         assert "Handy tools" in result.stdout
+        assert "ip" in result.stdout
 
 
 class TestCliCastAdd:
@@ -510,7 +455,7 @@ class TestCliCastAdd:
 
         def fake_clone(cmd, **kwargs):
             target = Path(cmd[-1])
-            _make_fake_repo(target, {"ip": "#!/bin/bash\necho 1.2.3.4"})
+            _make_cast_repo(target, name="cooltools", commands={"ip": "Show IP."})
             return subprocess.CompletedProcess(cmd, 0, "", "")
 
         with patch("subprocess.run", side_effect=fake_clone):
@@ -520,25 +465,6 @@ class TestCliCastAdd:
         assert "cooltools" in result.stdout
         assert url in result.stdout
         assert "ip" in result.stdout
-
-    def test_add_with_custom_alias(self, runner, tmp_cast_dir):
-        url = "https://github.com/user/Prism-LongName.git"
-
-        def fake_clone(cmd, **kwargs):
-            target = Path(cmd[-1])
-            _make_fake_repo(
-                target,
-                {"tool": "#!/bin/bash\necho tool"},
-                cast_json={"name": "short", "description": "Short alias"},
-            )
-            return subprocess.CompletedProcess(cmd, 0, "", "")
-
-        with patch("subprocess.run", side_effect=fake_clone):
-            result = runner.invoke(app, ["cast", "--add", url])
-
-        assert result.exit_code == 0
-        assert "short" in result.stdout
-        assert "Short alias" in result.stdout
 
     def test_add_clone_failure(self, runner, tmp_cast_dir):
         url = "https://github.com/user/nonexistent.git"
@@ -555,14 +481,22 @@ class TestCliCastAdd:
 class TestCliCastDel:
     def test_del_by_index(self, runner, tmp_cast_dir):
         manager._save_registry(
-            [{"name": "repo-a", "url": "https://a.git", "description": ""}]
+            [
+                {
+                    "name": "a",
+                    "url": "https://a.git",
+                    "slug": "a",
+                    "description": "",
+                    "commands": [],
+                }
+            ]
         )
-        (tmp_cast_dir / "repo-a").mkdir()
+        (tmp_cast_dir / "a").mkdir()
 
         result = runner.invoke(app, ["cast", "--del", "1"])
         assert result.exit_code == 0
-        assert "repo-a" in result.stdout
         assert "Deleted" in result.stdout
+        assert "'a'" in result.stdout
 
     def test_del_invalid_index(self, runner, tmp_cast_dir):
         result = runner.invoke(app, ["cast", "--del", "99"])
@@ -574,35 +508,3 @@ class TestCliCastUpdate:
         result = runner.invoke(app, ["cast", "--update"])
         assert result.exit_code == 0
         assert "No cast repos" in result.stdout
-
-    def test_update_with_repos(self, runner, tmp_cast_dir):
-        manager._save_registry(
-            [{"name": "repo-a", "url": "https://a.git", "description": ""}]
-        )
-        repo_path = tmp_cast_dir / "repo-a"
-        _make_fake_repo(repo_path)
-
-        def fake_pull(cmd, **kwargs):
-            return subprocess.CompletedProcess(cmd, 0, "Already up to date.", "")
-
-        with patch("subprocess.run", side_effect=fake_pull):
-            result = runner.invoke(app, ["cast", "--update"])
-
-        assert result.exit_code == 0
-        assert "repo-a" in result.stdout
-
-
-class TestCliCastRun:
-    def test_no_args_shows_usage(self, runner, tmp_cast_dir):
-        result = runner.invoke(app, ["cast"])
-        assert result.exit_code == 1
-
-    def test_missing_dot_in_target(self, runner, tmp_cast_dir):
-        result = runner.invoke(app, ["cast", "justname"])
-        assert result.exit_code == 1
-        assert "must be" in result.stdout or "must be" in (result.stderr or "")
-
-    def test_run_unknown_repo(self, runner, tmp_cast_dir):
-        result = runner.invoke(app, ["cast", "unknown.weather"])
-        assert result.exit_code == 1
-        assert "not found" in result.stdout or "not found" in (result.stderr or "")

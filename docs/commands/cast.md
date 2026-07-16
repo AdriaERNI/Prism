@@ -1,9 +1,10 @@
 # cast
 
-Run custom commands from Git repositories — a plugin system for Prism.
+Run custom commands from Git repositories — a Python-native plugin system for Prism.
 
-Cast lets you add any Git repository as a "cast" (command source), then run
-its scripts with `prism cast <repo>.<command>`.
+Cast repos are Python packages that expose a Typer app and a `__prism_name__`
+alias. Prism imports them natively, so every command gets proper argument
+parsing, `--help` text, and shell completion.
 
 ## Quick start
 
@@ -14,17 +15,44 @@ prism cast --add https://github.com/AdriaERNI/Prism-CastTemplate.git
 # List registered repos
 prism cast --list
 
+# Show available commands in a repo
+prism cast template --help
+
 # Run a command
-prism cast template.weather
+prism cast template weather
 
 # Run a command with arguments
-prism cast template.portcheck example.com 443
+prism cast template portcheck example.com 443
 
 # Update all repos to latest
 prism cast --update
 
 # Delete repo #1
 prism cast --del 1
+```
+
+## Shell completion
+
+Prism uses Click's built-in completion. Install it once per shell:
+
+```bash
+# Bash (add to ~/.bashrc)
+eval "$(_PRISM_COMPLETE=bash_source prism)"
+
+# Zsh (add to ~/.zshrc)
+eval "$(_PRISM_COMPLETE=zsh_source prism)"
+
+# Fish
+_PRISM_COMPLETE=fish_source prism | source
+```
+
+After that, Tab completes cast repo names, commands, and arguments:
+
+```
+prism cast <TAB>                  → template, --add, --list, --del, --update
+prism cast template <TAB>         → weather, ip, uuid, portcheck, timestamp, headers
+prism cast template weather <TAB>  → --help
+prism cast template portcheck <TAB> → host, port
 ```
 
 ## Commands
@@ -35,10 +63,9 @@ prism cast --del 1
 prism cast --add <git-url>
 ```
 
-Clones the repository (shallow clone) into Prism's user data directory.
-The repo registers under the alias from `cast.json:name` if present, or the
-URL-derived slug otherwise (e.g. `Prism-CastTemplate.git` → `casttemplate`,
-but if `cast.json` has `"name": "template"`, it registers as `template`).
+Clones the repo, imports its `__init__.py` to read `__prism_name__` and
+enumerate commands, then caches everything in the registry. Future `--list`
+and completion calls read the cache only — no imports.
 
 ### List repositories
 
@@ -46,12 +73,12 @@ but if `cast.json` has `"name": "template"`, it registers as `template`).
 prism cast --list
 ```
 
-Shows an indexed table with the alias, description, and original URL:
+Shows an indexed table with alias, description, and cached commands:
 
 ```
-  #  Name                           Description                     URL
-───  ────────────────────────────── ────────────────────────────── ──────────────────────────────
-  1  template                       Useful everyday tools          https://github.com/.../...git
+  #  Name                 Description                         Commands
+───  ──────────────────── ─────────────────────────────────── ────────────────────────────────────────
+  1  template             Useful everyday tools for developers headers, ip, portcheck, timestamp, uuid, weather
 ```
 
 ### Delete a repository
@@ -60,8 +87,7 @@ Shows an indexed table with the alias, description, and original URL:
 prism cast --del <N>
 ```
 
-Removes the repo at 1-based index N (from `--list`) — both the cloned files
-and the registry entry.
+Removes repo at 1-based index N (from `--list`) — cloned files and registry.
 
 ### Update all repositories
 
@@ -69,99 +95,77 @@ and the registry entry.
 prism cast --update
 ```
 
-Runs `git pull --ff-only` on every registered repo to fetch the latest changes.
+Runs `git pull --ff-only` on every repo and refreshes cached command metadata
+by re-importing each repo's `__init__.py`.
 
 ### Run a command
 
 ```bash
-prism cast <repo>.<command> [args...]
+prism cast <name> <command> [args...]
 ```
 
-Resolves `<repo>` to a registered alias and `<command>` to a script inside
-the repo's `commands/` directory (or repo root if no `commands/` dir exists).
+Resolves `<name>` to a registered alias, lazy-imports the repo's `__init__.py`,
+and delegates to its Typer app. Typer handles argument parsing, validation,
+and `--help` natively.
 
-Extra positional arguments after the command are passed through to the script.
+## Creating a cast repo
 
-Example:
+A cast repo is a Python package with a root `__init__.py` that defines:
 
-```bash
-prism cast template.weather
-prism cast template.ip
-prism cast template.portcheck example.com 443
-```
+- `__prism_name__` — the alias users type (e.g. `"template"`)
+- `app` — a `typer.Typer` instance with commands registered
 
-## Repository structure
-
-A cast repository is a plain Git repo with an optional `cast.json` metadata
-file and a `commands/` directory containing executable scripts:
+### Repository structure
 
 ```
 my-cast-repo/
+├── __init__.py              # MANDATORY — defines __prism_name__ + app
 ├── commands/
-│   ├── weather.sh          # shell script
-│   ├── uuid.py             # bare Python script
-│   ├── ip/                 # Python package directory
-│   │   ├── __init__.py
-│   │   ├── __main__.py     # entry point — run via `python -m ip`
-│   │   └── core.py         # sub-module with real logic
-│   └── headers.sh
-└── cast.json               # optional metadata
+│   ├── __init__.py
+│   ├── weather.py           # command implementations
+│   ├── ip.py
+│   └── ...
+├── README.md
+└── LICENSE
 ```
 
-### cast.json (optional)
+### Root `__init__.py`
 
-```json
-{
-  "name": "template",
-  "description": "Useful everyday tools",
-  "commands": {
-    "weather": "Show current weather (wttr.in)",
-    "ip": "Show public IP address",
-    "uuid": "Generate a UUID"
-  }
-}
+```python
+import typer
+
+__prism_name__ = "template"
+
+app = typer.Typer(
+    name="template",
+    help="Useful everyday tools for developers",
+    no_args_is_help=True,
+    add_completion=False,
+)
+
+from .commands.weather import weather
+from .commands.ip import ip
+
+app.command()(weather)
+app.command()(ip)
 ```
 
-The `name` field lets a repo self-alias. Without it, the alias is derived
-from the repo URL. This avoids long or ugly names — `Prism-CastTemplate`
-becomes `template` instead of `casttemplate`.
+### Command function
 
-Descriptions from `cast.json` appear in `--list` output and in error
-messages when a command is not found.
+```python
+# commands/weather.py
+import typer
 
-### Supported script types
-
-| Type | How it runs |
-|------|-------------|
-| `.sh` / `.bash` | `bash script.sh [args]` |
-| `.py` (bare file) | `python -P script.py [args]` — `-P` prevents stdlib shadowing |
-| `dir/` with `__main__.py` | `python -m dir [args]` — full package with sub-modules |
-| `.ps1` | `powershell -File script.ps1 [args]` (Windows only) |
-
-#### Bare `.py` vs package directory
-
-Simple scripts work fine as bare `.py` files. The `-P` flag prevents the
-script's directory from being prepended to `sys.path`, so a file named
-`uuid.py` won't shadow the stdlib `uuid` module.
-
-For commands that need sub-modules, helper functions, or shared state,
-use a **package directory** with `__main__.py`. Prism runs it as a proper
-module (`python -m name`), so relative imports and sibling modules work
-correctly:
-
-```
-commands/
-└── ip/
-    ├── __init__.py
-    ├── __main__.py    # entry point
-    └── core.py        # importable sub-module
+def weather(
+    city: str = typer.Argument(None, help="City name"),
+) -> None:
+    """Show current weather from wttr.in."""
+    # implementation
 ```
 
-`__main__.py` can do `from ip.core import get_ip` and it just works.
+Each command automatically gets `--help`, typed arguments, and Tab completion.
 
 ## Where repos are stored
-
-Cast repos are cloned into the Prism user data directory:
 
 | OS | Path |
 |----|------|
@@ -169,6 +173,8 @@ Cast repos are cloned into the Prism user data directory:
 | macOS | `~/Library/Application Support/prism/cast/` |
 | Windows | `%LOCALAPPDATA%\prism\cast\` |
 
-A `registry.json` file in the same directory tracks which repos are registered.
-The on-disk directory is always the URL-derived slug; the alias (from
-`cast.json`) is what you use in `prism cast <alias>.<command>`.
+The on-disk directory is the URL-derived slug (e.g. `casttemplate`).
+The alias (from `__prism_name__`) is what you type in commands.
+
+A `registry.json` file caches repo metadata (alias, description, commands)
+so `--list` and completion work without importing repos.

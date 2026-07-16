@@ -1,13 +1,18 @@
 """`prism cast` — manage and run custom command repositories.
 
+Cast repos are Python packages that expose a Typer ``app`` and
+``__prism_name__`` in their root ``__init__.py``.  They are registered
+as dynamic sub-groups of this sub-app, so each command gets proper
+arg parsing, ``--help``, and shell completion.
+
 Usage::
 
-    prism cast --add <git-url>       Clone a cast repo
-    prism cast --list                List registered repos
-    prism cast --del <N>             Delete repo #N
-    prism cast --update              Pull latest for all repos
-    prism cast <repo>.<command>      Run a command from a repo
-    prism cast <repo>.<cmd> args...  Pass extra arguments to the command
+    prism cast --add <url>            Clone + register a cast repo
+    prism cast --list                  List registered repos
+    prism cast --del <N>               Delete repo #N
+    prism cast --update               Pull latest + refresh metadata
+    prism cast <name>                  Show help for a cast repo
+    prism cast <name> <cmd> [args]     Run a command
 """
 
 from __future__ import annotations
@@ -18,13 +23,19 @@ import typer
 
 from prism.cast import manager
 
+# ── Cast sub-app (a Typer group, not a single command) ──────────────
 
-def cast(
+cast_app = typer.Typer(
+    name="cast",
+    help="Manage and run custom command repositories (casts).",
+    no_args_is_help=False,
+    add_completion=False,
+)
+
+
+@cast_app.callback(invoke_without_command=True)
+def cast_callback(
     ctx: typer.Context,
-    target: str | None = typer.Argument(
-        None,
-        help="Command to run as '<repo>.<command>' (e.g. template.weather)",
-    ),
     add: str | None = typer.Option(
         None,
         "--add",
@@ -43,27 +54,10 @@ def cast(
     update: bool = typer.Option(
         False,
         "--update",
-        help="Pull latest changes for all repos.",
+        help="Pull latest changes + refresh metadata.",
     ),
 ) -> None:
-    """Manage and run custom command repositories (casts).
-
-    Repos are Git repos with scripts in a ``commands/`` directory.
-    Each repo can include a ``cast.json`` with a custom ``name`` alias,
-    descriptions, and command metadata.
-
-    \b
-    Examples:
-      prism cast --add https://github.com/user/Prism-CastTemplate.git
-      prism cast --list
-      prism cast template.weather
-      prism cast template.portcheck example.com 443
-      prism cast --del 1
-    """
-    extra_args: list[str] = list(ctx.args)
-
-    # ── Mutating options take priority ───────────────────────────────
-
+    """Manage and run custom command repositories (casts)."""
     if add is not None:
         try:
             repo = manager.add_repo(add)
@@ -74,9 +68,8 @@ def cast(
         typer.echo(f"  Path: {repo.path}")
         if repo.description:
             typer.echo(f"  Description: {repo.description}")
-        cmds = manager.discover_commands(repo.path)
-        if cmds:
-            typer.echo(f"  Commands: {', '.join(sorted(cmds))}")
+        if repo.commands:
+            typer.echo(f"  Commands: {', '.join(c.name for c in repo.commands)}")
         else:
             typer.echo("  (no commands found)")
         return
@@ -86,11 +79,12 @@ def cast(
         if not repos:
             typer.echo("No cast repos registered. Add one with: prism cast --add <url>")
             return
-        typer.echo(f"{'#':>3}  {'Name':<30} {'Description':<30} URL")
-        typer.echo(f"{'─' * 3}  {'─' * 30} {'─' * 30} {'─' * 40}")
+        typer.echo(f"{'#':>3}  {'Name':<20} {'Description':<35} Commands")
+        typer.echo(f"{'─' * 3}  {'─' * 20} {'─' * 35} {'─' * 40}")
         for i, repo in enumerate(repos, 1):
             desc = repo.description or ""
-            typer.echo(f"{i:>3}  {repo.name:<30} {desc:<30} {repo.url}")
+            cmds = ", ".join(c.name for c in repo.commands) or "(none)"
+            typer.echo(f"{i:>3}  {repo.name:<20} {desc:<35} {cmds}")
         return
 
     if delete is not None:
@@ -108,36 +102,74 @@ def cast(
             typer.echo("No cast repos to update.")
             return
         for name, status in results:
-            typer.echo(f"  {name:<30} {status}")
+            typer.echo(f"  {name:<20} {status}")
         return
 
-    # ── Run mode: target must be <repo>.<command> ────────────────────
 
-    if target is None:
-        typer.echo(
-            "Usage: prism cast <repo>.<command>\n"
-            "      prism cast --add <url>\n"
-            "      prism cast --list\n"
-            "      prism cast --del <N>\n"
-            "      prism cast --update\n"
-            "\nRun 'prism cast --help' for details.",
-            err=True,
+# ── Dynamic registration of cast repos as sub-groups ────────────────
+
+
+def _register_cast_repos() -> None:
+    """Register each cast repo as a lazy sub-group of cast_app.
+
+    Called once at import time.  Reads the registry only (no imports).
+    Each sub-group delegates to the cast's Typer app on first invocation.
+    """
+    for repo in manager.list_repos():
+        _register_lazy_repo(repo.name, repo.description, repo.commands)
+
+
+def _register_lazy_repo(name: str, description: str, commands: list) -> None:
+    """Register a single cast repo as a lazy Typer sub-group."""
+    # Skip re-registration (e.g. on hot reload)
+    registered = {grp.name for grp in cast_app.registered_groups}
+    if name in registered:
+        return
+
+    repo_typer = typer.Typer(
+        name=name,
+        help=description or f"Cast repo: {name}",
+        no_args_is_help=True,
+        add_completion=False,
+    )
+
+    # If we have cached commands, register stub functions so --help and
+    # completion work without importing the repo.
+    for cmd_info in commands:
+        cmd_name = cmd_info.name if hasattr(cmd_info, "name") else cmd_info["name"]
+        cmd_help = (
+            cmd_info.help if hasattr(cmd_info, "help") else cmd_info.get("help", "")
         )
-        sys.exit(1)
+        _register_lazy_command(repo_typer, name, cmd_name, cmd_help)
 
-    if "." not in target:
-        typer.echo(
-            f"Error: '{target}' must be '<repo>.<command>' (e.g. template.weather)",
-            err=True,
-        )
-        sys.exit(1)
+    cast_app.add_typer(repo_typer, name=name)
 
-    repo_slug, command_name = target.rsplit(".", 1)
 
-    try:
-        exit_code = manager.run_command(repo_slug, command_name, extra_args)
-    except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+def _register_lazy_command(
+    repo_typer: typer.Typer,
+    repo_name: str,
+    cmd_name: str,
+    cmd_help: str,
+) -> None:
+    """Register a stub command that lazy-imports and delegates on execution."""
 
-    sys.exit(exit_code)
+    @repo_typer.command(name=cmd_name, help=cmd_help or None)
+    def _lazy_cmd(
+        ctx: typer.Context,
+        args: list[str] = typer.Argument(
+            None, help="Arguments passed to the command.", metavar="..."
+        ),
+    ) -> None:
+        """{cmd_help}"""
+        extra = list(ctx.args) if ctx.args else []
+        all_args = [cmd_name] + (args or []) + extra
+        exit_code = manager.run_command(repo_name, all_args)
+        if exit_code != 0:
+            sys.exit(exit_code)
+
+    # Pyright complains about the __doc__ assignment; use setattr
+    setattr(_lazy_cmd, "__doc__", cmd_help or None)
+
+
+# Register on import
+_register_cast_repos()
