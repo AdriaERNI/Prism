@@ -150,41 +150,25 @@ jobs:
           Write-Host "--show-completion bash OK ($($bashScript.Length) chars)"
 
           # Test the completion mechanism via env vars.
-          # Click uses _{PROG_NAME}_COMPLETE where prog_name has dots/dashes
-          # replaced with underscores and is uppercased.
-          # For 'prism.exe' -> _PRISM_EXE_COMPLETE
-          $env:_PRISM_EXE_COMPLETE = "complete_bash"
-          $env:COMP_WORDS = "prism conf"
-          $env:COMP_CWORD = "1"
+          # With prog_name="prism" (set in main()), Click derives
+          # _PRISM_COMPLETE as the env var name (no .exe suffix).
+          $env:_PRISM_COMPLETE = "complete_powershell"
+          $env:_TYPER_COMPLETE_ARGS = "prism conf"
+          $env:_TYPER_COMPLETE_WORD_TO_COMPLETE = "conf"
           $result = (& .\dist\prism.exe 2>&1) | Out-String
           $exeExitCode = $LASTEXITCODE
-          Remove-Item Env:\_PRISM_EXE_COMPLETE -ErrorAction SilentlyContinue
-          Remove-Item Env:\COMP_WORDS -ErrorAction SilentlyContinue
-          Remove-Item Env:\COMP_CWORD -ErrorAction SilentlyContinue
+          Remove-Item Env:\_PRISM_COMPLETE -ErrorAction SilentlyContinue
+          Remove-Item Env:\_TYPER_COMPLETE_ARGS -ErrorAction SilentlyContinue
+          Remove-Item Env:\_TYPER_COMPLETE_WORD_TO_COMPLETE -ErrorAction SilentlyContinue
 
           $resultStr = "$result".Trim()
-          if ($resultStr -eq "config") {
+          if ($resultStr -match "config") {
             Write-Host "Shell completion: 'prism conf' -> 'config' OK"
           } else {
-            # Also try _PRISM_COMPLETE (non-.exe prog name)
-            $env:_PRISM_COMPLETE = "complete_bash"
-            $env:COMP_WORDS = "prism conf"
-            $env:COMP_CWORD = "1"
-            $result2 = (& .\dist\prism.exe 2>&1) | Out-String
-            $exeExitCode2 = $LASTEXITCODE
-            Remove-Item Env:\_PRISM_COMPLETE -ErrorAction SilentlyContinue
-            Remove-Item Env:\COMP_WORDS -ErrorAction SilentlyContinue
-            Remove-Item Env:\COMP_CWORD -ErrorAction SilentlyContinue
-
-            $result2Str = "$result2".Trim()
-            if ($result2Str -eq "config") {
-              Write-Host "Shell completion: 'prism conf' -> 'config' OK (via _PRISM_COMPLETE)"
-            } else {
-              Write-Host "NOTE: Completion env var mechanism did not trigger on frozen exe."
-              Write-Host "This is expected on Windows where the shell calls the completion script"
-              Write-Host "which handles the env var internally. The --show-completion test above"
-              Write-Host "verifies the completion infrastructure is working."
-            }
+            Write-Host "NOTE: Completion env var mechanism did not trigger on frozen exe."
+            Write-Host "This is expected on Windows where the shell calls the completion script"
+            Write-Host "which handles the env var internally. The --show-completion test above"
+            Write-Host "verifies the completion infrastructure is working."
           }
           # Reset exit code from prism.exe calls
           $global:LASTEXITCODE = 0
