@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -40,6 +41,15 @@ from prism.cli.commands.install import (
 )
 
 runner = CliRunner()
+
+IS_WINDOWS = sys.platform == "win32"
+
+
+def _expected_opencode_path(tmp_home: Path) -> Path:
+    """Return the expected OpenCode config path for the current OS."""
+    if IS_WINDOWS:
+        return tmp_home / "AppData" / "Roaming" / "opencode" / "opencode.json"
+    return tmp_home / ".config" / "opencode" / "opencode.json"
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
@@ -101,7 +111,7 @@ class TestConfigPath:
     def test_opencode_path(self, tmp_home: Path) -> None:
         assert (
             _config_path(OPENCODE)
-            == tmp_home / ".config" / "opencode" / "opencode.json"
+            == _expected_opencode_path(tmp_home)
         )
 
     def test_hermes_path(self, tmp_home: Path) -> None:
@@ -251,7 +261,7 @@ class TestPatchOpencode:
         path, action, content = _patch_opencode(url)
 
         assert action == "create"
-        assert path == tmp_home / ".config" / "opencode" / "opencode.json"
+        assert path == _expected_opencode_path(tmp_home)
         data = json.loads(content)
         assert data["mcp"][SERVER_NAME] == {
             "type": "remote",
@@ -260,7 +270,7 @@ class TestPatchOpencode:
         }
 
     def test_modify_existing(self, tmp_home: Path) -> None:
-        config_file = tmp_home / ".config" / "opencode" / "opencode.json"
+        config_file = _expected_opencode_path(tmp_home)
         config_file.parent.mkdir(parents=True, exist_ok=True)
         config_file.write_text(json.dumps({"theme": "dark"}))
         url = "http://localhost:3000/mcp"
@@ -398,7 +408,7 @@ class TestCli:
         assert "Hermes Agent" in result.output
         assert (tmp_home / ".claude.json").is_file()
         assert (tmp_home / ".codex" / "config.toml").is_file()
-        assert (tmp_home / ".config" / "opencode" / "opencode.json").is_file()
+        assert (_expected_opencode_path(tmp_home)).is_file()
         assert (tmp_home / ".hermes" / "config.yaml").is_file()
 
     def test_setup_with_custom_port(self, tmp_home: Path) -> None:
@@ -453,7 +463,7 @@ class TestCli:
         # All 4 files should exist
         assert (tmp_home / ".claude.json").is_file()
         assert (tmp_home / ".codex" / "config.toml").is_file()
-        assert (tmp_home / ".config" / "opencode" / "opencode.json").is_file()
+        assert (_expected_opencode_path(tmp_home)).is_file()
         assert (tmp_home / ".hermes" / "config.yaml").is_file()
 
     def test_setup_shows_start_serve_hint(self, tmp_home: Path) -> None:
