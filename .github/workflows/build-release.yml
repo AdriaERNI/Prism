@@ -142,9 +142,22 @@ jobs:
 
       - name: Build PyInstaller exe (Windows)
         if: matrix.os == 'windows-latest'
+        shell: pwsh
         run: |
           uv pip install pyinstaller
-          uv run pyinstaller --onefile --name prism src/prism/cli/app.py
+          # Build with the Prism logo icon (--windowed removed: Prism is a CLI tool)
+          uv run pyinstaller --onefile --name prism --icon logo.ico src/prism/cli/app.py
+
+      - name: Copy installer assets to dist (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Copy .iss and icon/bmp assets to dist/ so ISCC can find them
+          Copy-Item prism.iss dist/prism.iss
+          Copy-Item logo.ico dist/logo.ico
+          New-Item -ItemType Directory -Force dist/docs/assets | Out-Null
+          Copy-Item docs/assets/wizard-sidebar.bmp dist/docs/assets/wizard-sidebar.bmp
+          Copy-Item docs/assets/wizard-header.bmp dist/docs/assets/wizard-header.bmp
 
       - name: Build Inno Setup installer (Windows)
         if: matrix.os == 'windows-latest'
@@ -160,10 +173,6 @@ jobs:
           Write-Host "Building installer for version $version"
           # Rename exe to versioned name (matches .iss Source path)
           Copy-Item dist/prism.exe "dist/prism-$version.exe"
-          # Create a CI-compatible .iss that uses relative paths
-          $issContent = Get-Content vagrant/prism.iss -Raw
-          $issContent = $issContent -replace 'C:\\vagrant\\dist', '.'
-          Set-Content dist/prism.iss $issContent
           # Find ISCC.exe
           $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $iscc) {
@@ -174,6 +183,7 @@ jobs:
             exit 1
           }
           Write-Host "Using ISCC: $($iscc.FullName)"
+          # Compile from dist/ (where prism-$version.exe and the .iss assets are)
           & $iscc.FullName "/DAppVer=$version" "dist/prism.iss"
           # Verify installer was created
           $installer = "dist/prism-$version-setup.exe"
