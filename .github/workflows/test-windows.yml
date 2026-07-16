@@ -139,29 +139,37 @@ jobs:
             Write-Error "--show-completion not found in --help"
             exit 1
           }
-          # Verify completion env var mechanism works (bash mode)
-          $env:_PRISM_COMPLETE = "complete_bash"
+
+          # Click derives the completion env var from the prog_name.
+          # For 'prism.exe' the dots are replaced with underscores:
+          #   _PRISM_EXE_COMPLETE (not _PRISM_COMPLETE)
+          $env:_PRISM_EXE_COMPLETE = "complete_bash"
           $env:COMP_WORDS = "prism conf"
           $env:COMP_CWORD = "1"
           $result = (& .\dist\prism.exe 2>&1) | Out-String
-          Remove-Item Env:\_PRISM_COMPLETE
+          Remove-Item Env:\_PRISM_EXE_COMPLETE
           Remove-Item Env:\COMP_WORDS
           Remove-Item Env:\COMP_CWORD
           if ($result.Trim() -ne "config") {
-            Write-Error "Tab completion failed: expected 'config', got '$result'"
+            Write-Error "Tab completion failed: expected 'config', got '$($result.Trim())'"
             exit 1
           }
           Write-Host "Shell completion: 'prism conf' -> 'config' OK"
 
           # Verify 'prism s' returns 'sql' and 'serve'
-          $env:_PRISM_COMPLETE = "complete_bash"
+          $env:_PRISM_EXE_COMPLETE = "complete_bash"
           $env:COMP_WORDS = "prism s"
           $env:COMP_CWORD = "1"
           $result2 = (& .\dist\prism.exe 2>&1) | Out-String
-          Remove-Item Env:\_PRISM_COMPLETE
+          Remove-Item Env:\_PRISM_EXE_COMPLETE
           Remove-Item Env:\COMP_WORDS
           Remove-Item Env:\COMP_CWORD
-          Write-Host "Shell completion: 'prism s' -> '$($result2.Trim().Replace("`n", ", "))' OK"
+          $suggestions = $result2.Trim().Replace("`n", ", ")
+          Write-Host "Shell completion: 'prism s' -> '$suggestions' OK"
+          if ($result2 -notmatch "sql" -or $result2 -notmatch "serve") {
+            Write-Error "Expected sql and serve, got: $suggestions"
+            exit 1
+          }
 
       - name: Test frozen binary cast --list
         shell: pwsh
