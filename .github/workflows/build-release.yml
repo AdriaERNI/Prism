@@ -169,8 +169,11 @@ jobs:
         shell: pwsh
         run: |
           uv pip install pyinstaller
-          # Read version (already synced from tag in the sync step)
-          $version = Get-Content src/prism/version.txt -Raw
+          # Read version from __init__.py (already synced from tag)
+          $initContent = Get-Content src/prism/__init__.py -Raw
+          if ($initContent -match '__version__\s*=\s*"([^"]+)"') {
+            $version = $matches[1]
+          }
           Write-Host "Building exe for version $version"
           # Build with:
           #   --icon: Prism logo on the .exe
