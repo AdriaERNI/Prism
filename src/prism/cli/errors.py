@@ -39,8 +39,7 @@ def handle_command_error(exc: Exception) -> NoReturn:
     """
     if isinstance(exc, httpx.ConnectError):
         typer.echo(
-            f"Error: Cannot connect to IRIS at {base_url()}. "
-            f"Is the server running?",
+            f"Error: Cannot connect to IRIS at {base_url()}. Is the server running?",
             err=True,
         )
     elif isinstance(exc, httpx.ConnectTimeout):
