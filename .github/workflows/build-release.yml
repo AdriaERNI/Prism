@@ -145,8 +145,31 @@ jobs:
         shell: pwsh
         run: |
           uv pip install pyinstaller
-          # Build with the Prism logo icon (--windowed removed: Prism is a CLI tool)
-          uv run pyinstaller --onefile --name prism --icon logo.ico src/prism/cli/app.py
+          # Write version.txt for --version flag (works in frozen builds where
+          # importlib.metadata is unavailable)
+          $pyproject = Get-Content pyproject.toml -Raw
+          $version = "0.0.0"
+          if ($pyproject -match 'version\s*=\s*"([^"]+)"') {
+            $version = $matches[1]
+          }
+          Set-Content -Path src/prism/version.txt -Value $version
+          # Build with:
+          #   --icon: Prism logo on the .exe
+          #   --copy-metadata: bundle .dist-info for packages that call
+          #     importlib.metadata.version() at import time (fastmcp, click)
+          #   --hidden-import: ensure metadata importer is loaded in frozen mode
+          uv run pyinstaller --onefile --name prism --icon logo.ico `
+            --copy-metadata fastmcp `
+            --copy-metadata click `
+            --copy-metadata httpx `
+            --copy-metadata pydantic `
+            --copy-metadata pydantic-settings `
+            --copy-metadata typer `
+            --copy-metadata websockets `
+            --copy-metadata platformdirs `
+            --copy-metadata python-dotenv `
+            --hidden-import importlib.metadata `
+            src/prism/cli/app.py
 
       - name: Copy installer assets to dist (Windows)
         if: matrix.os == 'windows-latest'

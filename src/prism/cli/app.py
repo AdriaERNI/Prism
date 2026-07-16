@@ -30,17 +30,24 @@ from prism.cli.commands.testing import list_tests, test  # noqa: E402
 from prism.output import set_output_format  # noqa: E402
 
 
-def _main_callback(
-    ctx: typer.Context,
-    fmt: Optional[str] = typer.Option(  # noqa: UP007
-        None,
-        "--format",
-        help="Output format: json (default) or toon.",
-    ),
-) -> None:
-    """Global options applied before any subcommand."""
-    if fmt is not None:
-        set_output_format(fmt)
+def _get_version() -> str:
+    """Return the Prism version.
+
+    Tries importlib.metadata first (works in dev mode), then falls back
+    to a frozen-app approach (PyInstaller bundles version.txt).
+    """
+    try:
+        from importlib.metadata import version
+
+        return version("prism-mcp")
+    except Exception:
+        pass
+    try:
+        from importlib.resources import files
+
+        return (files("prism") / "version.txt").read_text().strip()
+    except Exception:
+        return "unknown"
 
 
 app = typer.Typer(
@@ -49,11 +56,36 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_enable=False,
-    callback=_main_callback,
 )
 
 app.command(name="config")(config)
 app.add_typer(cast_app, name="cast")
+
+
+@app.callback(invoke_without_command=True)
+def _callback(
+    ctx: typer.Context,
+    fmt: Optional[str] = typer.Option(  # noqa: UP007
+        None,
+        "--format",
+        help="Output format: json (default) or toon.",
+    ),
+    show_version: bool = typer.Option(  # noqa: UP007
+        False,
+        "--version",
+        "-V",
+        help="Show the Prism version and exit.",
+        is_eager=True,
+    ),
+) -> None:
+    """Global options applied before any subcommand."""
+    if show_version:
+        typer.echo(f"Prism {_get_version()}")
+        raise typer.Exit()
+    if fmt is not None:
+        set_output_format(fmt)
+
+
 app.command(name="sql")(sql)
 app.command(name="terminal")(terminal)
 app.command(name="ws")(ws)
