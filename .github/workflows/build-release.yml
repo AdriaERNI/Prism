@@ -222,15 +222,19 @@ jobs:
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           if [[ "$TAG" =~ -[a-zA-Z] ]]; then
             echo "prerelease=true" >> $GITHUB_OUTPUT
+            echo "cliff_args=--tag $TAG --strip header" >> $GITHUB_OUTPUT
           else
             echo "prerelease=false" >> $GITHUB_OUTPUT
+            # For stable releases, ignore pre-release tags so their commits
+            # roll up into the stable release notes.
+            echo "cliff_args=--tag $TAG --ignore-tags '.*-beta\..*' --strip header" >> $GITHUB_OUTPUT
           fi
 
       - name: Generate changelog
         uses: orhun/git-cliff-action@v4
         with:
           config: cliff.toml
-          args: --latest --strip header
+          args: ${{ steps.version.outputs.cliff_args }}
         env:
           OUTPUT: RELEASE_NOTES.md
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
