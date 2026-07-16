@@ -156,32 +156,32 @@ jobs:
           $env:_PRISM_EXE_COMPLETE = "complete_bash"
           $env:COMP_WORDS = "prism conf"
           $env:COMP_CWORD = "1"
-          $result = & .\dist\prism.exe 2>&1
+          $result = (& .\dist\prism.exe 2>&1) | Out-String
           Remove-Item Env:\_PRISM_EXE_COMPLETE -ErrorAction SilentlyContinue
           Remove-Item Env:\COMP_WORDS -ErrorAction SilentlyContinue
           Remove-Item Env:\COMP_CWORD -ErrorAction SilentlyContinue
 
-          if ($result -and $result.Trim() -eq "config") {
+          $resultStr = "$result".Trim()
+          if ($resultStr -eq "config") {
             Write-Host "Shell completion: 'prism conf' -> 'config' OK"
           } else {
             # Also try _PRISM_COMPLETE (non-.exe prog name)
             $env:_PRISM_COMPLETE = "complete_bash"
             $env:COMP_WORDS = "prism conf"
             $env:COMP_CWORD = "1"
-            $result2 = & .\dist\prism.exe 2>&1
+            $result2 = (& .\dist\prism.exe 2>&1) | Out-String
             Remove-Item Env:\_PRISM_COMPLETE -ErrorAction SilentlyContinue
             Remove-Item Env:\COMP_WORDS -ErrorAction SilentlyContinue
             Remove-Item Env:\COMP_CWORD -ErrorAction SilentlyContinue
 
-            if ($result2 -and $result2.Trim() -eq "config") {
+            $result2Str = "$result2".Trim()
+            if ($result2Str -eq "config") {
               Write-Host "Shell completion: 'prism conf' -> 'config' OK (via _PRISM_COMPLETE)"
             } else {
               Write-Host "WARNING: Completion env var mechanism did not work on frozen exe."
-              Write-Host "This is a known limitation of PyInstaller frozen exes on Windows."
               Write-Host "The --show-completion and --install-completion flags work correctly,"
               Write-Host "which is how users install tab completion in practice."
-              Write-Host "Env var result 1: $result"
-              Write-Host "Env var result 2: $result2"
+              Write-Host "Env var result: $resultStr"
             }
           }
 
