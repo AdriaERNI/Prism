@@ -102,6 +102,7 @@ nav:
     - Terminal: commands/terminal.md
     - Testing: commands/testing.md
     - prism serve: commands/serve.md
+    - prism cast: commands/cast.md
   - Testing: testing.md
   - MCP Server:
     - Overview: mcp/index.md

@@ -12,6 +12,7 @@ os.environ.setdefault("TYPER_USE_RICH", "false")
 
 import typer  # noqa: E402
 
+from prism.cli.commands.cast import cast_app  # noqa: E402
 from prism.cli.commands.compile import compile as compile_cmd  # noqa: E402
 from prism.cli.commands.config import config  # noqa: E402
 from prism.cli.commands.documents import (  # noqa: E402
@@ -51,6 +52,7 @@ app = typer.Typer(
 )
 
 app.command(name="config")(config)
+app.add_typer(cast_app, name="cast")
 app.command(name="sql")(sql)
 app.command(name="terminal")(terminal)
 app.command(name="ws")(ws)

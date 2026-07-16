@@ -24,6 +24,7 @@
 - **Debugging** — Interactive step-through debugger with breakpoints, variable inspection, and stack traces
 - **Testing** — Run `%UnitTest` test classes, list test methods, view historical results
 - **MCP Server** — Expose all tools to AI assistants (Claude Code, Claude Desktop, Cursor, GitHub Copilot)
+- **Cast Plugins** — Extend Prism with custom commands from any Git repository
 - **Cross-platform** — Windows installer, Linux/macOS via pip/uv
 
 ## Quick Start
@@ -64,6 +65,7 @@ docker run -d --name iris -p 52773:52773 -p 1972:1972 intersystemsdc/iris-commun
 | `prism test` | Run unit test classes |
 | `prism list-tests` | Discover test classes |
 | `prism config` | View or edit settings |
+| `prism cast` | Run custom commands from Git repos |
 | `prism serve` | Start the MCP server |
 
 Global option: `prism --format toon` for TOON output (requires `pip install prism-mcp[toon]`).
@@ -162,13 +164,15 @@ src/prism/
 │   ├── _decorator.py   # Logging + auto-discovery
 │   ├── server.py       # FastMCP server
 │   └── *.py            # One module per tool domain
+├── cast/              # Cast plugin system (import-based Typer plugins)
+│   └── manager.py      # Clone, import, cache, run commands
 └── cli/               # Typer CLI commands (async wrappers)
 ```
 
 ## Testing
 
 ```bash
-uv run pytest tests/unit/ -v                    # No IRIS needed (249 tests)
+uv run pytest tests/unit/ -v                    # No IRIS needed (276 tests)
 IRIS_BASE_URL=http://localhost:52773 \
   uv run pytest tests/integration/ -v            # Needs IRIS (72 tests)
 uv run ruff check . && uv run ruff format --check .  # Lint
