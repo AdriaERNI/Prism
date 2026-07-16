@@ -1,6 +1,6 @@
 # Commands
 
-Prism ships 13 CLI commands. Each one is a thin wrapper around a single
+Prism ships 14 CLI commands. Each one is a thin wrapper around a single
 IRIS operation, so the output is the raw Atelier REST response (as JSON)
 unless otherwise noted.
 
@@ -55,6 +55,12 @@ prism <command> --help
 | Command | Summary |
 |---------|---------|
 | [`prism serve`](serve.md) | Start the Prism MCP server on `http://localhost:3000/mcp`. |
+
+### Plugins
+
+| Command | Summary |
+|---------|---------|
+| [`prism cast`](cast.md) | Run custom commands from Git repositories. |
 
 ## Common options
 
