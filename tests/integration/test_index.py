@@ -14,9 +14,11 @@ class TestIndexCodeLive:
         assert "classes" in data
         assert "methods" in data
         assert "properties" in data
+        assert "sql_procedures" in data
         assert isinstance(data["classes"], int)
         assert isinstance(data["methods"], int)
         assert isinstance(data["properties"], int)
+        assert isinstance(data["sql_procedures"], int)
 
     async def test_index_full(self, live):
         """index_code returns full index with classes and dependencies."""
@@ -33,6 +35,7 @@ class TestIndexCodeLive:
         assert "methods" in stats
         assert "properties" in stats
         assert "sql_procedures" in stats
+        assert "imports" in stats
 
     async def test_index_with_prefix(self, live):
         """index_code with filter_prefix returns only matching classes."""

@@ -49,6 +49,9 @@ class TestBuildIndex:
         sqlprocs_data = [
             {"parent": "MyApp.Model", "Name": "Save"},
         ]
+        imports_data = [
+            {"parent": "MyApp.Model", "Name": "MyApp.Utils"},
+        ]
 
         call_count = 0
 
@@ -62,6 +65,7 @@ class TestBuildIndex:
                 props_data,
                 params_data,
                 sqlprocs_data,
+                imports_data,
             ]
             data = datasets[min(call_count - 1, len(datasets) - 1)]
             return httpx.Response(
@@ -82,6 +86,7 @@ class TestBuildIndex:
         assert result["statistics"]["methods"] == 2
         assert result["statistics"]["properties"] == 2
         assert result["statistics"]["sql_procedures"] == 1
+        assert result["statistics"]["imports"] == 1
 
         # Check class entries
         names = [c["name"] for c in result["classes"]]
@@ -96,6 +101,7 @@ class TestBuildIndex:
         assert model["methods"] == {"Save": "%Status"}
         assert model["parameters"] == {"MAXVAL": "100"}
         assert model["sql_procs"] == ["Save"]
+        assert model["imports"] == ["MyApp.Utils"]
 
         # Check dependencies
         assert result["dependencies"]["MyApp.Model"] == "%Persistent"
@@ -192,6 +198,8 @@ class TestIndexSummary:
             body = request.content.decode()
             if "ClassDefinition" in body:
                 content = [{"cnt": 42}]
+            elif "SqlProc" in body:
+                content = [{"cnt": 5}]
             elif "MethodDefinition" in body:
                 content = [{"cnt": 100}]
             elif "PropertyDefinition" in body:
@@ -214,6 +222,7 @@ class TestIndexSummary:
         assert result["classes"] == 42
         assert result["methods"] == 100
         assert result["properties"] == 50
+        assert result["sql_procedures"] == 5
 
     async def test_summary_empty_namespace(self):
         def handler(request):
@@ -232,6 +241,7 @@ class TestIndexSummary:
         assert result["classes"] == 0
         assert result["methods"] == 0
         assert result["properties"] == 0
+        assert result["sql_procedures"] == 0
 
 
 class TestIndexMCPTool:
@@ -249,6 +259,14 @@ class TestIndexMCPTool:
             tools = await client.list_tools()
             names = {t.name for t in tools}
             assert "index_code" in names
+
+    async def test_index_code_in_instructions(self):
+        """index_code is mentioned in the server instructions sent to clients."""
+        from prism.mcp.server import create_mcp
+
+        mcp = create_mcp()
+        instructions = mcp.instructions or ""
+        assert "index_code" in instructions
 
     async def test_index_code_summary_only(self):
         """index_code with summary_only=True calls index_summary."""
