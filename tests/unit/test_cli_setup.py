@@ -47,9 +47,30 @@ runner = CliRunner()
 
 @pytest.fixture
 def tmp_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Create a temporary HOME and patch os.path.expanduser."""
+    """Create a temporary HOME and patch os.path.expanduser.
+
+    Also patches APPDATA (Windows) and XDG_CONFIG_HOME (Linux/macOS) so
+    that _config_path() for OpenCode resolves inside the temp directory
+    on every platform.
+    """
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(os.path, "expanduser", lambda p: p.replace("~", str(tmp_path)))
+
+    # Windows: APPDATA is used for the OpenCode config path
+    appdata = tmp_path / "AppData" / "Roaming"
+    appdata.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("APPDATA", str(appdata))
+
+    # Linux/macOS: XDG_CONFIG_HOME is used for the OpenCode config path
+    xdg_config = tmp_path / ".config"
+    xdg_config.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
+
+    # HERMES_HOME so Hermes config resolves inside temp
+    hermes_home = tmp_path / ".hermes"
+    hermes_home.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("HERMES_HOME", str(hermes_home))
+
     return tmp_path
 
 
