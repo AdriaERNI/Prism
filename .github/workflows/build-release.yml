@@ -190,6 +190,7 @@ jobs:
             --copy-metadata websockets `
             --copy-metadata platformdirs `
             --copy-metadata python-dotenv `
+            --copy-metadata toons `
             --collect-all lupa `
             --collect-all fakeredis `
             --collect-all docket `

@@ -195,7 +195,7 @@ class TestVersion:
     def test_version_in_pyproject(self):
         """pyproject.toml must have a version (checked via importlib.metadata)."""
         try:
-            v = importlib.metadata.version("prism-mcp")
+            v = importlib.metadata.version("prism")
             assert v
         except importlib.metadata.PackageNotFoundError:
-            pytest.skip("prism-mcp not installed as a package (dev mode)")
+            pytest.skip("prism not installed as a package (dev mode)")

@@ -27,7 +27,7 @@ def set_output_format(fmt: str) -> None:
 def format_output(data: dict | list, fmt: str = "json") -> str:
     """Serialize *data* to the requested format string.
 
-    Raises ``RuntimeError`` when *fmt* is ``"toon"`` but the optional
+    Raises ``RuntimeError`` when *fmt* is ``"toon"`` but the
     ``toons`` package is not installed.
     """
     if fmt == "toon":
@@ -35,7 +35,7 @@ def format_output(data: dict | list, fmt: str = "json") -> str:
             import toons
         except ImportError:
             raise RuntimeError(
-                "TOON format requires the 'toons' package: pip install prism-mcp[toon]"
+                "TOON format requires the 'toons' package: pip install toons"
             )
         return toons.dumps(data)
 

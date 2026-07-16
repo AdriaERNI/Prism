@@ -56,19 +56,19 @@ uv run prism info
 ### Install with pip
 
 ```bash
-pip install prism-mcp
+pip install prism
 
 # Verify
 prism --help
 prism info
 ```
 
-### Optional: TOON output format
+### TOON output format
+
+TOON is included by default. Use it with:
 
 ```bash
-pip install prism-mcp[toon]
-# or with uv:
-uv pip install toons
+prism --format toon info
 ```
 
 ## Standalone executable (Windows)
@@ -88,7 +88,7 @@ Windows: **Settings → Apps → Installed apps → Prism → Uninstall**, or
 run `unins000.exe` inside `C:\Program Files\Prism\`. The uninstaller
 also removes Prism from the system `PATH`.
 
-Linux: `pip uninstall prism-mcp` or remove the cloned directory.
+Linux: `pip uninstall prism` or remove the cloned directory.
 
 ## Prerequisites
 
