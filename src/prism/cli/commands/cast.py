@@ -88,6 +88,10 @@ def cast_callback(
         return
 
     if delete is not None:
+        repos = manager.list_repos()
+        if not repos:
+            typer.echo("No cast repos registered. Add one with: prism cast --add <url>")
+            sys.exit(1)
         try:
             repo = manager.del_repo(delete)
         except Exception as exc:

@@ -5,11 +5,35 @@ from __future__ import annotations
 import asyncio
 import sys
 
+import httpx
 import typer
 
-from prism.output import get_output_format
 from prism.iris.api.testing import list_test_classes, run_tests
-from prism.output import format_output
+from prism.iris.sdk.http import base_url
+from prism.output import format_output, get_output_format
+
+
+def _handle_connection_error(exc: Exception) -> None:
+    """Print a user-friendly error message for connection failures and exit."""
+    if isinstance(exc, httpx.ConnectError):
+        typer.echo(
+            f"Error: Cannot connect to IRIS at {base_url()}. Is the server running?",
+            err=True,
+        )
+    elif isinstance(exc, httpx.ConnectTimeout):
+        typer.echo(
+            f"Error: Connection to IRIS at {base_url()} timed out.",
+            err=True,
+        )
+    elif isinstance(exc, httpx.HTTPStatusError):
+        typer.echo(
+            f"Error: IRIS returned HTTP {exc.response.status_code}: "
+            f"{exc.response.text[:200]}",
+            err=True,
+        )
+    else:
+        typer.echo(f"Error: {exc}", err=True)
+    sys.exit(1)
 
 
 def test(
@@ -29,6 +53,10 @@ def test(
     ),
 ) -> None:
     """Run a unit test class via the deployed runner."""
+    if not test_class or not test_class.strip():
+        typer.echo("Error: test class name cannot be empty.", err=True)
+        sys.exit(1)
+
     try:
         response = asyncio.run(
             run_tests(
@@ -39,8 +67,8 @@ def test(
             )
         )
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        _handle_connection_error(exc)
+        return
 
     typer.echo(format_output(response, get_output_format()))
 
@@ -62,7 +90,7 @@ def list_tests(
             list_test_classes(filter_prefix=filter, namespace=namespace)
         )
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        _handle_connection_error(exc)
+        return
 
     typer.echo(format_output(response, get_output_format()))

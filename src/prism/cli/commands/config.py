@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import click
 import typer
 
 from prism.settings import (
@@ -82,7 +83,11 @@ def _show_config() -> None:
 
 
 def _interactive() -> None:
-    """Walk through every field; let the user keep, change, or reset to default."""
+    """Walk through every field; let the user keep, change, or reset to default.
+
+    Handles non-interactive stdin (piped input, EOF) gracefully by falling
+    back to the current values instead of crashing with an EOFError.
+    """
     s = Settings()
     fields = list(Settings.model_fields.items())
     updates: dict[str, object] = {}
@@ -97,16 +102,20 @@ def _interactive() -> None:
         typer.echo(f"        Default: {_format_value(name, field.default)}")
         typer.echo(f"        Current: {_format_value(name, current)}")
 
-        choice = (
-            typer.prompt(
-                "        [k]eep / [c]hange / [d]efault",
-                default="k",
-                show_default=False,
+        try:
+            choice = (
+                typer.prompt(
+                    "        [k]eep / [c]hange / [d]efault",
+                    default="k",
+                    show_default=False,
+                )
+                .strip()
+                .lower()
+                or "k"
             )
-            .strip()
-            .lower()
-            or "k"
-        )
+        except (EOFError, click.exceptions.Abort):
+            typer.echo("\n  Input ended — keeping current values.\n")
+            break
 
         if choice.startswith("k"):
             typer.echo("")
@@ -118,7 +127,13 @@ def _interactive() -> None:
             )
             continue
         if choice.startswith("c"):
-            new_raw = typer.prompt("        New value", default="", show_default=False)
+            try:
+                new_raw = typer.prompt(
+                    "        New value", default="", show_default=False
+                )
+            except (EOFError, click.exceptions.Abort):
+                typer.echo("\n  Input ended — keeping current.\n")
+                break
             try:
                 updates[name] = _coerce(name, new_raw)
                 typer.echo("")
@@ -246,6 +261,32 @@ def config(
         for flag, field in _FLAG_TO_FIELD.items()
         if locals_[flag] is not None
     }
+
+    # Validate output_format if being set
+    if "prism_output_format" in updates:
+        fmt_val = str(updates["prism_output_format"]).strip().lower()
+        valid_formats = ("json", "toon")
+        if fmt_val not in valid_formats:
+            typer.echo(
+                f"Error: Invalid output format '{updates['prism_output_format']}'. "
+                f"Supported formats: {', '.join(valid_formats)}.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        updates["prism_output_format"] = fmt_val
+
+    # Validate terminal_method if being set
+    if "iris_terminal_method" in updates:
+        method_val = str(updates["iris_terminal_method"]).strip().lower()
+        valid_methods = ("native", "websocket")
+        if method_val not in valid_methods:
+            typer.echo(
+                f"Error: Invalid terminal method '{updates['iris_terminal_method']}'. "
+                f"Supported methods: {', '.join(valid_methods)}.",
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        updates["iris_terminal_method"] = method_val
 
     if not updates:
         _show_config()

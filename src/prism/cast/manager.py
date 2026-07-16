@@ -365,7 +365,9 @@ def update_repos() -> list[tuple[str, str]]:
                 entry["name"] = alias
                 entry["description"] = description
                 entry["commands"] = [{"name": c.name, "help": c.help} for c in commands]
-                status = "updated" if "Updating" in result.stdout else "ok"
+                status = (
+                    "updated" if "Updating" in result.stdout else "already up to date"
+                )
             except Exception as exc:
                 status = f"pulled but import failed: {exc}"
             results.append((name, status))
