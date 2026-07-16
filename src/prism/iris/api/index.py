@@ -2,7 +2,7 @@
 source code using %Dictionary SQL metadata.
 
 The index includes class hierarchies, methods, properties, SQL projections,
-and dependencies — without fetching full source files. This lets AI agents
+imports, and dependencies — without fetching full source files. This lets AI agents
 understand a large IRIS codebase using a fraction of the tokens needed to
 read every document.
 """
@@ -155,6 +155,7 @@ async def build_index(
     props_q = f"SELECT Parent->Name AS parent, Name, Type FROM %Dictionary.PropertyDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) ORDER BY Parent->Name, Name"
     params_q = f"SELECT Parent->Name AS parent, Name, Default FROM %Dictionary.ParameterDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) ORDER BY Parent->Name, Name"
     sqlprocs_q = f"SELECT Parent->Name AS parent, Name FROM %Dictionary.MethodDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) AND SqlProc = 1 ORDER BY Parent->Name, Name"
+    imports_q = f"SELECT Parent->Name AS parent, Name FROM %Dictionary.ImportDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) ORDER BY Parent->Name, Name"
 
     # Run all queries in parallel
     (
@@ -163,12 +164,14 @@ async def build_index(
         props_raw,
         params_raw,
         sqlprocs_raw,
+        imports_raw,
     ) = await asyncio.gather(
         _run_query(classes_q, namespace),
         _run_query(methods_q, namespace),
         _run_query(props_q, namespace),
         _run_query(params_q, namespace),
         _run_query(sqlprocs_q, namespace),
+        _run_query(imports_q, namespace),
     )
 
     # Build class info objects
@@ -218,6 +221,12 @@ async def build_index(
         if parent in class_map:
             class_map[parent].sql_procedures.append({"name": row.get("Name", "")})
 
+    # Attach imports
+    for row in imports_raw:
+        parent = row.get("parent", "")
+        if parent in class_map:
+            class_map[parent].imports.append(row.get("Name", ""))
+
     # Build compact index
     classes = [
         ci.to_compact() for ci in sorted(class_map.values(), key=lambda x: x.name)
@@ -231,6 +240,7 @@ async def build_index(
     total_methods = sum(len(ci.methods) for ci in class_map.values())
     total_properties = sum(len(ci.properties) for ci in class_map.values())
     total_sql_procs = sum(len(ci.sql_procedures) for ci in class_map.values())
+    total_imports = sum(len(ci.imports) for ci in class_map.values())
 
     # Build dependency map (class -> superclass)
     dependency_map = {ci.name: ci.super for ci in class_map.values() if ci.super}
@@ -243,6 +253,7 @@ async def build_index(
             "methods": total_methods,
             "properties": total_properties,
             "sql_procedures": total_sql_procs,
+            "imports": total_imports,
         },
         "classes": classes,
         "dependencies": dependency_map,
@@ -263,7 +274,11 @@ async def index_summary(namespace: str | None = None) -> dict:
         namespace,
     )
     prop_count = await _run_query(
-        "SELECT COUNT(*) AS cnt FROM %Dictionary.PropertyDefinition WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'",
+        "SELECT COUNT(*) AS cnt FROM %Dictionary.PropertyDefinition WHERE Parent->Name NOT LIKE '\\\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'",
+        namespace,
+    )
+    sqlproc_count = await _run_query(
+        "SELECT COUNT(*) AS cnt FROM %Dictionary.MethodDefinition WHERE Parent->Name NOT LIKE '\\\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%' AND SqlProc = 1",
         namespace,
     )
 
@@ -277,4 +292,5 @@ async def index_summary(namespace: str | None = None) -> dict:
         "classes": _get_count(class_count),
         "methods": _get_count(method_count),
         "properties": _get_count(prop_count),
+        "sql_procedures": _get_count(sqlproc_count),
     }

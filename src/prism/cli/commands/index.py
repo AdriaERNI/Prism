@@ -28,7 +28,7 @@ def index(
 
     Useful for understanding the structure of large IRIS codebases without
     reading every document. Outputs class hierarchies, methods, properties,
-    and SQL projections as JSON.
+    SQL projections, imports, and dependencies as JSON.
     """
     ns = namespace or None
     prefix_val = prefix or None

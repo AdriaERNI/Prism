@@ -40,8 +40,8 @@ async def index_code(
 ) -> dict:
     """Build a compact index of all classes in an IRIS namespace.
 
-    Returns class hierarchies, methods, properties, SQL projections, and
-    dependencies — without fetching full source files. Use this to understand
+    Returns class hierarchies, methods, properties, SQL projections, imports,
+    and dependencies — without fetching full source files. Use this to understand
     a large IRIS codebase using a fraction of the tokens needed to read every
     document.
 
