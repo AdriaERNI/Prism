@@ -80,7 +80,7 @@ def cast_callback(
             typer.echo("No cast repos registered. Add one with: prism cast --add <url>")
             return
         typer.echo(f"{'#':>3}  {'Name':<20} {'Description':<35} Commands")
-        typer.echo(f"{'─' * 3}  {'─' * 20} {'─' * 35} {'─' * 40}")
+        typer.echo(f"{'-' * 3}  {'-' * 20} {'-' * 35} {'-' * 40}")
         for i, repo in enumerate(repos, 1):
             desc = repo.description or ""
             cmds = ", ".join(c.name for c in repo.commands) or "(none)"

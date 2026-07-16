@@ -5,6 +5,9 @@
 #ifndef AppVer
   #define AppVer "0.0.0"
 #endif
+#ifndef AppVerFile
+  #define AppVerFile AppVer
+#endif
 
 [Setup]
 AppName=Prism
@@ -22,7 +25,7 @@ DefaultGroupName=
 
 ; Output
 OutputDir=.
-OutputBaseFilename=prism-{#AppVer}-setup
+OutputBaseFilename=prism-{#AppVerFile}-setup
 
 ; Compression
 Compression=lzma2/ultra64
@@ -65,7 +68,7 @@ UninstallDisplayName=Prism
 CreateUninstallRegKey=yes
 
 [Files]
-Source: "prism-{#AppVer}.exe"; DestDir: "{app}"; DestName: "prism.exe"; Flags: ignoreversion
+Source: "prism-{#AppVerFile}.exe"; DestDir: "{app}"; DestName: "prism.exe"; Flags: ignoreversion
 
 ; No [Icons] section — no Start Menu, no desktop shortcuts
 ; The exe is a CLI tool accessed via PATH, not a GUI app launched from a menu

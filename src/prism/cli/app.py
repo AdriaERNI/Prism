@@ -30,17 +30,11 @@ from prism.cli.commands.testing import list_tests, test  # noqa: E402
 from prism.output import set_output_format  # noqa: E402
 
 
-def _main_callback(
-    ctx: typer.Context,
-    fmt: Optional[str] = typer.Option(  # noqa: UP007
-        None,
-        "--format",
-        help="Output format: json (default) or toon.",
-    ),
-) -> None:
-    """Global options applied before any subcommand."""
-    if fmt is not None:
-        set_output_format(fmt)
+def _get_version() -> str:
+    """Return the Prism version from __init__.__version__."""
+    from prism import __version__
+
+    return __version__
 
 
 app = typer.Typer(
@@ -49,11 +43,36 @@ app = typer.Typer(
     no_args_is_help=True,
     add_completion=False,
     pretty_exceptions_enable=False,
-    callback=_main_callback,
 )
 
 app.command(name="config")(config)
 app.add_typer(cast_app, name="cast")
+
+
+@app.callback(invoke_without_command=True)
+def _callback(
+    ctx: typer.Context,
+    fmt: Optional[str] = typer.Option(  # noqa: UP007
+        None,
+        "--format",
+        help="Output format: json (default) or toon.",
+    ),
+    show_version: bool = typer.Option(  # noqa: UP007
+        False,
+        "--version",
+        "-V",
+        help="Show the Prism version and exit.",
+        is_eager=True,
+    ),
+) -> None:
+    """Global options applied before any subcommand."""
+    if show_version:
+        typer.echo(f"Prism {_get_version()}")
+        raise typer.Exit()
+    if fmt is not None:
+        set_output_format(fmt)
+
+
 app.command(name="sql")(sql)
 app.command(name="terminal")(terminal)
 app.command(name="ws")(ws)
