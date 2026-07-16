@@ -13,18 +13,18 @@ and the CI pipeline that automates artifact builds.
 | `main` | Production-ready code. Every commit on `main` is a released version. | PR required, strict CI, linear history |
 | `development` | Active development. All features and fixes land here first. | PR required, strict CI, linear history |
 | `feature/*` | Individual features or bug fixes. Cut from `development`, PR'd back to `development`. | None (deleted after merge) |
-| `release/X.Y.Z` | Release preparation. Cut from `development`, PR'd to `main`. | None (deleted after merge) |
-| `hotfix/X.Y.Z` | Emergency fix for a released version. Cut from `main`, PR'd to both `main` and `development`. | None (deleted after merge) |
+| `release/vX.Y.Z` | Release preparation. Cut from `development`, PR'd to `main`. | None (deleted after merge) |
+| `hotfix/vX.Y.Z` | Emergency fix for a released version. Cut from `main`, PR'd to both `main` and `development`. | None (deleted after merge) |
 
 ### Branch naming conventions
 
 - **Feature branches**: `feature/<short-description>` (e.g. `feature/cast-plugins`)
-- **Release branches**: `release/X.Y.Z` -- no `v` prefix (e.g. `release/0.2.0`)
-- **Hotfix branches**: `hotfix/X.Y.Z` -- no `v` prefix (e.g. `hotfix/0.2.1`)
+- **Release branches**: `release/vX.Y.Z` -- with `v` prefix (e.g. `release/v0.2.0`)
+- **Hotfix branches**: `hotfix/vX.Y.Z` -- with `v` prefix (e.g. `hotfix/v0.2.1`)
 - **Tags**: `vX.Y.Z` -- with `v` prefix (e.g. `v0.2.0`)
 
-The `v` prefix is used **only for tags**, never for branch names. This is
-the standard Git Flow convention.
+The `v` prefix is used consistently on release/hotfix branches and tags,
+matching the tag name they produce.
 
 ## Versioning
 
@@ -49,7 +49,7 @@ When `development` is ready for release, cut a release branch:
 ```bash
 git checkout development
 git pull origin development
-git checkout -b release/0.2.0
+git checkout -b release/v0.2.0
 ```
 
 ### 2. Prepare the release
@@ -72,8 +72,8 @@ git commit -m "release: prepare v0.2.0"
 ### 3. Open PR to main
 
 ```bash
-git push -u origin release/0.2.0
-gh pr create --base main --head release/0.2.0 \
+git push -u origin release/v0.2.0
+gh pr create --base main --head release/v0.2.0 \
   --title "release: v0.2.0" \
   --body "Stable release v0.2.0"
 ```
@@ -124,8 +124,8 @@ git push origin development
 Delete the release branch (local + remote):
 
 ```bash
-git branch -d release/0.2.0
-git push origin --delete release/0.2.0
+git branch -d release/v0.2.0
+git push origin --delete release/v0.2.0
 ```
 
 ## Pre-releases
@@ -157,7 +157,7 @@ When a critical bug is found in a released version:
 ```bash
 git checkout main
 git pull origin main
-git checkout -b hotfix/0.2.1
+git checkout -b hotfix/v0.2.1
 ```
 
 ### 2. Fix and bump version
@@ -174,8 +174,8 @@ git commit -m "fix: critical bug in SQL execution"
 ### 3. PR to main
 
 ```bash
-git push -u origin hotfix/0.2.1
-gh pr create --base main --head hotfix/0.2.1 \
+git push -u origin hotfix/v0.2.1
+gh pr create --base main --head hotfix/v0.2.1 \
   --title "hotfix: v0.2.1" \
   --body "Critical fix for v0.2.0"
 ```
@@ -195,30 +195,30 @@ git merge main --no-edit
 git push origin development
 
 # Clean up
-git branch -d hotfix/0.2.1
-git push origin --delete hotfix/0.2.1
+git branch -d hotfix/v0.2.1
+git push origin --delete hotfix/v0.2.1
 ```
 
 ## Visual workflow
 
 ```
-development  feature/cast   release/0.2.0     main
-    |              |               |            |
-    |--- CUT ------|               |            |
-    |              |               |            |
-    |<-- MERGE ----|               |            |
-    |                              |            |
-    |---------- CUT ---------------|            |
-    |                              |            |
-    |                              |--- PR ---->|
-    |                              |            |
-    |                              |      MERGE |
-    |                              |            |
+development  feature/cast   release/v0.2.0     main
+    |              |               |              |
+    |--- CUT ------|               |              |
+    |              |               |              |
+    |<-- MERGE ----|               |              |
+    |                              |              |
+    |---------- CUT ---------------|              |
+    |                              |              |
+    |                              |--- PR ------>|
+    |                              |              |
+    |                              |        MERGE |
+    |                              |              |
     |                              |       TAG v0.2.0
-    |                              |            |
-    |<----------- SYNC (merge main into dev) ---|
-    |                                           |
-    |                                     DELETE release/0.2.0
+    |                              |              |
+    |<----------- SYNC (merge main into dev) ----|
+    |                                             |
+    |                                       DELETE release/v0.2.0
 ```
 
 ## CI pipelines

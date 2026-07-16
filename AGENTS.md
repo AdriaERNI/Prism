@@ -52,11 +52,11 @@ release workflow.
 | `main` | Production-ready. Only accepts PRs from `release/*` or `hotfix/*`. |
 | `development` | Active development. Target for all `feature/*` branches and Dependabot. |
 | `feature/*` | Cut from `development`, PR'd back to `development`. |
-| `release/X.Y.Z` | Cut from `development`, PR'd to `main`, then merged back to `development`. |
-| `hotfix/X.Y.Z` | Cut from `main`, PR'd to `main`, then synced back to `development`. |
+| `release/vX.Y.Z` | Cut from `development`, PR'd to `main`, then merged back to `development`. |
+| `hotfix/vX.Y.Z` | Cut from `main`, PR'd to `main`, then synced back to `development`. |
 
-Branch naming: no `v` prefix on branches (e.g. `release/0.2.0`), `v` only on
-tags (e.g. `v0.2.0`).
+Branch naming: `v` prefix on release/hotfix branches and tags (e.g.
+`release/v0.2.0`, `v0.2.0`). Feature branches use descriptive names.
 
 Dependabot is configured to target `development` (not `main`) in
 `.github/dependabot.yml`.
