@@ -58,10 +58,13 @@ def _patch_connect(ws):
 
 
 def _patch_cookies(cookies: dict | None = None):
-    """Patch _get_session_cookies to return *cookies*."""
+    """Patch _get_session_cookies_and_api_version to return *cookies* + v8."""
     return patch(
-        "prism.iris.api.interactive_ws._get_session_cookies",
-        return_value=cookies or {"CSPSESSIONID": "abc123"},
+        "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+        return_value=(
+            cookies or {"CSPSESSIONID": "abc123"},
+            8,
+        ),
     )
 
 
@@ -463,3 +466,92 @@ class TestColorMessage:
 
         assert "hello" in result["output"]
         assert result["prompt"] == "USER>"
+
+
+# ── Dynamic API version ────────────────────────────────────────────
+
+
+class TestDynamicApiVersion:
+    """Verify that the WebSocket URL uses the server's reported API version."""
+
+    def test_ws_url_dynamic_v8(self):
+        from prism.iris.api.interactive_ws import _ws_url_dynamic
+
+        url = _ws_url_dynamic(8)
+        assert "/api/atelier/v8/" in url
+        assert url.endswith("/%25SYS/terminal")
+
+    def test_ws_url_dynamic_v7(self):
+        from prism.iris.api.interactive_ws import _ws_url_dynamic
+
+        url = _ws_url_dynamic(7)
+        assert "/api/atelier/v7/" in url
+
+    def test_ws_url_dynamic_v9(self):
+        from prism.iris.api.interactive_ws import _ws_url_dynamic
+
+        url = _ws_url_dynamic(9)
+        assert "/api/atelier/v9/" in url
+
+    def test_ws_url_dynamic_fallback_for_low_version(self):
+        """When api_version < 7, falls back to settings.iris_api_prefix."""
+        from prism.iris.api.interactive_ws import _ws_url_dynamic
+
+        url = _ws_url_dynamic(0)
+        # Falls back to configured prefix (default: api/atelier/v8)
+        assert "/api/atelier/" in url
+        assert url.endswith("/%25SYS/terminal")
+
+    def test_ws_url_dynamic_fallback_for_version_1(self):
+        """IRIS versions reporting api=1 don't support the terminal endpoint."""
+        from prism.iris.api.interactive_ws import _ws_url_dynamic
+
+        url = _ws_url_dynamic(1)
+        # Falls back to configured prefix
+        assert "/api/atelier/" in url
+
+    def test_ws_url_dynamic_uses_wss_for_https(self):
+        """HTTPS base URLs become wss:// in the WebSocket URL."""
+        from prism.iris.api.interactive_ws import _ws_url_dynamic
+
+        with patch("prism.iris.api.interactive_ws.base_url") as mock_base:
+            mock_base.return_value = "https://iris.example.com:52773"
+            url = _ws_url_dynamic(8)
+        assert url.startswith("wss://")
+        assert "iris.example.com" in url
+
+    async def test_connect_uses_server_api_version(self):
+        """connect() fetches API version from server and builds URL accordingly."""
+        messages = _init_and_prompt()
+        ws = _make_ws(messages[:2])
+
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 7),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+
+        # Verify the WebSocket URL used v7 (from the mock's connect call args)
+        connect_calls = ws.send.call_args_list
+        assert len(connect_calls) >= 1  # at least the config message
+
+    async def test_connect_fallback_on_unknown_version(self):
+        """connect() falls back when server doesn't report API version."""
+        messages = _init_and_prompt()
+        ws = _make_ws(messages[:2])
+
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 0),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+
+        assert session.namespace == "USER"

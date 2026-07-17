@@ -20,18 +20,46 @@ from prism.iris.api.terminal import (
     TerminalError,
     _clean_text,
     _resolve_namespace,
-    _ws_url,
 )
 from prism.iris.sdk.http import auth, base_url
 from prism.settings import settings
 
 
-async def _get_session_cookies() -> dict[str, str]:
-    """Authenticate via GET /api/atelier/ and return session cookies."""
+async def _get_session_cookies_and_api_version() -> tuple[dict[str, str], int]:
+    """Authenticate and return cookies plus the server's API version.
+
+    The API version is discovered from GET /api/atelier/ response body
+    (``result.content.api``). The WebSocket terminal endpoint requires
+    ``apiVersion >= 7`` (IRIS 2023.2+). Falls back to the version in
+    ``settings.iris_api_prefix`` if the server doesn't report one.
+    """
     async with httpx.AsyncClient(auth=auth(), timeout=30.0) as c:
         r = await c.get(f"{base_url()}/api/atelier/")
         r.raise_for_status()
-        return dict(r.cookies)
+        cookies = dict(r.cookies)
+        try:
+            data = r.json()
+            api_version = data["result"]["content"]["api"]
+        except (KeyError, ValueError, TypeError):
+            api_version = 0
+        return cookies, api_version
+
+
+def _ws_url_dynamic(api_version: int) -> str:
+    """Build the WebSocket URL using the server's API version.
+
+    Falls back to ``settings.iris_api_prefix`` when *api_version* is 0
+    or below the minimum (7) for the terminal endpoint.
+    """
+    url = base_url()
+    if url.startswith("https://"):
+        url = "wss://" + url[len("https://") :]
+    elif url.startswith("http://"):
+        url = "ws://" + url[len("http://") :]
+    if api_version >= 7:
+        return f"{url}/api/atelier/v{api_version}/%25SYS/terminal"
+    # Fallback: use whatever prefix is configured (default: api/atelier/v8)
+    return f"{url}/{settings.iris_api_prefix}/%25SYS/terminal"
 
 
 class InteractiveWSSession:
@@ -76,11 +104,11 @@ class InteractiveWSSession:
 
     async def connect(self) -> None:
         """Open the WebSocket and perform init/config handshake."""
-        cookies = await _get_session_cookies()
+        cookies, api_version = await _get_session_cookies_and_api_version()
         cookie_header = "; ".join(f"{k}={v}" for k, v in cookies.items())
 
         self._ws = await websockets.connect(
-            _ws_url(),
+            _ws_url_dynamic(api_version),
             additional_headers={"Cookie": cookie_header},
         )
 
