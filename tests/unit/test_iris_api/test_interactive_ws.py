@@ -335,3 +335,131 @@ class TestOutputTruncation:
         assert len(result["output"]) == 50
         assert result["output_truncated"] is True
         assert result["output_omitted_chars"] == 150
+
+
+# ── Read message handling ──────────────────────────────────────────
+
+
+class TestReadMessage:
+    """Verify that ``read`` messages from IRIS are handled correctly."""
+
+    async def test_read_message_triggers_callback(self):
+        """When a ``read`` message arrives, the on_read callback is invoked."""
+        messages = _init_and_prompt() + [
+            {"type": "read", "text": "Enter name: "},
+            {"type": "output", "text": "Hello, Alice"},
+            {"type": "prompt", "text": "USER>"},
+        ]
+
+        ws = _make_ws(messages)
+
+        callback_called = False
+        callback_text = ""
+
+        async def on_read(text: str) -> str:
+            nonlocal callback_called, callback_text
+            callback_called = True
+            callback_text = text
+            return "Alice"
+
+        with _patch_cookies(), _patch_connect(ws):
+            session = InteractiveWSSession()
+            await session.connect()
+            result = await session.run("read name", on_read=on_read)
+
+        assert callback_called is True
+        assert "Enter name" in callback_text
+        assert "Hello, Alice" in result["output"]
+
+    async def test_read_message_sends_input_back(self):
+        """The callback's return value is sent back as a ``read`` message."""
+        messages = _init_and_prompt() + [
+            {"type": "read", "text": ""},
+            {"type": "output", "text": "42"},
+            {"type": "prompt", "text": "USER>"},
+        ]
+
+        ws = _make_ws(messages)
+
+        async def on_read(text: str) -> str:
+            return "42"
+
+        with _patch_cookies(), _patch_connect(ws):
+            session = InteractiveWSSession()
+            await session.connect()
+            await session.run("read x", on_read=on_read)
+
+        # Verify a read message was sent back
+        sent_messages = [json.loads(call.args[0]) for call in ws.send.call_args_list]
+        read_msgs = [m for m in sent_messages if m.get("type") == "read"]
+        assert len(read_msgs) == 1
+        assert read_msgs[0]["input"] == "42"
+
+    async def test_read_message_without_callback_times_out(self):
+        """Without on_read callback, a read message is silently skipped
+        and the session continues waiting (may timeout)."""
+        messages = _init_and_prompt() + [
+            {"type": "read", "text": "Enter: "},
+            {"type": "prompt", "text": "USER>"},
+        ]
+
+        ws = _make_ws(messages)
+
+        with _patch_cookies(), _patch_connect(ws):
+            session = InteractiveWSSession(timeout=2.0)
+            await session.connect()
+            # Should not raise — read message is skipped, next prompt is consumed
+            result = await session.run("read x")
+
+        assert result["prompt"] == "USER>"
+
+    async def test_read_message_empty_text(self):
+        """Read message with empty text still triggers callback."""
+        messages = _init_and_prompt() + [
+            {"type": "read", "text": ""},
+            {"type": "output", "text": "ok"},
+            {"type": "prompt", "text": "USER>"},
+        ]
+
+        ws = _make_ws(messages)
+
+        called_with = None
+
+        async def on_read(text: str) -> str:
+            nonlocal called_with
+            called_with = text
+            return "input"
+
+        with _patch_cookies(), _patch_connect(ws):
+            session = InteractiveWSSession()
+            await session.connect()
+            result = await session.run("read x", on_read=on_read)
+
+        assert called_with == ""
+        assert "ok" in result["output"]
+
+
+# ── Color message handling ──────────────────────────────────────────
+
+
+class TestColorMessage:
+    """``color`` messages from IRIS should be silently ignored."""
+
+    async def test_color_message_ignored(self):
+        """Color messages do not interfere with normal output."""
+        messages = _init_and_prompt() + [
+            {"type": "color", "text": "\x1b[32m"},
+            {"type": "output", "text": "hello"},
+            {"type": "color", "text": "\x1b[0m"},
+            {"type": "prompt", "text": "USER>"},
+        ]
+
+        ws = _make_ws(messages)
+
+        with _patch_cookies(), _patch_connect(ws):
+            session = InteractiveWSSession()
+            await session.connect()
+            result = await session.run('w "hello"')
+
+        assert "hello" in result["output"]
+        assert result["prompt"] == "USER>"

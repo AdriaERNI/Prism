@@ -191,6 +191,15 @@ sessions.
 - Single-command mode opens a new session each time, so variables don't
   persist between calls. Use interactive mode (`prism ws` without a
   command) for stateful sessions.
+- **`read` command support**: Interactive mode handles the ObjectScript
+  `read` command — when IRIS requests input, you'll be prompted inline.
+  In single-command mode, `read` is not supported (use `--interactive`
+  with the preceding `read` command instead).
+- **Windows headless mode**: When running without a real console (WinRM,
+  CI, piped output), `prompt_toolkit` cannot initialize. Prism
+  automatically falls back to a basic `input()` loop — history
+  navigation (up/down arrows) and advanced line editing are unavailable,
+  but all commands work normally.
 
 ---
 
