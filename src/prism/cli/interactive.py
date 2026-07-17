@@ -9,7 +9,7 @@ Two modes:
 - **Interactive**: ``prism ws`` drops into a REPL loop.
 - **Single command**: ``prism ws 'w "hello"'`` runs one command and exits.
 
-The interactive session is persistent — variables, globals, and namespace
+The interactive session is persistent -- variables, globals, and namespace
 state persist across commands within the same session, just like a real
 IRIS terminal.
 """
@@ -19,11 +19,12 @@ from __future__ import annotations
 import asyncio
 import re
 import sys
+from collections.abc import Awaitable, Callable
 from pathlib import Path
 
 import typer
 
-# prompt_toolkit is optional at import time — we degrade gracefully on
+# prompt_toolkit is optional at import time -- we degrade gracefully on
 # environments where it's not available (e.g. minimal Docker images).
 # The interactive REPL requires it; single-command mode does not.
 try:
@@ -40,7 +41,7 @@ from prism.iris.api.interactive_ws import InteractiveWSSession
 from prism.iris.api.terminal import TerminalError
 from prism.settings import settings
 
-# ── ANSI helpers ──────────────────────────────────────────────────────
+# -- ANSI helpers ------------------------------------------------------
 
 _ANSI_RESET = "\x1b[0m"
 _ANSI_BOLD = "\x1b[1m"
@@ -74,7 +75,7 @@ def _get_version() -> str:
     return __version__
 
 
-# ── Special commands ──────────────────────────────────────────────────
+# -- Special commands --------------------------------------------------
 
 _LOCAL_COMMANDS = {
     "exit": "Exit the terminal session",
@@ -170,7 +171,7 @@ def _print_history(prompt_session: PromptSession) -> None:
     typer.echo()
 
 
-# ── Interactive REPL ──────────────────────────────────────────────────
+# -- Interactive REPL --------------------------------------------------
 
 
 def run_interactive(
@@ -199,6 +200,8 @@ def run_interactive(
     try:
         asyncio.run(_async_interactive(namespace, timeout, initial_command))
     except KeyboardInterrupt:
+        typer.echo(f"\n{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
+    except EOFError:
         typer.echo(f"\n{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
 
 
@@ -230,9 +233,21 @@ async def _async_interactive(
     _print_startup_banner(session.namespace)
 
     history_file = _history_path()
-    prompt_session: PromptSession = PromptSession(
-        history=FileHistory(str(history_file)),
-    )
+    try:
+        prompt_session: PromptSession = PromptSession(
+            history=FileHistory(str(history_file)),
+        )
+    except Exception as exc:
+        # On Windows, prompt_toolkit raises NoConsoleScreenBufferError when
+        # there's no real console (e.g. piped through WinRM, CI, or redirect).
+        # Fall back to a simple input() loop so the terminal still works,
+        # albeit without history navigation and advanced line editing.
+        typer.echo(
+            f"{_ANSI_DIM}Note: Advanced line editing unavailable ({exc}).\n"
+            f"Using basic input mode.{_ANSI_RESET}\n",
+        )
+        await _simple_repl(session, timeout)
+        return
 
     while True:
         try:
@@ -263,7 +278,92 @@ async def _async_interactive(
 
         # Execute ObjectScript command on IRIS
         try:
-            result = await session.run(text)
+            result = await session.run(text, on_read=_make_on_read(prompt_session))
+            _print_output(result.get("output", ""))
+        except TerminalError as exc:
+            typer.echo(f"{_ANSI_RED}{exc}{_ANSI_RESET}", err=True)
+        except asyncio.TimeoutError:
+            typer.echo(
+                f"{_ANSI_RED}Error: Command timed out after {timeout}s{_ANSI_RESET}",
+                err=True,
+            )
+        except Exception as exc:
+            typer.echo(f"{_ANSI_RED}Error: {exc}{_ANSI_RESET}", err=True)
+
+    await session.close()
+
+
+def _make_on_read(
+    prompt_session: PromptSession | None = None,
+) -> Callable[[str], Awaitable[str]]:
+    """Create an on_read callback for handling ObjectScript ``read`` commands.
+
+    When IRIS sends a ``read`` message, this callback prompts the user for
+    input (using prompt_toolkit if available, otherwise plain input()).
+    """
+
+    async def on_read(prompt_text: str) -> str:
+        plain = _strip_ansi(prompt_text).strip()
+        label = plain if plain else "Input:"
+        hint = f"{_ANSI_BOLD}{_ANSI_CYAN}{label} {_ANSI_RESET}"
+        if prompt_session is not None:
+            try:
+                return await prompt_session.prompt_async(hint)
+            except (EOFError, KeyboardInterrupt):
+                return ""
+        else:
+            loop = asyncio.get_event_loop()
+            return await loop.run_in_executor(None, lambda: input(hint))
+
+    return on_read
+
+
+async def _simple_repl(session: InteractiveWSSession, timeout: float) -> None:
+    """Fallback REPL using ``input()`` when ``prompt_toolkit`` is unavailable.
+
+    This runs on Windows when there's no real console (WinRM, CI, pipe).
+    No history navigation or advanced line editing -- just a basic loop.
+    """
+
+    loop = asyncio.get_event_loop()
+    history: list[str] = []
+
+    while True:
+        # input() is blocking -- run in a thread so we don't stall the event loop
+        prompt_str = _format_prompt(session.prompt)
+        try:
+            user_input = await loop.run_in_executor(None, lambda: input(prompt_str))
+        except (EOFError, KeyboardInterrupt):
+            typer.echo(f"\n{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
+            break
+
+        text = user_input.strip()
+        if not text:
+            continue
+
+        if _is_exit_command(text):
+            typer.echo(f"{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
+            break
+        if _is_clear_command(text):
+            sys.stdout.write("\x1b[2J\x1b[H")
+            sys.stdout.flush()
+            continue
+        if _is_help_command(text):
+            _print_help()
+            continue
+        if _is_history_command(text):
+            if history:
+                for i, entry in enumerate(history[-20:], 1):
+                    display = entry if len(entry) <= 80 else entry[:77] + "..."
+                    typer.echo(f"  {i:4d}  {display}")
+            else:
+                typer.echo(f"  {_ANSI_DIM}(empty){_ANSI_RESET}")
+            continue
+
+        history.append(text)
+
+        try:
+            result = await session.run(text, on_read=_make_on_read(None))
             _print_output(result.get("output", ""))
         except TerminalError as exc:
             typer.echo(f"{_ANSI_RED}{exc}{_ANSI_RESET}", err=True)

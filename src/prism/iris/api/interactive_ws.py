@@ -114,8 +114,14 @@ class InteractiveWSSession:
     async def _wait_for_prompt(
         self,
         on_output: Callable[[str], Awaitable[None]] | None = None,
+        on_read: Callable[[str], Awaitable[str]] | None = None,
     ) -> tuple[list[str], str]:
-        """Consume messages until a prompt arrives."""
+        """Consume messages until a prompt arrives.
+
+        If *on_read* is provided and a ``read`` message arrives, the callback
+        is invoked to get user input, which is sent back to IRIS. If *on_read*
+        is ``None``, a ``TimeoutError`` will eventually fire (the session blocks).
+        """
         if self._ws is None:
             raise TerminalError("Session not connected")
 
@@ -136,6 +142,15 @@ class InteractiveWSSession:
                 raise TerminalError(f"Server error: {msg.get('text', msg)}")
             elif msg_type == "init":
                 raise TerminalError(f"Unexpected init message: {msg}")
+            elif msg_type == "read":
+                if on_read is not None:
+                    # Ask the user for input and send it back
+                    user_input = await on_read(msg.get("text", ""))
+                    await self._ws.send(
+                        json.dumps({"type": "read", "input": user_input})
+                    )
+                # If no on_read callback, the loop continues and will
+                # eventually time out waiting for the next message.
             else:
                 pass
 
@@ -143,11 +158,16 @@ class InteractiveWSSession:
         self,
         command: str,
         on_output: Callable[[str], Awaitable[None]] | None = None,
+        on_read: Callable[[str], Awaitable[str]] | None = None,
     ) -> dict:
         """Run an ObjectScript command on the persistent session.
 
         Returns ``{"namespace": ..., "command": ..., "output": ..., "prompt": ...}``.
         Variables set in previous commands persist.
+
+        If *on_read* is provided, it will be called when the server sends a
+        ``read`` message (e.g. from the ObjectScript ``read`` command). The
+        callback should return the user's input string.
         """
         if self._ws is None:
             raise TerminalError("Session not connected")
@@ -161,7 +181,7 @@ class InteractiveWSSession:
             )
         )
 
-        output_lines, prompt = await self._wait_for_prompt(on_output)
+        output_lines, prompt = await self._wait_for_prompt(on_output, on_read)
         self._current_prompt = prompt
 
         output = _clean_text("\n".join(output_lines))

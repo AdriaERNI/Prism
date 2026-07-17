@@ -236,3 +236,73 @@ class TestWsErrorHandling:
             "cannot connect" in result.output.lower()
             or "error" in result.output.lower()
         )
+
+
+# ── _make_on_read callback ─────────────────────────────────────────
+
+
+class TestMakeOnRead:
+    """Verify the on_read callback factory for ObjectScript read commands."""
+
+    def test_make_on_read_returns_callable(self):
+        from prism.cli.interactive import _make_on_read
+
+        cb = _make_on_read(None)
+        assert callable(cb)
+
+    @pytest.mark.asyncio
+    async def test_make_on_read_without_session_uses_input(self):
+        """Without a PromptSession, _make_on_read falls back to input()."""
+        from prism.cli.interactive import _make_on_read
+
+        cb = _make_on_read(None)
+        with patch("builtins.input", return_value="user_input"):
+            result = await cb("Enter name: ")
+        assert result == "user_input"
+
+    @pytest.mark.asyncio
+    async def test_make_on_read_strips_ansi_from_prompt(self):
+        """The callback strips ANSI codes from the read prompt text
+        before embedding it into the hint string."""
+        from prism.cli.interactive import _make_on_read
+
+        cb = _make_on_read(None)
+        with patch("builtins.input", return_value="val") as mock_input:
+            await cb("\x1b[32mEnter value:\x1b[0m ")
+        received = mock_input.call_args[0][0]
+
+        # The original ANSI escape (\x1b[32m / \x1b[0m) should be stripped,
+        # but _make_on_read adds its own formatting codes (bold cyan).
+        # The key is that the prompt text "Enter value:" survived without
+        # the original green color codes, and our own formatting is present.
+        assert "\x1b[32m" not in received  # original green stripped
+        assert "Enter value" in received
+
+    @pytest.mark.asyncio
+    async def test_make_on_read_empty_prompt_uses_default_label(self):
+        """Empty read prompt text defaults to 'Input:'."""
+        from prism.cli.interactive import _make_on_read
+
+        cb = _make_on_read(None)
+        with patch("builtins.input", return_value="x") as mock_input:
+            await cb("")
+        received = mock_input.call_args[0][0]
+        assert "Input" in received
+
+
+# ── EOFError handling ──────────────────────────────────────────────
+
+
+class TestEOFHandling:
+    """Verify that EOFError is handled gracefully in run_interactive."""
+
+    def test_run_interactive_eof_error_exits_cleanly(self):
+        """Ctrl+D (EOFError) exits without traceback."""
+
+        with patch(
+            "prism.cli.interactive.asyncio.run",
+            side_effect=EOFError(),
+        ):
+            result = runner.invoke(app, ["ws"])
+        assert result.exit_code == 0
+        assert "Goodbye" in result.output
