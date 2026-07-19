@@ -434,6 +434,8 @@ def _make_on_read(
                     return await prompt_session.prompt_async(ANSI(hint))
                 return await prompt_session.prompt_async(hint)
             except (EOFError, KeyboardInterrupt):
+                # Ctrl+C or Ctrl+D during a read prompt: return empty string
+                # to let IRIS handle it.
                 return ""
         else:
             loop = asyncio.get_event_loop()
@@ -460,14 +462,21 @@ async def _simple_repl(session: InteractiveWSSession, timeout: float) -> None:
         prompt_str = _format_prompt(session.prompt, multiline=is_multiline)
         try:
             user_input = await loop.run_in_executor(None, lambda: input(prompt_str))
-        except (EOFError, KeyboardInterrupt):
+        except KeyboardInterrupt:
+            # Ctrl+C: interrupt IRIS if evaluating, otherwise just clear
+            # the current input and show a fresh prompt.  Only Ctrl+D
+            # (EOFError) exits the session.
             if session.is_evaluating:
                 typer.echo(f"\n{_ANSI_DIM}^C — interrupting IRIS...{_ANSI_RESET}")
                 try:
                     await session.interrupt()
                 except Exception:
                     pass
-                continue
+            else:
+                multiline_buffer = ""
+                typer.echo(f"\n{_ANSI_DIM}^C{_ANSI_RESET}")
+            continue
+        except EOFError:
             typer.echo(f"\n{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
             break
 
