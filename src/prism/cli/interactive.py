@@ -210,6 +210,11 @@ def _print_output(text: str) -> None:
         cleaned = "".join(
             ch for ch in cleaned if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
         )
+        # Ensure the output ends with a newline so the next prompt appears
+        # on its own line.  Without this, the prompt follows the output on
+        # the same line (e.g. "helloUSER>" instead of "hello\nUSER>").
+        if not cleaned.endswith("\n"):
+            cleaned += "\n"
         typer.echo(cleaned, nl=False)
 
 
