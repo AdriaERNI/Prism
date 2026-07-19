@@ -75,15 +75,16 @@ class TestTerminalEdgeCases:
         assert result.exit_code == 1
         assert "cannot be empty" in result.output.lower()
 
-    def test_empty_ws_command_errors(self):
+    def test_empty_ws_command_enters_interactive(self):
+        """Empty ws command enters interactive mode (not an error)."""
         result = runner.invoke(app, ["ws", ""])
-        assert result.exit_code == 1
-        assert "cannot be empty" in result.output.lower()
+        # Empty string is treated as no command — enters interactive mode
+        assert "Interactive WebSocket Terminal" in result.output
 
-    def test_whitespace_ws_command_errors(self):
+    def test_whitespace_ws_command_enters_interactive(self):
+        """Whitespace-only ws command enters interactive mode."""
         result = runner.invoke(app, ["ws", "   "])
-        assert result.exit_code == 1
-        assert "cannot be empty" in result.output.lower()
+        assert "Interactive WebSocket Terminal" in result.output
 
 
 # ── Compile command edge cases ────────────────────────────────────────
