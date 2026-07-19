@@ -6,8 +6,9 @@ import asyncio
 
 import typer
 
+from prism.cli.errors import handle_command_error
 from prism.iris.api.index import build_index, index_summary
-from prism.output import format_output
+from prism.output import format_output, get_output_format
 
 
 def index(
@@ -33,15 +34,18 @@ def index(
     ns = namespace or None
     prefix_val = prefix or None
 
-    if summary:
-        result = asyncio.run(index_summary(ns))
-    else:
-        result = asyncio.run(
-            build_index(
-                namespace=ns,
-                include_system=include_system,
-                filter_prefix=prefix_val,
+    try:
+        if summary:
+            result = asyncio.run(index_summary(ns))
+        else:
+            result = asyncio.run(
+                build_index(
+                    namespace=ns,
+                    include_system=include_system,
+                    filter_prefix=prefix_val,
+                )
             )
-        )
+    except Exception as exc:
+        handle_command_error(exc)
 
-    typer.echo(format_output(result, "json"))
+    typer.echo(format_output(result, get_output_format()))

@@ -15,6 +15,7 @@ import sys
 
 import typer
 
+from prism.cli.errors import handle_command_error
 from prism.iris.api.terminal import execute_command_ws
 from prism.iris.sdk.terminal import execute_command as execute_command_native
 from prism.output import format_output, get_output_format
@@ -30,11 +31,15 @@ def terminal(
     ),
 ) -> None:
     """Run an ObjectScript command via irisnative (SuperServer)."""
+    if not command or not command.strip():
+        typer.echo("Error: command cannot be empty.", err=True)
+        sys.exit(1)
+
     try:
         result = asyncio.run(execute_command_native(command, namespace, timeout))
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        handle_command_error(exc)
+        return  # handle_command_error calls sys.exit, but keeps type checkers happy
 
     typer.echo(format_output(result, get_output_format()))
 
@@ -81,8 +86,8 @@ def ws(
         try:
             result = asyncio.run(execute_command_ws(command, namespace, timeout))
         except Exception as exc:
-            typer.echo(f"Error: {exc}", err=True)
-            sys.exit(1)
+            handle_command_error(exc)
+            return  # handle_command_error calls sys.exit, but keeps type checkers happy
 
         typer.echo(format_output(result, get_output_format()))
         return

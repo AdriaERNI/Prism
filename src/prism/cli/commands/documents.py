@@ -8,7 +8,7 @@ from pathlib import Path
 
 import typer
 
-from prism.output import get_output_format
+from prism.cli.errors import handle_command_error
 from prism.iris.api.documents import (
     DocumentNotFound,
     delete_document,
@@ -16,7 +16,7 @@ from prism.iris.api.documents import (
     list_documents,
     put_document,
 )
-from prism.output import format_output
+from prism.output import format_output, get_output_format
 
 
 def get_doc(
@@ -26,14 +26,17 @@ def get_doc(
     ),
 ) -> None:
     """Retrieve a document from IRIS and print the response as JSON."""
+    if not name or not name.strip():
+        typer.echo("Error: document name cannot be empty.", err=True)
+        sys.exit(1)
+
     try:
         response = asyncio.run(get_document(name, namespace=namespace))
     except DocumentNotFound as exc:
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        handle_command_error(exc)
 
     typer.echo(format_output(response, get_output_format()))
 
@@ -63,8 +66,7 @@ def list_docs(
             )
         )
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        handle_command_error(exc)
 
     typer.echo(format_output(response, get_output_format()))
 
@@ -83,13 +85,27 @@ def put_doc(
     ),
 ) -> None:
     """Upload a local file to IRIS as the given document name."""
-    content = file.read_text(encoding="utf-8").splitlines()
+    if not name or not name.strip():
+        typer.echo("Error: document name cannot be empty.", err=True)
+        sys.exit(1)
+
+    try:
+        content = file.read_text(encoding="utf-8").splitlines()
+    except UnicodeDecodeError:
+        typer.echo(
+            f"Error: Could not read {file} as UTF-8 text. "
+            f"Prism only supports text files.",
+            err=True,
+        )
+        sys.exit(1)
+    except OSError as exc:
+        typer.echo(f"Error: Could not read file {file}: {exc}", err=True)
+        sys.exit(1)
 
     try:
         response = asyncio.run(put_document(name, content, namespace=namespace))
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        handle_command_error(exc)
 
     typer.echo(format_output(response, get_output_format()))
 
@@ -101,13 +117,16 @@ def delete_doc(
     ),
 ) -> None:
     """Delete a document from IRIS."""
+    if not name or not name.strip():
+        typer.echo("Error: document name cannot be empty.", err=True)
+        sys.exit(1)
+
     try:
         response = asyncio.run(delete_document(name, namespace=namespace))
     except DocumentNotFound as exc:
         typer.echo(f"Error: {exc}", err=True)
         sys.exit(1)
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        handle_command_error(exc)
 
     typer.echo(format_output(response, get_output_format()))

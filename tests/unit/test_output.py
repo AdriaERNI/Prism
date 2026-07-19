@@ -3,8 +3,6 @@
 import json
 from unittest.mock import patch
 
-import pytest
-
 from prism.output import format_output
 from prism.settings import settings
 
@@ -27,10 +25,12 @@ class TestFormatOutput:
         result = format_output(data, "json")
         assert json.loads(result) == data
 
-    def test_toon_import_error(self):
+    def test_toon_import_error_falls_back_to_json(self):
+        """When toons is not available, format_output falls back to JSON with a warning."""
         with patch.dict("sys.modules", {"toons": None}):
-            with pytest.raises(RuntimeError, match="toons"):
-                format_output({"key": "value"}, "toon")
+            result = format_output({"key": "value"}, "toon")
+            # Should fall back to JSON, not raise
+            assert json.loads(result) == {"key": "value"}
 
     def test_toon_with_mock(self):
         """When toons is available, format_output delegates to toons.dumps."""

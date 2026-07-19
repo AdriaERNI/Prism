@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import sys
 
 import typer
 
-from prism.output import get_output_format
+from prism.cli.errors import handle_command_error
 from prism.iris.api.server_info import get_server_info
-from prism.output import format_output
+from prism.output import format_output, get_output_format
 
 
 def info() -> None:
@@ -17,7 +16,6 @@ def info() -> None:
     try:
         response = asyncio.run(get_server_info())
     except Exception as exc:
-        typer.echo(f"Error: {exc}", err=True)
-        sys.exit(1)
+        handle_command_error(exc)
 
     typer.echo(format_output(response, get_output_format()))

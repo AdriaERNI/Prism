@@ -11,7 +11,12 @@ DEFAULT_PORT = 3000
 
 def serve(
     port: int = typer.Option(
-        DEFAULT_PORT, "--port", "-p", help="Port to bind the MCP server to."
+        DEFAULT_PORT,
+        "--port",
+        "-p",
+        help="Port to bind the MCP server to.",
+        min=1,
+        max=65535,
     ),
     skip_preflight: bool = typer.Option(
         False,
