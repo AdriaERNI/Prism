@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from collections.abc import Awaitable, Callable
 
 import httpx
@@ -33,10 +34,24 @@ def _resolve_namespace(namespace: str | None) -> str:
     return cleaned
 
 
+# Matches ANSI escape sequences like \x1b[31;1m, \x1b[0m, \x1b[2m, etc.
+# Used to strip color/style codes from IRIS output so they don't appear
+# as literal "[31;1m" garbage text after control-char stripping.
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
 def _clean_text(value: str) -> str:
-    """Remove control characters that can break downstream tool transports."""
+    """Remove ANSI escape sequences and control characters.
+
+    IRIS sends error messages with ANSI color codes (e.g.
+    ``\\x1b[31;1m<SYNTAX>\\x1b[0m`` for red bold).  Stripping only the ESC
+    byte (0x1b) leaves behind ``[31;1m<SYNTAX>[0m`` as literal garbage text.
+    We remove the full ANSI escape sequence first, then any remaining
+    control characters, preserving newlines, tabs, and printable text.
+    """
+    stripped = _ANSI_ESCAPE_RE.sub("", value)
     return "".join(
-        ch for ch in value if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
+        ch for ch in stripped if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
     )
 
 
