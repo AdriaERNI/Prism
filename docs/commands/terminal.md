@@ -5,8 +5,8 @@ same output shape — they differ only in how they reach IRIS.
 
 | Command | Transport | Port | Parallel-safe |
 |---------|-----------|------|---------------|
-| [`prism terminal`](#native) | irisnative (SuperServer) | `1972` (`IRIS_SUPERSERVER_PORT`) | ✅ |
-| [`prism ws`](#websocket) | Atelier WebSocket | same as `IRIS_BASE_URL` (`52773`) | ⚠️ see notes |
+| [`prism terminal`](#native) | irisnative (SuperServer) | `1972` (`IRIS_SUPERSERVER_PORT`) | Yes |
+| [`prism ws`](#websocket) | Atelier WebSocket | same as `IRIS_BASE_URL` (`52773`) | see notes |
 
 The native variant is faster, supports parallel execution, and captures
 `Write` output reliably. The WebSocket variant is the fallback when you
@@ -77,21 +77,37 @@ will redeploy it.
 
 ## websocket
 
-`prism ws` — same operation, but via the Atelier WebSocket terminal
-endpoint (`/api/atelier/v8/%25SYS/terminal`) rather than SuperServer.
+`prism ws` — interactive or single-command terminal via the Atelier
+WebSocket terminal endpoint
+(`/api/atelier/v8/%25SYS/terminal`) rather than SuperServer.
 Use this when the SuperServer port is firewalled.
 
 ### Usage
 
 ```
-prism ws "<COMMAND>" [OPTIONS]
+prism ws ["<COMMAND>"] [OPTIONS]
 ```
 
-### Arguments and options
+When a `COMMAND` argument is provided, it runs as a single command and
+exits. When omitted, `prism ws` enters **interactive mode** — a
+persistent REPL session with command history, line editing, and a smart
+prompt that mirrors the IRIS namespace.
 
-Identical to `prism terminal`.
+### Arguments
 
-### Example
+| Name | Type | Description |
+|------|------|-------------|
+| `COMMAND` | string (optional) | ObjectScript to execute. If omitted, enters interactive terminal mode. |
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--namespace`, `-n` | `IRIS_NAMESPACE` setting | Target namespace. |
+| `--timeout`, `-t` | `30.0` | Seconds to wait for the command to finish. |
+| `--interactive`, `-i` | `false` | Force interactive mode even when a command is provided. The command runs first, then the REPL opens on the same session. |
+
+### Single command example
 
 ```powershell
 prism ws 'Write $ZVersion'
@@ -108,14 +124,82 @@ Output includes a trailing ANSI-colored prompt from IRIS:
 }
 ```
 
+### Interactive mode example
+
+```powershell
+prism ws
+```
+
+Drops into a terminal-like REPL:
+
+```
+Prism 0.2.1-beta2 -- Interactive WebSocket Terminal
+Connected to IRIS at http://localhost:52773 in namespace USER
+Type 'help' for local commands, 'exit' to quit.
+
+USER> set x=42
+USER> write x
+42
+USER> write $ZVersion
+IRIS for Windows (x86-64) 2025.3 (Build 226U) Thu Nov 13 2025 12:35:14 EST
+USER> exit
+Goodbye.
+```
+
+Variables and state persist between commands within the same session,
+just like a real IRIS terminal.
+
+### Run a command then enter interactive mode
+
+```powershell
+prism ws 'set x=42' --interactive
+```
+
+Runs `set x=42` first, then opens the REPL. The variable `x` is
+available in subsequent commands:
+
+```
+USER> write x
+42
+```
+
+### Interactive mode local commands
+
+| Command | Description |
+|---------|-------------|
+| `exit` / `quit` | Exit the terminal session |
+| `clear` | Clear the screen |
+| `help` | Show local commands and usage |
+| `history` | Show recent command history |
+
+### Command history
+
+Interactive mode maintains a persistent command history file at:
+
+- Linux: `~/.local/share/prism/ws_history`
+- macOS: `~/Library/Application Support/prism/ws_history`
+- Windows: `%LOCALAPPDATA%\prism\ws_history`
+
+Use up/down arrows to navigate history. The file persists across
+sessions.
+
 ### Limitations
 
 - IRIS WebSocket sessions sometimes lose output when many connect
   concurrently from the same credentials. If you need to run commands
   in parallel, prefer `prism terminal`.
-- Each call opens a new session, so variables don't persist between
-  calls: run dependent statements in a single command
-  (`Set x=1 Write x`).
+- Single-command mode opens a new session each time, so variables don't
+  persist between calls. Use interactive mode (`prism ws` without a
+  command) for stateful sessions.
+- **`read` command support**: Interactive mode handles the ObjectScript
+  `read` command — when IRIS requests input, you'll be prompted inline.
+  In single-command mode, `read` is not supported (use `--interactive`
+  with the preceding `read` command instead).
+- **Windows headless mode**: When running without a real console (WinRM,
+  CI, piped output), `prompt_toolkit` cannot initialize. Prism
+  automatically falls back to a basic `input()` loop — history
+  navigation (up/down arrows) and advanced line editing are unavailable,
+  but all commands work normally.
 
 ---
 
