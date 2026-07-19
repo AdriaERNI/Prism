@@ -391,7 +391,9 @@ async def _async_interactive(
         multiline_buffer = ""
 
         try:
-            result = await session.run(full_command, on_read=_make_on_read(prompt_session))
+            result = await session.run(
+                full_command, on_read=_make_on_read(prompt_session)
+            )
             _print_output(result.get("output", ""))
         except TerminalError as exc:
             typer.echo(f"{_ANSI_RED}{exc}{_ANSI_RESET}", err=True)

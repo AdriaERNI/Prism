@@ -620,7 +620,7 @@ class TestInterrupt:
 
         # We can't easily check mid-run since run() is a coroutine.
         # Instead, verify that after run() completes, is_evaluating is False.
-        await session.run("w \"hello\"")
+        await session.run('w "hello"')
         assert session.is_evaluating is False
 
 
@@ -691,7 +691,7 @@ class TestLeadingNewlineStrip:
         ):
             session = InteractiveWSSession()
             await session.connect()
-            result = await session.run("w \"hello\"")
+            result = await session.run('w "hello"')
             assert not result["output"].startswith("\n")
             assert result["output"].strip() == "hello"
 
@@ -711,5 +711,5 @@ class TestLeadingNewlineStrip:
         ):
             session = InteractiveWSSession()
             await session.connect()
-            result = await session.run("w \"world\"")
+            result = await session.run('w "world"')
             assert not result["output"].startswith("\n")
