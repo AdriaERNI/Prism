@@ -65,20 +65,59 @@ class TestAnsiHelpers:
 class TestFormatPrompt:
     def test_prompt_with_ansi(self):
         result = _format_prompt("\x1b[1mUSER>\x1b[0m")
-        # Should contain plain USER> and ANSI formatting
-        assert "USER>" in result
-        assert "\x1b[" in result  # has ANSI codes
+        # _format_prompt may return an ANSI object (when prompt_toolkit is
+        # available) or a plain string.  Convert to string for assertions.
+        result_str = str(result)
+        # Should contain plain USER>
+        assert "USER>" in result_str
 
     def test_prompt_empty_uses_default(self):
         from prism.settings import settings
 
         result = _format_prompt("")
-        assert settings.iris_namespace in result
-        assert ">" in result
+        result_str = str(result)
+        assert settings.iris_namespace in result_str
+        assert ">" in result_str
 
     def test_prompt_plain_text(self):
         result = _format_prompt("SAMPLES>")
-        assert "SAMPLES>" in result
+        result_str = str(result)
+        assert "SAMPLES>" in result_str
+
+    def test_prompt_returns_ansi_object_when_available(self):
+        """Regression: _format_prompt must return an ANSI() object, not a
+        raw string.  Passing a raw string with ESC bytes to
+        prompt_toolkit's prompt_async() causes the ESC byte (0x1b) to be
+        rendered as literal ``^[`` text — the ``weird characters`` bug.
+        """
+        from prism.cli.interactive import _HAS_PROMPT_TOOLKIT
+
+        result = _format_prompt("\x1b[1mUSER>\x1b[0m")
+        if _HAS_PROMPT_TOOLKIT:
+            # When prompt_toolkit is installed, result should be an ANSI
+            # object — NOT a plain str.  ANSI objects are recognised by
+            # prompt_toolkit and the escape codes are parsed, not shown
+            # as literal ^[ text.
+            from prompt_toolkit.formatted_text import ANSI as PT_ANSI
+
+            assert isinstance(result, PT_ANSI), (
+                f"Expected ANSI object, got {type(result).__name__}. "
+                "Raw str with ESC bytes causes ^[ display bug."
+            )
+        else:
+            assert isinstance(result, str)
+
+    def test_prompt_no_visible_escape_chars(self):
+        """Regression: the rendered prompt must NOT contain literal ^[
+        characters that come from unparsed ESC bytes."""
+        result = _format_prompt("\x1b[1mUSER>\x1b[0m")
+        result_str = str(result)
+        # The ^[ sequence is how terminals display an unparsed ESC byte.
+        # If _format_prompt returns a proper ANSI() object, str() of it
+        # should NOT contain literal ^[ characters.
+        assert "^[" not in result_str, (
+            "Prompt contains ^[ literal — ANSI codes not parsed by prompt_toolkit"
+        )
 
 
 # ── Local command detection ─────────────────────────────────────────

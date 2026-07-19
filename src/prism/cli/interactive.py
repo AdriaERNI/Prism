@@ -21,6 +21,7 @@ import re
 import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -29,13 +30,18 @@ import typer
 # The interactive REPL requires it; single-command mode does not.
 try:
     from prompt_toolkit import PromptSession
+    from prompt_toolkit.formatted_text import ANSI
     from prompt_toolkit.history import FileHistory
 
     _HAS_PROMPT_TOOLKIT = True
 except ImportError:
     PromptSession = None  # type: ignore[assignment, misc]
+    ANSI = None  # type: ignore[assignment, misc]
     FileHistory = None  # type: ignore[assignment, misc]
     _HAS_PROMPT_TOOLKIT = False
+
+if TYPE_CHECKING:
+    from prompt_toolkit.formatted_text import ANSI as _ANSIType
 
 from prism.iris.api.interactive_ws import InteractiveWSSession
 from prism.iris.api.terminal import TerminalError
@@ -131,12 +137,24 @@ def _print_startup_banner(namespace: str) -> None:
     )
 
 
-def _format_prompt(prompt_text: str) -> str:
-    """Format the IRIS prompt for display."""
+def _format_prompt(prompt_text: str) -> str | _ANSIType:
+    """Format the IRIS prompt for display.
+
+    Returns a :class:`~prompt_toolkit.formatted_text.ANSI` object so that
+    prompt_toolkit properly parses the embedded escape codes.  Passing a
+    raw string with ANSI codes to ``prompt_async()`` causes prompt_toolkit
+    to render the ESC byte as literal ``^[`` text — the "weird characters"
+    users see in the prompt.
+    """
     plain = _strip_ansi(prompt_text).strip()
     if not plain:
         plain = f"{settings.iris_namespace}>"
-    return f"{_ANSI_BOLD}{_ANSI_GREEN}{plain}{_ANSI_RESET} "
+    formatted = f"{_ANSI_BOLD}{_ANSI_GREEN}{plain}{_ANSI_RESET} "
+    # Wrap in ANSI() so prompt_toolkit parses the escape sequences
+    # instead of printing the ESC byte as literal ^[ text.
+    if ANSI is not None:
+        return ANSI(formatted)
+    return formatted
 
 
 def _print_output(text: str) -> None:
@@ -308,6 +326,10 @@ def _make_on_read(
         hint = f"{_ANSI_BOLD}{_ANSI_CYAN}{label} {_ANSI_RESET}"
         if prompt_session is not None:
             try:
+                # Wrap in ANSI() so prompt_toolkit parses escape codes
+                # instead of rendering ESC as literal ^[ text.
+                if ANSI is not None:
+                    return await prompt_session.prompt_async(ANSI(hint))
                 return await prompt_session.prompt_async(hint)
             except (EOFError, KeyboardInterrupt):
                 return ""
