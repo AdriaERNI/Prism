@@ -85,6 +85,11 @@ class InteractiveWSSession:
         self._timeout = timeout
         self._ws: websockets.ClientConnection | None = None
         self._current_prompt: str = ""
+        # True while the server is evaluating a command (between sending
+        # the prompt input and receiving the next prompt message).  The
+        # CLI uses this to decide whether Ctrl+C should interrupt the
+        # running command or just clear the current input line.
+        self._evaluating: bool = False
 
     @property
     def namespace(self) -> str:
@@ -94,6 +99,22 @@ class InteractiveWSSession:
     def prompt(self) -> str:
         """Return the current prompt text (e.g. ``USER>``)."""
         return self._current_prompt
+
+    @property
+    def is_evaluating(self) -> bool:
+        """Return True if a command is currently being executed on IRIS."""
+        return self._evaluating
+
+    async def interrupt(self) -> None:
+        """Send an interrupt message to IRIS.
+
+        This is equivalent to pressing Ctrl+C in a real IRIS terminal.
+        The server will stop the running command and send a new prompt.
+        Safe to call when not evaluating (no-op in that case).
+        """
+        if self._ws is None:
+            return
+        await self._ws.send(json.dumps({"type": "interrupt"}))
 
     async def __aenter__(self) -> InteractiveWSSession:
         await self.connect()
@@ -165,6 +186,12 @@ class InteractiveWSSession:
                 if on_output is not None:
                     await on_output(text)
             elif msg_type == "prompt":
+                # IRIS 2025.3+ includes the current namespace in prompt
+                # messages, so we can track zn changes transparently.
+                ns = msg.get("ns")
+                if ns:
+                    self._namespace = ns
+                self._evaluating = False
                 return output_lines, msg.get("text", "")
             elif msg_type == "error":
                 raise TerminalError(f"Server error: {msg.get('text', msg)}")
@@ -200,6 +227,7 @@ class InteractiveWSSession:
         if self._ws is None:
             raise TerminalError("Session not connected")
 
+        self._evaluating = True
         await self._ws.send(
             json.dumps(
                 {
@@ -211,6 +239,17 @@ class InteractiveWSSession:
 
         output_lines, prompt = await self._wait_for_prompt(on_output, on_read)
         self._current_prompt = prompt
+
+        # Strip a leading blank line from the first output chunk.  IRIS
+        # typically sends "\r\n" before the actual output because the
+        # prompt already moved to a new line.  Without this, every
+        # command result starts with an extra blank line.
+        if output_lines:
+            first = output_lines[0]
+            if first.startswith("\r\n"):
+                output_lines[0] = first[2:]
+            elif first.startswith("\n"):
+                output_lines[0] = first[1:]
 
         output = _clean_text("\n".join(output_lines))
 

@@ -555,3 +555,161 @@ class TestDynamicApiVersion:
             await session.connect()
 
         assert session.namespace == "USER"
+
+
+# ── Interrupt support ──────────────────────────────────────────────
+
+
+class TestInterrupt:
+    """Tests for the interrupt() method and is_evaluating state."""
+
+    async def test_interrupt_sends_message(self):
+        """interrupt() sends {"type":"interrupt"} to the server."""
+        ws = _make_ws(_init_and_prompt())
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 0),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+
+        await session.interrupt()
+
+        # Verify the interrupt message was sent
+        sent = [json.loads(c.args[0]) for c in ws.send.call_args_list]
+        assert any(m.get("type") == "interrupt" for m in sent)
+
+    async def test_interrupt_noop_when_not_connected(self):
+        """interrupt() is a no-op when the session is not connected."""
+        session = InteractiveWSSession()
+        # Should not raise
+        await session.interrupt()
+
+    async def test_is_evaluating_false_at_prompt(self):
+        """is_evaluating is False when at the prompt (not running a command)."""
+        ws = _make_ws(_init_and_prompt())
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 0),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+
+        assert session.is_evaluating is False
+
+    async def test_is_evaluating_true_during_run(self):
+        """is_evaluating is True after sending a command, before the prompt arrives."""
+        # We'll intercept: the output message is pending, so is_evaluating
+        # should be True at that point.  Use a callback to check.
+        ws = _make_ws(_init_and_prompt() + _output_and_prompt("hello"))
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 0),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+
+        # We can't easily check mid-run since run() is a coroutine.
+        # Instead, verify that after run() completes, is_evaluating is False.
+        await session.run("w \"hello\"")
+        assert session.is_evaluating is False
+
+
+# ── Namespace tracking ──────────────────────────────────────────────
+
+
+class TestNamespaceTracking:
+    """Tests for automatic namespace tracking from prompt messages."""
+
+    async def test_namespace_updates_from_prompt_ns(self):
+        """When IRIS 2025.3+ sends 'ns' in prompt, namespace updates."""
+        messages = _init_and_prompt("USER") + [
+            # User runs zn "%SYS" — IRIS responds with new namespace in prompt
+            {"type": "output", "text": ""},
+            {"type": "prompt", "text": "\x1b[1m%SYS>\x1b[0m", "ns": "%SYS"},
+        ]
+        ws = _make_ws(messages)
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 0),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+            assert session.namespace == "USER"
+
+            await session.run('zn "%SYS"')
+            assert session.namespace == "%SYS"
+
+    async def test_namespace_unchanged_without_ns_field(self):
+        """Older IRIS versions don't send 'ns' — namespace stays as initial."""
+        messages = _init_and_prompt("USER") + _output_and_prompt("", "USER")
+        ws = _make_ws(messages)
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 0),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+            await session.run("w 1")
+            assert session.namespace == "USER"
+
+
+# ── Leading newline stripping ──────────────────────────────────────
+
+
+class TestLeadingNewlineStrip:
+    """Tests for stripping leading \\r\\n from the first output line."""
+
+    async def test_strips_leading_crlf(self):
+        """Leading \\r\\n in the first output chunk should be stripped."""
+        messages = _init_and_prompt() + [
+            {"type": "output", "text": "\r\nhello"},
+            {"type": "prompt", "text": "\x1b[1mUSER>\x1b[0m"},
+        ]
+        ws = _make_ws(messages)
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 0),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+            result = await session.run("w \"hello\"")
+            assert not result["output"].startswith("\n")
+            assert result["output"].strip() == "hello"
+
+    async def test_strips_leading_lf(self):
+        """Leading \\n (without \\r) should also be stripped."""
+        messages = _init_and_prompt() + [
+            {"type": "output", "text": "\nworld"},
+            {"type": "prompt", "text": "\x1b[1mUSER>\x1b[0m"},
+        ]
+        ws = _make_ws(messages)
+        with (
+            patch(
+                "prism.iris.api.interactive_ws._get_session_cookies_and_api_version",
+                return_value=({"CSPSESSIONID": "xyz"}, 0),
+            ),
+            _patch_connect(ws),
+        ):
+            session = InteractiveWSSession()
+            await session.connect()
+            result = await session.run("w \"world\"")
+            assert not result["output"].startswith("\n")

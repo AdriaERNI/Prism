@@ -91,6 +91,10 @@ _LOCAL_COMMANDS = {
     "history": "Show recent command history",
 }
 
+# Leading characters for multi-line editing mode, matching IRIS terminal
+# behaviour and the vscode-objectscript plugin.
+_MULTILINE_PROMPT = "... "
+
 
 def _is_exit_command(text: str) -> bool:
     return text.strip().lower() in ("exit", "quit", "q", "/exit", "/quit")
@@ -106,6 +110,34 @@ def _is_help_command(text: str) -> bool:
 
 def _is_history_command(text: str) -> bool:
     return text.strip().lower() in ("history", "/history")
+
+
+def _input_is_unterminated(text: str) -> bool:
+    """Check if *text* has unmatched ``{`` or ``(`` braces.
+
+    Used to detect multi-line ObjectScript constructs (``if { ... }``,
+    ``for { ... }``, etc.) so we can show a ``... `` continuation prompt
+    instead of sending an incomplete command to IRIS.  String literals
+    enclosed in double quotes are skipped.
+
+    Ported from the vscode-objectscript plugin's ``_inputIsUnterminated``.
+    """
+    in_string = False
+    open_paren = 0
+    open_brace = 0
+    for ch in text:
+        if ch == '"':
+            in_string = not in_string
+        elif not in_string:
+            if ch == "(":
+                open_paren += 1
+            elif ch == ")":
+                open_paren -= 1
+            elif ch == "{":
+                open_brace += 1
+            elif ch == "}":
+                open_brace -= 1
+    return open_paren > 0 or open_brace > 0
 
 
 def _print_help() -> None:
@@ -137,7 +169,7 @@ def _print_startup_banner(namespace: str) -> None:
     )
 
 
-def _format_prompt(prompt_text: str) -> str | _ANSIType:
+def _format_prompt(prompt_text: str, multiline: bool = False) -> str | _ANSIType:
     """Format the IRIS prompt for display.
 
     Returns a :class:`~prompt_toolkit.formatted_text.ANSI` object so that
@@ -145,11 +177,17 @@ def _format_prompt(prompt_text: str) -> str | _ANSIType:
     raw string with ANSI codes to ``prompt_async()`` causes prompt_toolkit
     to render the ESC byte as literal ``^[`` text — the "weird characters"
     users see in the prompt.
+
+    When *multiline* is True, returns the ``... `` continuation prompt
+    instead of the IRIS namespace prompt.
     """
-    plain = _strip_ansi(prompt_text).strip()
-    if not plain:
-        plain = f"{settings.iris_namespace}>"
-    formatted = f"{_ANSI_BOLD}{_ANSI_GREEN}{plain}{_ANSI_RESET} "
+    if multiline:
+        formatted = f"{_ANSI_DIM}{_MULTILINE_PROMPT}{_ANSI_RESET}"
+    else:
+        plain = _strip_ansi(prompt_text).strip()
+        if not plain:
+            plain = f"{settings.iris_namespace}>"
+        formatted = f"{_ANSI_BOLD}{_ANSI_GREEN}{plain}{_ANSI_RESET} "
     # Wrap in ANSI() so prompt_toolkit parses the escape sequences
     # instead of printing the ESC byte as literal ^[ text.
     if ANSI is not None:
@@ -283,11 +321,38 @@ async def _async_interactive(
         await _simple_repl(session, timeout)
         return
 
+    # Buffer for multi-line input (when braces/parens are unmatched)
+    multiline_buffer: str = ""
+
     while True:
         try:
-            prompt_str = _format_prompt(session.prompt)
+            # Show the continuation prompt if we're in multi-line mode
+            is_multiline = bool(multiline_buffer)
+            prompt_str = _format_prompt(session.prompt, multiline=is_multiline)
             user_input = await prompt_session.prompt_async(prompt_str)
-        except (EOFError, KeyboardInterrupt):
+        except KeyboardInterrupt:
+            # Ctrl+C handling:
+            # - If IRIS is evaluating a command, send an interrupt to IRIS
+            #   instead of killing the REPL.  This matches real IRIS terminal
+            #   behaviour and the vscode-objectscript plugin.
+            # - If at the prompt (not evaluating), clear the current input
+            #   and multi-line buffer, then show a fresh prompt.
+            if session.is_evaluating:
+                typer.echo(f"\n{_ANSI_DIM}^C — interrupting IRIS...{_ANSI_RESET}")
+                try:
+                    await session.interrupt()
+                    # Wait for the server to respond with a new prompt
+                    # by running a no-op wait.  The interrupt will cause
+                    # the pending _wait_for_prompt() to receive an
+                    # <INTERRUPT> output and a new prompt.
+                except Exception:
+                    pass
+            else:
+                # At the prompt — clear input and multi-line buffer
+                multiline_buffer = ""
+                typer.echo(f"\n{_ANSI_DIM}^C{_ANSI_RESET}")
+            continue
+        except EOFError:
             typer.echo(f"\n{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
             break
 
@@ -295,24 +360,38 @@ async def _async_interactive(
         if not text:
             continue
 
-        # Handle local commands
-        if _is_exit_command(text):
-            typer.echo(f"{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
-            break
-        if _is_clear_command(text):
-            sys.stdout.write("\x1b[2J\x1b[H")
-            sys.stdout.flush()
-            continue
-        if _is_help_command(text):
-            _print_help()
-            continue
-        if _is_history_command(text):
-            _print_history(prompt_session)
+        # Handle local commands (only when not in multi-line mode)
+        if not multiline_buffer:
+            if _is_exit_command(text):
+                typer.echo(f"{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
+                break
+            if _is_clear_command(text):
+                sys.stdout.write("\x1b[2J\x1b[H")
+                sys.stdout.flush()
+                continue
+            if _is_help_command(text):
+                _print_help()
+                continue
+            if _is_history_command(text):
+                _print_history(prompt_session)
+                continue
+
+        # Multi-line editing: accumulate input until braces/parens are balanced
+        if multiline_buffer:
+            multiline_buffer += "\n" + text
+        else:
+            multiline_buffer = text
+
+        if _input_is_unterminated(multiline_buffer):
+            # Need more input — stay in multi-line mode
             continue
 
-        # Execute ObjectScript command on IRIS
+        # Input is complete — send the full command to IRIS
+        full_command = multiline_buffer
+        multiline_buffer = ""
+
         try:
-            result = await session.run(text, on_read=_make_on_read(prompt_session))
+            result = await session.run(full_command, on_read=_make_on_read(prompt_session))
             _print_output(result.get("output", ""))
         except TerminalError as exc:
             typer.echo(f"{_ANSI_RED}{exc}{_ANSI_RESET}", err=True)
@@ -361,17 +440,27 @@ async def _simple_repl(session: InteractiveWSSession, timeout: float) -> None:
 
     This runs on Windows when there's no real console (WinRM, CI, pipe).
     No history navigation or advanced line editing -- just a basic loop.
+    Supports multi-line editing via the same brace-matching logic.
     """
 
     loop = asyncio.get_event_loop()
     history: list[str] = []
+    multiline_buffer: str = ""
 
     while True:
         # input() is blocking -- run in a thread so we don't stall the event loop
-        prompt_str = _format_prompt(session.prompt)
+        is_multiline = bool(multiline_buffer)
+        prompt_str = _format_prompt(session.prompt, multiline=is_multiline)
         try:
             user_input = await loop.run_in_executor(None, lambda: input(prompt_str))
         except (EOFError, KeyboardInterrupt):
+            if session.is_evaluating:
+                typer.echo(f"\n{_ANSI_DIM}^C — interrupting IRIS...{_ANSI_RESET}")
+                try:
+                    await session.interrupt()
+                except Exception:
+                    pass
+                continue
             typer.echo(f"\n{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
             break
 
@@ -379,29 +468,41 @@ async def _simple_repl(session: InteractiveWSSession, timeout: float) -> None:
         if not text:
             continue
 
-        if _is_exit_command(text):
-            typer.echo(f"{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
-            break
-        if _is_clear_command(text):
-            sys.stdout.write("\x1b[2J\x1b[H")
-            sys.stdout.flush()
-            continue
-        if _is_help_command(text):
-            _print_help()
-            continue
-        if _is_history_command(text):
-            if history:
-                for i, entry in enumerate(history[-20:], 1):
-                    display = entry if len(entry) <= 80 else entry[:77] + "..."
-                    typer.echo(f"  {i:4d}  {display}")
-            else:
-                typer.echo(f"  {_ANSI_DIM}(empty){_ANSI_RESET}")
+        if not multiline_buffer:
+            if _is_exit_command(text):
+                typer.echo(f"{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
+                break
+            if _is_clear_command(text):
+                sys.stdout.write("\x1b[2J\x1b[H")
+                sys.stdout.flush()
+                continue
+            if _is_help_command(text):
+                _print_help()
+                continue
+            if _is_history_command(text):
+                if history:
+                    for i, entry in enumerate(history[-20:], 1):
+                        display = entry if len(entry) <= 80 else entry[:77] + "..."
+                        typer.echo(f"  {i:4d}  {display}")
+                else:
+                    typer.echo(f"  {_ANSI_DIM}(empty){_ANSI_RESET}")
+                continue
+
+        # Multi-line editing
+        if multiline_buffer:
+            multiline_buffer += "\n" + text
+        else:
+            multiline_buffer = text
+
+        if _input_is_unterminated(multiline_buffer):
             continue
 
-        history.append(text)
+        full_command = multiline_buffer
+        multiline_buffer = ""
+        history.append(full_command)
 
         try:
-            result = await session.run(text, on_read=_make_on_read(None))
+            result = await session.run(full_command, on_read=_make_on_read(None))
             _print_output(result.get("output", ""))
         except TerminalError as exc:
             typer.echo(f"{_ANSI_RED}{exc}{_ANSI_RESET}", err=True)

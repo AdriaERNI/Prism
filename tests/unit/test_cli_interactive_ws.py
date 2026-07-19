@@ -20,6 +20,7 @@ from prism.cli.app import app
 from prism.cli.interactive import (
     _clean_text,
     _format_prompt,
+    _input_is_unterminated,
     _is_clear_command,
     _is_exit_command,
     _is_help_command,
@@ -84,6 +85,55 @@ class TestAnsiHelpers:
         assert "[31;1m" not in result
         assert "[0m" not in result
         assert result == "<SYNTAX> rest"
+
+
+# ── Multi-line detection ───────────────────────────────────────────
+
+
+class TestInputIsUnterminated:
+    """Tests for _input_is_unterminated — detects multi-line constructs."""
+
+    def test_balanced_braces(self):
+        assert _input_is_unterminated("set x = {1, 2, 3}") is False
+
+    def test_unterminated_open_brace(self):
+        assert _input_is_unterminated("if x {") is True
+
+    def test_unterminated_nested_braces(self):
+        assert _input_is_unterminated("if x { set y = {1, 2} ") is True
+
+    def test_balanced_parens(self):
+        assert _input_is_unterminated("write $lb(1, 2, 3)") is False
+
+    def test_unterminated_open_paren(self):
+        assert _input_is_unterminated("write $lb(1, 2,") is True
+
+    def test_braces_in_string_ignored(self):
+        """Braces inside string literals should not affect detection."""
+        assert _input_is_unterminated('set x = "hello { world"') is False
+
+    def test_parens_in_string_ignored(self):
+        assert _input_is_unterminated('set x = "func(arg"') is False
+
+    def test_multiple_lines_balanced(self):
+        """A multi-line construct that's now balanced should be complete."""
+        text = "if x {\n  set y = 1\n}"
+        assert _input_is_unterminated(text) is False
+
+    def test_multiple_lines_still_unterminated(self):
+        text = "if x {\n  set y = 1\n  if z {"
+        assert _input_is_unterminated(text) is True
+
+    def test_empty_string(self):
+        assert _input_is_unterminated("") is False
+
+    def test_only_text(self):
+        assert _input_is_unterminated("write 1") is False
+
+    def test_mismatched_brace_type(self):
+        """``{ )`` is technically unbalanced (open brace, close paren)."""
+        # open_brace=1, open_paren=-1 → unterminated (brace > 0)
+        assert _input_is_unterminated("{ )") is True
 
 
 # ── Prompt formatting ────────────────────────────────────────────────
