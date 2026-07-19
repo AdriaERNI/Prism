@@ -13,18 +13,20 @@ from tkinter import ttk
 # Inspired by DBeaver's dark theme.
 
 # Surfaces
-BG = "#1e1e1e"  # main window background
-PANEL_BG = "#252526"  # sidebar / panels
-EDITOR_BG = "#1e1e1e"  # SQL editor background
-RESULT_BG = "#1e1e1e"  # results table background
-RESULT_ALT = "#2a2a2a"  # zebra-stripe alternate row
-HEADER_BG = "#3c3c3c"  # table header / toolbar
-HOVER_BG = "#2d2d4e"  # hover highlight
+BG = "#2b2b2b"  # main editor / results background (DBeaver main area)
+PANEL_BG = "#252525"  # sidebar background (DBeaver navigator)
+EDITOR_BG = "#2b2b2b"  # SQL editor background
+RESULT_BG = "#2b2b2b"  # results table background
+RESULT_ALT = "#313335"  # zebra-stripe alternate row
+HEADER_BG = "#3c3f41"  # table header / toolbar (DBeaver toolbar)
+TAB_BAR_BG = "#313335"  # tab bar above editor
+STATUS_BG = "#2d2d2d"  # status bar bottom
+HOVER_BG = "#404040"  # hover highlight
 SELECTED_BG = "#094771"  # selected item
 
 # Text
-FG = "#d4d4d4"  # default text
-FG_DIM = "#858585"  # comments / placeholders
+FG = "#cccccc"  # default text
+FG_DIM = "#858585"  # comments / placeholders / line numbers
 FG_HEADER = "#ffffff"  # column headers
 FG_STATUS = "#cccccc"  # status bar text
 FG_ERROR = "#f44747"  # errors
@@ -37,11 +39,11 @@ SYNTAX_NUMBER = "#b5cea8"  # 42, 3.14
 SYNTAX_COMMENT = "#6a9955"  # -- comments
 SYNTAX_FUNC = "#dcdcaa"  # COUNT(), SUM()...
 SYNTAX_OPERATOR = "#d4d4d4"  # =, <>, AND, OR
-SYNTAX_DEFAULT = "#d4d4d4"
+SYNTAX_DEFAULT = "#cccccc"
 
 # Borders
-BORDER = "#3c3c3c"
-BORDER_DIM = "#2d2d2d"
+BORDER = "#454545"  # separator lines (DBeaver dividers)
+BORDER_DIM = "#3c3c3c"  # subtle gridlines in tables
 
 # ── Fonts ─────────────────────────────────────────────────────────────
 
@@ -122,9 +124,9 @@ def apply_theme(root: tk.Tk) -> None:
     # ── Labels ───────────────────────────────────────────────────────
     style.configure("TLabel", background=BG, foreground=FG)
     style.configure("Panel.TLabel", background=PANEL_BG, foreground=FG)
-    style.configure("Status.TLabel", background=PANEL_BG, foreground=FG_STATUS)
-    style.configure("StatusError.TLabel", background=PANEL_BG, foreground=FG_ERROR)
-    style.configure("StatusSuccess.TLabel", background=PANEL_BG, foreground=FG_SUCCESS)
+    style.configure("Status.TLabel", background=STATUS_BG, foreground=FG_STATUS)
+    style.configure("StatusError.TLabel", background=STATUS_BG, foreground=FG_ERROR)
+    style.configure("StatusSuccess.TLabel", background=STATUS_BG, foreground=FG_SUCCESS)
     style.configure("Header.TLabel", background=HEADER_BG, foreground=FG_HEADER)
 
     # ── Buttons ───────────────────────────────────────────────────────
@@ -202,10 +204,10 @@ def apply_theme(root: tk.Tk) -> None:
     style.map("TScrollbar", background=[("active", HOVER_BG)])
 
     # ── Notebook (tabs) ───────────────────────────────────────────────
-    style.configure("TNotebook", background=BG, borderwidth=0)
+    style.configure("TNotebook", background=TAB_BAR_BG, borderwidth=0)
     style.configure(
         "TNotebook.Tab",
-        background=PANEL_BG,
+        background=TAB_BAR_BG,
         foreground=FG_DIM,
         padding=(16, 6),
         borderwidth=0,

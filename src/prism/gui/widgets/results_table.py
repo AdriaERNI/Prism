@@ -27,6 +27,19 @@ class ResultsTable(Frame):
 
     def _setup_widgets(self) -> None:
         """Create Treeview + scrollbars + status label."""
+        # Results tab/header bar
+        results_header = Frame(self, background=theme.TAB_BAR_BG, height=24)
+        results_header.pack(side="top", fill=X)
+        results_header.pack_propagate(False)
+        Label(
+            results_header,
+            text="Result 1",
+            background=theme.TAB_BAR_BG,
+            foreground=theme.FG,
+            font=theme.ui_font_sm(),
+            padx=8,
+        ).pack(side=LEFT)
+
         # Container for tree + scrollbars
         tree_frame = Frame(self, background=theme.RESULT_BG)
         tree_frame.pack(fill=BOTH, expand=YES)
@@ -55,7 +68,7 @@ class ResultsTable(Frame):
         self._status = Label(
             self,
             text="Ready",
-            background=theme.PANEL_BG,
+            background=theme.STATUS_BG,
             foreground=theme.FG_STATUS,
             font=theme.ui_font_sm(),
             anchor="w",

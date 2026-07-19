@@ -19,7 +19,7 @@ class StatusBar(Frame):
     """Bottom status bar showing connection info and execution state."""
 
     def __init__(self, parent, **kwargs):
-        super().__init__(parent, background=theme.PANEL_BG, height=24)
+        super().__init__(parent, background=theme.STATUS_BG, height=24)
         self._setup_widgets()
 
     def _setup_widgets(self) -> None:
@@ -28,7 +28,7 @@ class StatusBar(Frame):
             self,
             text="●",
             foreground=theme.FG_DIM,
-            background=theme.PANEL_BG,
+            background=theme.STATUS_BG,
             font=theme.ui_font_sm(),
         )
         self._conn_dot.pack(side=LEFT, padx=(8, 4))
@@ -38,7 +38,7 @@ class StatusBar(Frame):
             self,
             text="Not connected",
             foreground=theme.FG_STATUS,
-            background=theme.PANEL_BG,
+            background=theme.STATUS_BG,
             font=theme.ui_font_sm(),
         )
         self._conn_label.pack(side=LEFT, padx=(0, 16))
@@ -48,13 +48,13 @@ class StatusBar(Frame):
             self,
             text="",
             foreground=theme.FG_STATUS,
-            background=theme.PANEL_BG,
+            background=theme.STATUS_BG,
             font=theme.ui_font_sm(),
         )
         self._ns_label.pack(side=LEFT, padx=(0, 16))
 
         # Spacer
-        spacer = Frame(self, background=theme.PANEL_BG)
+        spacer = Frame(self, background=theme.STATUS_BG)
         spacer.pack(side=LEFT, fill=X, expand=True)
 
         # Right-aligned status
@@ -62,7 +62,7 @@ class StatusBar(Frame):
             self,
             text="Ready",
             foreground=theme.FG_STATUS,
-            background=theme.PANEL_BG,
+            background=theme.STATUS_BG,
             font=theme.ui_font_sm(),
         )
         self._status_label.pack(side=LEFT, padx=(16, 8))

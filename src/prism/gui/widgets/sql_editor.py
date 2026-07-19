@@ -6,7 +6,7 @@ visible range after each keystroke for responsiveness.
 """
 
 from tkinter import BOTH, END, INSERT, SEL_FIRST, SEL_LAST, TclError, WORD, YES
-from tkinter import Frame, Text, Scrollbar, Menu
+from tkinter import Frame, Text, Scrollbar, Menu, Canvas
 import re
 
 from prism.gui import theme
@@ -154,10 +154,20 @@ class SQLEditor(Frame):
     # ── Setup ────────────────────────────────────────────────────────
 
     def _setup_widgets(self) -> None:
-        """Create text widget + vertical scrollbar."""
+        """Create text widget + line number gutter + vertical scrollbar."""
         # Scrollbar
         self._vbar = Scrollbar(self, orient="vertical")
         self._vbar.pack(side="right", fill="y")
+
+        # Line number gutter (canvas on the left)
+        self._gutter = Canvas(
+            self,
+            width=44,
+            background=theme.PANEL_BG,
+            highlightthickness=0,
+            borderwidth=0,
+        )
+        self._gutter.pack(side="left", fill="y")
 
         # Text widget
         self._text = Text(
@@ -174,17 +184,57 @@ class SQLEditor(Frame):
             borderwidth=0,
             padx=8,
             pady=6,
-            tabs=("1c",),
+            tabs=("4m",),
             tabstyle="wordprocessor",
         )
         self._text.pack(side="left", fill=BOTH, expand=YES)
 
         # Link scrollbar
         self._vbar.config(command=self._text.yview)
-        self._text.config(yscrollcommand=self._vbar.set)
+        self._text.config(yscrollcommand=self._on_text_scroll)
 
-        # Set tab width to 4 spaces
-        self._text.configure(tabs=("4m",))
+        # Gutter redraw on scroll and content change
+        self._text.bind("<Configure>", lambda e: self._redraw_gutter())
+        self._text.bind("<KeyRelease>", self._on_key_release, add="+")
+        self._redraw_gutter()
+
+    def _on_text_scroll(self, *args) -> None:
+        """Forward scroll to scrollbar + redraw gutter."""
+        self._vbar.set(*args)
+        self._redraw_gutter()
+
+    def _redraw_gutter(self) -> None:
+        """Redraw line numbers in the gutter canvas."""
+        self._gutter.delete("all")
+        try:
+            # Get the first visible line
+            first_line = int(self._text.index("@0,0").split(".")[0])
+            last_line = int(self._text.index("@0,999999").split(".")[0])
+        except Exception:
+            return
+
+        font_obj = theme.editor_font()
+        # Get line height from the text widget
+        try:
+            line_bbox = self._text.bbox("1.0")
+            if line_bbox:
+                line_height = line_bbox[3]
+            else:
+                line_height = 18
+        except Exception:
+            line_height = 18
+
+        gutter_width = self._gutter.winfo_width() or 44
+        for line_num in range(first_line, last_line + 1):
+            y = (line_num - first_line) * line_height
+            self._gutter.create_text(
+                gutter_width - 8,
+                y + 3,
+                anchor="ne",
+                text=str(line_num),
+                fill=theme.FG_DIM,
+                font=font_obj,
+            )
 
     def _setup_tags(self) -> None:
         """Configure text tags for syntax highlighting."""
@@ -256,6 +306,7 @@ class SQLEditor(Frame):
 
     def _on_key_release(self, event=None) -> None:
         """Re-highlight visible text after each keystroke."""
+        self._redraw_gutter()
         # Skip non-text-editing keys
         if event and event.keysym in (
             "Up",

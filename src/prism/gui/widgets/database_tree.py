@@ -54,12 +54,20 @@ class DatabaseTree(Frame):
             show="tree",
             yscrollcommand=vsb.set,
             selectmode="browse",
+            style="Treeview",
         )
         self._tree.pack(side="left", fill=BOTH, expand=True)
         vsb.config(command=self._tree.yview)
 
+        # Tree item styling
+        self._tree.tag_configure("root", foreground=theme.FG)
+        self._tree.tag_configure("schema", foreground=theme.FG)
+        self._tree.tag_configure("table", foreground=theme.FG_DIM)
+
         # Bind double-click
         self._tree.bind("<Double-1>", self._on_double_click)
+        # Single-click on schema node toggles expand
+        self._tree.bind("<<TreeviewSelect>>", self._on_select)
 
     def set_insert_callback(self, callback) -> None:
         """Set callback for when a table name is double-clicked.
@@ -203,6 +211,20 @@ class DatabaseTree(Frame):
             self._insert_callback(table_name)
         elif "schema" in tags:
             # Toggle expand/collapse
+            node = selection[0]
+            if self._tree.item(node, "open"):
+                self._tree.item(node, open=False)
+            else:
+                self._tree.item(node, open=True)
+
+    def _on_select(self, event=None) -> None:
+        """Toggle expand/collapse on schema node single-click."""
+        selection = self._tree.selection()
+        if not selection:
+            return
+        item = self._tree.item(selection[0])
+        tags = item.get("tags", [])
+        if "schema" in tags:
             node = selection[0]
             if self._tree.item(node, "open"):
                 self._tree.item(node, open=False)

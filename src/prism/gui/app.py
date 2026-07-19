@@ -192,6 +192,9 @@ class PrismGUI:
         toolbar.pack(fill=X, side=TOP)
         toolbar.pack_propagate(False)
 
+        # Separator below toolbar
+        Frame(right_frame, background=theme.BORDER, height=1).pack(fill=X, side=TOP)
+
         # Execute button
         self._btn_execute = ttk.Button(
             toolbar,
@@ -233,6 +236,32 @@ class PrismGUI:
         self._ns_var = tk.StringVar(value=settings.iris_namespace or "USER")
         self._ns_entry = ttk.Entry(toolbar, textvariable=self._ns_var, width=12)
         self._ns_entry.pack(side=LEFT, padx=(0, 8), pady=4)
+
+        # ── Tab bar above editor ───────────────────────────────────────
+        tab_bar = Frame(right_frame, background=theme.TAB_BAR_BG, height=26)
+        tab_bar.pack(fill=X, side=TOP)
+        tab_bar.pack_propagate(False)
+
+        # Active tab
+        tab_frame = Frame(tab_bar, background=theme.BG, height=26)
+        tab_frame.pack(side=LEFT, padx=(4, 0), pady=0)
+        tk.Label(
+            tab_frame,
+            text=" Query 1 ",
+            background=theme.BG,
+            foreground=theme.FG,
+            font=theme.ui_font_sm(),
+            padx=8,
+        ).pack(side=LEFT, padx=0)
+        # Close button on tab
+        tk.Label(
+            tab_frame,
+            text="✕",
+            background=theme.BG,
+            foreground=theme.FG_DIM,
+            font=theme.ui_font_sm(),
+            padx=4,
+        ).pack(side=LEFT, padx=(0, 2))
 
         # ── Vertical paned: Editor (top) | Results (bottom) ──────────
         vpaned = ttk.Panedwindow(right_frame, orient="vertical")
