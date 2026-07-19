@@ -158,16 +158,32 @@ def _format_prompt(prompt_text: str) -> str | _ANSIType:
 
 
 def _print_output(text: str) -> None:
-    """Print command output to stdout."""
+    """Print command output to stdout.
+
+    The library layer (``interactive_ws.py`` / ``terminal.py``) already
+    strips ANSI escape sequences via ``_clean_text()``.  We apply the same
+    defensive stripping here in case output arrives through a different
+    path, then print without adding an extra newline (the output already
+    contains the necessary line breaks from IRIS).
+    """
     if text:
-        cleaned = _clean_text(text)
-        typer.echo(cleaned)
+        cleaned = _strip_ansi(text)
+        # Remove any remaining control characters except newlines/tabs
+        cleaned = "".join(
+            ch for ch in cleaned if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
+        )
+        typer.echo(cleaned, nl=False)
 
 
 def _clean_text(text: str) -> str:
-    """Remove control characters but preserve newlines and tabs."""
+    """Remove ANSI escape sequences and control characters.
+
+    Strips full ANSI escape sequences (``\\x1b[...m``) and any remaining
+    control characters, preserving newlines, tabs, and printable text.
+    """
+    stripped = _strip_ansi(text)
     return "".join(
-        ch for ch in text if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
+        ch for ch in stripped if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
     )
 
 

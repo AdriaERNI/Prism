@@ -58,6 +58,33 @@ class TestAnsiHelpers:
     def test_clean_text_preserves_tabs(self):
         assert _clean_text("a\tb") == "a\tb"
 
+    def test_clean_text_strips_ansi_error_codes(self):
+        """Regression: IRIS sends errors as \\x1b[31;1m<SYNTAX>\\x1b[0m.
+
+        _clean_text must remove the full ANSI escape sequence, not just
+        the ESC byte.  Otherwise [31;1m<SYNTAX>[0m appears as literal text.
+        """
+        text = "\x1b[31;1m<SYNTAX>\x1b[0m"
+        assert _clean_text(text) == "<SYNTAX>"
+
+    def test_clean_text_strips_ansi_bold(self):
+        """Regression: bold codes \\x1b[1m...\\x1b[0m must be stripped."""
+        text = "\x1b[1mUSER>\x1b[0m"
+        assert _clean_text(text) == "USER>"
+
+    def test_clean_text_strips_ansi_dim(self):
+        """Regression: dim codes \\x1b[2m...\\x1b[0m must be stripped."""
+        text = "\x1b[2mhello\x1b[0m"
+        assert _clean_text(text) == "hello"
+
+    def test_clean_text_no_literal_bracket_garbage(self):
+        """Regression: must not leave [31;1m or [0m as literal text."""
+        text = "\x1b[31;1m<SYNTAX>\x1b[0m rest"
+        result = _clean_text(text)
+        assert "[31;1m" not in result
+        assert "[0m" not in result
+        assert result == "<SYNTAX> rest"
+
 
 # ── Prompt formatting ────────────────────────────────────────────────
 
