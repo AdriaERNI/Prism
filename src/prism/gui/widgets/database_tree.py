@@ -8,6 +8,7 @@ its name into the SQL editor.
 from __future__ import annotations
 
 import asyncio
+import queue
 import threading
 import tkinter as tk
 from tkinter import BOTH, END, Frame, Scrollbar, ttk
@@ -22,6 +23,8 @@ class DatabaseTree(Frame):
         super().__init__(parent, background=theme.PANEL_BG, width=250)
         self._setup_widgets()
         self._insert_callback = None
+        self._result_queue: queue.Queue = queue.Queue()
+        self._polling = False
 
     def _setup_widgets(self) -> None:
         """Create the tree widget + scrollbar."""
@@ -87,7 +90,7 @@ class DatabaseTree(Frame):
                 root_node,
                 END,
                 text=f"📁 {schema_name}",
-                open=True,
+                open=False,
                 tags=("schema",),
             )
             for table_name in sorted(schemas[schema_name]):
@@ -99,43 +102,82 @@ class DatabaseTree(Frame):
                 )
 
     def load_async(self) -> None:
-        """Load schemas/tables from IRIS in a background thread."""
+        """Load schemas/tables from IRIS in a background thread.
+
+        Uses a queue-based polling pattern (same as SQLController)
+        because ``root.after()`` is NOT thread-safe when called
+        from non-main threads — it silently fails.
+        """
+        if self._polling:
+            return  # Already loading
+        self._polling = True
+        self._start_polling()
         thread = threading.Thread(target=self._load_tables, daemon=True)
         thread.start()
 
-    def _load_tables(self) -> None:
-        """Query IRIS for table list (runs in background thread)."""
+    def _start_polling(self) -> None:
+        """Poll the result queue from the main Tk loop."""
         try:
-            from prism.iris.api.sql import execute_query
+            result = self._result_queue.get_nowait()
+            self._polling = False
+            if isinstance(result, list):
+                self.populate(result)
+            return  # Done
+        except queue.Empty:
+            pass
+        # Re-poll in 100ms
+        self.after(100, self._start_polling)
 
-            # Query INFORMATION_SCHEMA for tables
-            raw = asyncio.run(
-                execute_query(
-                    "SELECT SCHEMA_NAME, TABLE_NAME "
-                    "FROM INFORMATION_SCHEMA.TABLES "
-                    "WHERE TABLE_TYPE = 'TABLE' "
-                    "ORDER BY SCHEMA_NAME, TABLE_NAME"
-                )
-            )
+    def _load_tables(self) -> None:
+        """Query IRIS for table list (runs in background thread).
+
+        Uses a fresh asyncio event loop + fresh httpx client to avoid
+        'Event loop is closed' errors from the shared httpx client.
+        """
+        try:
+            import httpx
+
+            from prism.iris.sdk.http import api_url, auth, parse_json
+            from prism.settings import settings
+
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+
+                async def _fetch():
+                    url = f"{api_url(settings.iris_namespace or 'USER')}/action/query"
+                    payload = {
+                        "query": (
+                            "SELECT TABLE_SCHEMA, TABLE_NAME "
+                            "FROM INFORMATION_SCHEMA.TABLES "
+                            "ORDER BY TABLE_SCHEMA, TABLE_NAME"
+                        ),
+                    }
+                    async with httpx.AsyncClient(
+                        timeout=30.0,
+                        auth=auth(),
+                    ) as client:
+                        resp = await client.post(url, json=payload)
+                        resp.raise_for_status()
+                        return parse_json(resp)
+
+                raw = loop.run_until_complete(_fetch())
+            finally:
+                loop.close()
 
             tables: list[tuple[str, str]] = []
             content = raw.get("result", {}).get("content", [])
             for row in content:
-                schema = row.get("SCHEMA_NAME", "")
+                schema = row.get("TABLE_SCHEMA", "")
                 table = row.get("TABLE_NAME", "")
                 if schema and table:
                     tables.append((schema, table))
 
-            # Post back to Tk main loop
-            if tables or not raw.get("status", {}).get("errors"):
-                # Use a flag to indicate we should populate even if empty
-                pass
-            root = self.winfo_toplevel()
-            root.after(0, lambda: self.populate(tables))
+            self._result_queue.put(tables)
 
         except Exception:
-            # If the metadata query fails, just leave the tree empty
-            pass
+            # If the metadata query fails, put empty list
+            self._result_queue.put([])
 
     def _clear(self) -> None:
         """Remove all nodes from the tree."""

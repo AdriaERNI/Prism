@@ -60,6 +60,35 @@ class PrismGUI:
         self._root.geometry("1200x750")
         self._root.minsize(800, 500)
         self._root.configure(bg=theme.BG)
+        self._set_window_icon()
+
+    def _set_window_icon(self) -> None:
+        """Set the Prism logo as the window icon."""
+        from pathlib import Path
+
+        # Try logo.ico (Windows) and logo PNG (Linux/macOS)
+        # Look in the package directory and common locations
+        candidates = [
+            Path(__file__).parent.parent.parent / "logo.ico",
+            Path(__file__).parent.parent.parent / "docs" / "assets" / "logo-256.png",
+            Path(__file__).parent.parent / "logo.ico",
+        ]
+
+        for icon_path in candidates:
+            if not icon_path.exists():
+                continue
+            try:
+                if icon_path.suffix == ".ico":
+                    self._root.iconbitmap(str(icon_path))
+                else:
+                    # Convert PNG to PhotoImage for icon
+                    icon_img = tk.PhotoImage(file=str(icon_path))
+                    self._root.iconphoto(True, icon_img)
+                    # Keep a reference to prevent GC
+                    self._icon_image = icon_img
+                break
+            except (tk.TclError, FileNotFoundError):
+                continue
 
     def _setup_menu(self) -> None:
         """Create the menu bar."""
