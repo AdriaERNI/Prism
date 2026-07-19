@@ -1,7 +1,7 @@
-"""Emy vision helper — sends screenshots to the vLLM model for visual analysis.
+"""Vision helper - sends screenshots to a VLM for visual analysis.
 
-This module provides a callable that Prism's test suite uses to verify
-GUI appearance by asking the vision model to describe what it sees.
+Uses Qwen3-VL-8B-Instruct (deployed on Spark:8003) as the primary
+vision model, with emy (Gemma4 VL, Spark:8001) as fallback.
 """
 
 from __future__ import annotations
@@ -12,6 +12,19 @@ from pathlib import Path
 
 import httpx
 
+# Primary: Qwen3-VL-8B-Instruct (better for GUI/UI analysis)
+VISION_URL = os.environ.get(
+    "VISION_URL",
+    os.environ.get("QWEN3_VL_URL", "http://192.168.6.185:8003/v1/chat/completions"),
+)
+VISION_API_KEY = os.environ.get(
+    "VISION_API_KEY", os.environ.get("EMY_API_KEY", "sk-emy-vllm-vl-72b")
+)
+VISION_MODEL = os.environ.get(
+    "VISION_MODEL", os.environ.get("QWEN3_VL_MODEL", "qwen3-vl")
+)
+
+# Fallback: emy (Gemma4 VL)
 EMY_URL = os.environ.get(
     "EMY_VISION_URL", "http://192.168.6.185:8001/v1/chat/completions"
 )
@@ -22,7 +35,9 @@ EMY_MODEL = os.environ.get("EMY_MODEL", "emy")
 def analyze_screenshot(
     image_path: str | Path, question: str, timeout: float = 60
 ) -> str:
-    """Send a screenshot to emy and return the description.
+    """Send a screenshot to the vision model and return the description.
+
+    Tries Qwen3-VL-8B first, falls back to emy if it fails.
 
     Args:
         image_path: Path to a PNG/JPEG image file.
@@ -36,7 +51,7 @@ def analyze_screenshot(
     img_b64 = base64.b64encode(image_data).decode()
 
     payload = {
-        "model": EMY_MODEL,
+        "model": VISION_MODEL,
         "messages": [
             {
                 "role": "user",
@@ -52,6 +67,22 @@ def analyze_screenshot(
         "max_tokens": 500,
     }
 
+    # Try primary (Qwen3-VL-8B)
+    try:
+        resp = httpx.post(
+            VISION_URL,
+            json=payload,
+            headers={"Authorization": f"Bearer {VISION_API_KEY}"},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except Exception:
+        pass
+
+    # Fallback to emy
+    payload["model"] = EMY_MODEL
     resp = httpx.post(
         EMY_URL,
         json=payload,
