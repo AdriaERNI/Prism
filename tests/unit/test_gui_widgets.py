@@ -50,10 +50,10 @@ class TestDatabaseTree:
         tree = DatabaseTree(tk_root)
 
         tables = [
-            ("%IPM_General", "Settings"),
-            ("%IPM_General", "History"),
-            ("%IPM_Repo", "Definition"),
-            ("User", "Patients"),
+            {"schema": "%IPM_General", "name": "Settings", "type": "BASE TABLE"},
+            {"schema": "%IPM_General", "name": "History", "type": "BASE TABLE"},
+            {"schema": "%IPM_Repo", "name": "Definition", "type": "BASE TABLE"},
+            {"schema": "User", "name": "Patients", "type": "BASE TABLE"},
         ]
         tree.populate(tables)
 
@@ -65,20 +65,27 @@ class TestDatabaseTree:
         root_item = tree._tree.item(children[0])
         assert "IRIS Connection" in root_item["text"]
 
-        # Root should have 3 schema children (2 unique + User)
-        schemas = tree._tree.get_children(children[0])
-        assert len(schemas) == 3  # %IPM_General, %IPM_Repo, User
+        # Root should have 2 children: "Schemas" (user) + "System Schemas" (system)
+        top_folders = tree._tree.get_children(children[0])
+        assert len(top_folders) == 2
 
     def test_schema_nodes_collapsed_by_default(self, tk_root):
         """Schema nodes should be collapsed (open=False) by default."""
         from prism.gui.widgets.database_tree import DatabaseTree
 
         tree = DatabaseTree(tk_root)
-        tree.populate([("Schema1", "Table1"), ("Schema1", "Table2")])
+        tree.populate(
+            [
+                {"schema": "Schema1", "name": "Table1", "type": "BASE TABLE"},
+                {"schema": "Schema1", "name": "Table2", "type": "BASE TABLE"},
+            ]
+        )
 
         root = tree._tree.get_children()[0]
-        schemas = tree._tree.get_children(root)
-        for schema_node in schemas:
+        # User schemas folder is open=True, but the schema node inside is collapsed
+        schemas_folder = tree._tree.get_children(root)[0]  # "Schemas" folder
+        schema_nodes = tree._tree.get_children(schemas_folder)
+        for schema_node in schema_nodes:
             assert not tree._tree.item(schema_node, "open")
 
     def test_root_node_is_open(self, tk_root):
@@ -86,7 +93,7 @@ class TestDatabaseTree:
         from prism.gui.widgets.database_tree import DatabaseTree
 
         tree = DatabaseTree(tk_root)
-        tree.populate([("Schema1", "Table1")])
+        tree.populate([{"schema": "Schema1", "name": "Table1", "type": "BASE TABLE"}])
 
         root = tree._tree.get_children()[0]
         assert tree._tree.item(root, "open")
@@ -96,7 +103,12 @@ class TestDatabaseTree:
         from prism.gui.widgets.database_tree import DatabaseTree
 
         tree = DatabaseTree(tk_root)
-        tree.populate([("Schema1", "Table1"), ("Schema2", "Table2")])
+        tree.populate(
+            [
+                {"schema": "Schema1", "name": "Table1", "type": "BASE TABLE"},
+                {"schema": "Schema2", "name": "Table2", "type": "BASE TABLE"},
+            ]
+        )
         assert len(tree._tree.get_children()) > 0
 
         tree._clear()
