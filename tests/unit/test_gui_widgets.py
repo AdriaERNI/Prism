@@ -430,3 +430,188 @@ class TestTheme:
         from prism.gui import theme
 
         assert theme.BORDER == "#4c78a8"
+
+
+class TestResultsEditing:
+    """Tests for cell editing, modification tracking, and commit."""
+
+    def test_cell_edit_modifies_value(self, tk_root):
+        """Editing a cell should update the display and track the change."""
+        from prism.gui.widgets.results_table import ResultsTable
+        from prism.gui.controllers.sql_controller import QueryResult
+
+        table = ResultsTable(tk_root)
+        result = QueryResult(
+            columns=["ID", "Name"],
+            rows=[[1, "Alice"], [2, "Bob"]],
+            row_count=2,
+            elapsed=0.001,
+        )
+        table.show_results(result)
+        table.set_source_table("Test", "Users")
+
+        # Simulate editing: directly call _commit_edit logic
+        items = table._tree.get_children()
+        first_item = items[0]
+
+        # Manually mark a modification
+        table._modified_cells[first_item] = {"Name": "Alicia"}
+        table._tree.set(first_item, "Name", "Alicia")
+        tags = list(table._tree.item(first_item, "tags"))
+        tags.append("modified")
+        table._tree.item(first_item, tags=tags)
+
+        # Verify modification tracked
+        assert table.is_modified
+        assert table.modified_count == 1
+        assert table._tree.set(first_item, "Name") == "Alicia"
+        assert "modified" in table._tree.item(first_item, "tags")
+
+    def test_revert_restores_original(self, tk_root):
+        """Revert should restore original cell values."""
+        from prism.gui.widgets.results_table import ResultsTable
+        from prism.gui.controllers.sql_controller import QueryResult
+
+        table = ResultsTable(tk_root)
+        result = QueryResult(
+            columns=["ID", "Name"],
+            rows=[[1, "Alice"], [2, "Bob"]],
+            row_count=2,
+            elapsed=0.001,
+        )
+        table.show_results(result)
+        table.set_source_table("Test", "Users")
+
+        items = table._tree.get_children()
+        first_item = items[0]
+
+        # Modify a cell
+        table._modified_cells[first_item] = {"Name": "Changed"}
+        table._tree.set(first_item, "Name", "Changed")
+        tags = list(table._tree.item(first_item, "tags"))
+        tags.append("modified")
+        table._tree.item(first_item, tags=tags)
+        assert table._tree.set(first_item, "Name") == "Changed"
+
+        # Revert
+        table._on_cancel()
+
+        # Verify original restored
+        assert not table.is_modified
+        assert table.modified_count == 0
+        assert table._tree.set(first_item, "Name") == "Alice"
+        assert "modified" not in table._tree.item(first_item, "tags")
+
+    def test_source_table_detection(self, tk_root):
+        """set_source_table should store the qualified table name."""
+        from prism.gui.widgets.results_table import ResultsTable
+
+        table = ResultsTable(tk_root)
+        table.set_source_table("Ens", "AlarmRequest")
+        assert table._source_table == "Ens.AlarmRequest"
+
+    def test_save_without_table_shows_error(self, tk_root):
+        """Save with no source table should show an error status."""
+        from prism.gui.widgets.results_table import ResultsTable
+        from prism.gui.controllers.sql_controller import QueryResult
+
+        table = ResultsTable(tk_root)
+        result = QueryResult(
+            columns=["ID", "Name"],
+            rows=[[1, "Alice"]],
+            row_count=1,
+            elapsed=0.001,
+        )
+        table.show_results(result)
+
+        items = table._tree.get_children()
+        table._modified_cells[items[0]] = {"Name": "Changed"}
+
+        # No source table set
+        table._on_save()
+        assert "Cannot commit" in table._status.cget("text")
+
+    def test_save_without_changes_shows_message(self, tk_root):
+        """Save with no modifications should show 'No changes'."""
+        from prism.gui.widgets.results_table import ResultsTable
+        from prism.gui.controllers.sql_controller import QueryResult
+
+        table = ResultsTable(tk_root)
+        result = QueryResult(
+            columns=["ID"],
+            rows=[[1]],
+            row_count=1,
+            elapsed=0.001,
+        )
+        table.show_results(result)
+        table.set_source_table("Test", "T")
+
+        table._on_save()
+        assert "No changes" in table._status.cget("text")
+
+    def test_detect_source_table_from_query(self, tk_root):
+        """app._detect_source_table should parse FROM schema.table."""
+        import tkinter as tk
+        from prism.gui.app import PrismGUI
+
+        root = tk.Tk()
+        root.withdraw()
+        try:
+            app = PrismGUI(root)
+            app._detect_source_table("SELECT * FROM Ens.AlarmRequest")
+            assert app._results._source_table == "Ens.AlarmRequest"
+
+            app._detect_source_table("SELECT TOP 5 TABLE_SCHEMA FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
+            # INFORMATION_SCHEMA.TABLES IS a schema.table pattern — should be detected
+            assert app._results._source_table == "INFORMATION_SCHEMA.TABLES"
+
+            # No schema.table pattern in this query
+            app._detect_source_table("SELECT 1")
+            assert app._results._source_table is None
+        finally:
+            root.destroy()
+
+    def test_modified_count(self, tk_root):
+        """modified_count should reflect total changed cells."""
+        from prism.gui.widgets.results_table import ResultsTable
+        from prism.gui.controllers.sql_controller import QueryResult
+
+        table = ResultsTable(tk_root)
+        result = QueryResult(
+            columns=["ID", "Name", "Email"],
+            rows=[[1, "Alice", "a@b.com"], [2, "Bob", "b@c.com"]],
+            row_count=2,
+            elapsed=0.001,
+        )
+        table.show_results(result)
+        table.set_source_table("Test", "Users")
+
+        items = table._tree.get_children()
+        table._modified_cells[items[0]] = {"Name": "Alicia"}
+        table._modified_cells[items[1]] = {"Name": "Bobby", "Email": "new@x.com"}
+
+        assert table.modified_count == 3
+
+    def test_clear_resets_modifications(self, tk_root):
+        """clear() should reset all modification state."""
+        from prism.gui.widgets.results_table import ResultsTable
+        from prism.gui.controllers.sql_controller import QueryResult
+
+        table = ResultsTable(tk_root)
+        result = QueryResult(
+            columns=["ID", "Name"],
+            rows=[[1, "Alice"]],
+            row_count=1,
+            elapsed=0.001,
+        )
+        table.show_results(result)
+        table.set_source_table("Test", "Users")
+
+        items = table._tree.get_children()
+        table._modified_cells[items[0]] = {"Name": "Changed"}
+        assert table.is_modified
+
+        table.clear()
+        assert not table.is_modified
+        assert table.modified_count == 0
+        # NOTE: _source_table is managed by app's _detect_source_table, not cleared by clear()

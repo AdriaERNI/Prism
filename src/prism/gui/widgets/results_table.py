@@ -1,10 +1,13 @@
-"""Results table widget — DBeaver-style results panel with tabs and toolbar.
+"""Results table widget — DBeaver-style results panel with editing + commit.
 
 Features:
 - Tab bar (Result 1, Result 2, etc.) with close buttons
 - Toolbar with Refresh, Save, Cancel, Export buttons
 - ``ttk.Treeview`` with zebra striping
 - Sortable columns (click header)
+- **Editable cells**: double-click a cell to edit via Entry overlay
+- **Modification tracking**: changed cells highlighted, Save generates UPDATE
+- **Commit / Rollback**: Save → IRIS UPDATE, Cancel → revert changes
 - Status line with row count + execution time
 """
 
@@ -22,20 +25,37 @@ from tkinter import (
     Scrollbar,
     ttk,
 )
+from typing import Callable
 
 from prism.gui import theme
-from prism.gui.controllers.sql_controller import QueryResult
+from prism.gui.controllers.sql_controller import QueryResult, SQLController
 
 
 class ResultsTable(Frame):
-    """A results grid with tab bar, toolbar, zebra striping and sortable columns."""
+    """An editable results grid with tab bar, toolbar, and commit support."""
 
     def __init__(self, parent, **kwargs):
         super().__init__(parent, background=theme.RESULT_BG)
         self._columns: list[str] = []
+        self._rows: list[list] = []  # original data (unmodified)
         self._sort_reverse: bool = False
         self._result_tab_count = 0
+        # Editing state
+        self._modified_cells: dict[
+            str, dict[str, str]
+        ] = {}  # {item_id: {col: new_value}}
+        self._source_table: str | None = None  # e.g. "Ens.AlarmRequest"
+        self._controller: SQLController | None = None  # for executing UPDATEs
+        self._on_status: Callable | None = None  # status callback to app
         self._setup_widgets()
+
+    def set_controller(self, controller: SQLController) -> None:
+        """Set the SQL controller for executing UPDATE statements."""
+        self._controller = controller
+
+    def set_status_callback(self, callback: Callable) -> None:
+        """Set a callback to report status messages to the main app."""
+        self._on_status = callback
 
     def _setup_widgets(self) -> None:
         """Create tab bar + toolbar + treeview + scrollbars + status."""
@@ -59,12 +79,12 @@ class ResultsTable(Frame):
         self._btn_refresh.pack(side=LEFT, padx=2, pady=2)
 
         self._btn_save = ttk.Button(
-            toolbar, text="💾", style="Icon.TButton", command=self._on_save
+            toolbar, text="💾 Save", style="Icon.TButton", command=self._on_save
         )
         self._btn_save.pack(side=LEFT, padx=2, pady=2)
 
         self._btn_cancel = ttk.Button(
-            toolbar, text="✕", style="Icon.TButton", command=self._on_cancel
+            toolbar, text="↩ Revert", style="Icon.TButton", command=self._on_cancel
         )
         self._btn_cancel.pack(side=LEFT, padx=2, pady=2)
 
@@ -104,7 +124,7 @@ class ResultsTable(Frame):
         hsb = Scrollbar(tree_frame, orient="horizontal")
         hsb.pack(side="bottom", fill=X)
 
-        # Treeview
+        # Treeview — extended mode allows cell selection for editing
         self._tree = ttk.Treeview(
             tree_frame,
             show="headings",
@@ -116,9 +136,20 @@ class ResultsTable(Frame):
         vsb.config(command=self._tree.yview)
         hsb.config(command=self._tree.xview)
 
-        # Configure zebra striping tags
+        # Configure zebra striping tags + modified cell highlight
         self._tree.tag_configure("odd", background=theme.RESULT_BG)
         self._tree.tag_configure("even", background=theme.RESULT_ALT)
+        self._tree.tag_configure("modified", background="#5a4a2a")  # amber tint
+
+        # ── Cell edit overlay ─────────────────────────────────────────
+        self._entry: ttk.Entry | None = None
+        self._editing_item: str | None = None
+        self._editing_col: str | None = None
+
+        # Double-click to edit a cell
+        self._tree.bind("<Double-1>", self._on_cell_double_click)
+        # Enter key to start editing selected cell
+        self._tree.bind("<Return>", self._on_cell_edit_key)
 
         # ── Status label (row count + elapsed) ────────────────────────
         self._status = Label(
@@ -188,15 +219,21 @@ class ResultsTable(Frame):
             return
 
         self._columns = result.columns
+        self._rows = [list(row) for row in result.rows]
+
         self._tree["columns"] = self._columns
         for col in self._columns:
             self._tree.heading(col, text=col, command=lambda c=col: self._sort_by(c))
             self._tree.column(col, width=120, minwidth=60, stretch=False)
 
-        for i, row in enumerate(result.rows):
+        for i, row in enumerate(self._rows):
             tag = "even" if i % 2 == 0 else "odd"
             values = [self._format_cell(v) for v in row]
             self._tree.insert("", END, values=values, tags=(tag,))
+
+        # Try to detect source table from result.raw (if the query was a
+        # simple SELECT). We look at the query text stored in the controller.
+        self._detect_source_table()
 
         elapsed_ms = int(result.elapsed * 1000)
         self._status.config(
@@ -204,13 +241,20 @@ class ResultsTable(Frame):
             foreground=theme.FG_STATUS,
         )
 
+    def set_source_table(self, schema: str, table: str) -> None:
+        """Manually set the source table for UPDATE generation."""
+        self._source_table = f"{schema}.{table}" if schema else table
+
     def clear(self) -> None:
-        """Remove all rows and columns."""
+        """Remove all rows and columns, reset editing state."""
+        self._cancel_edit()
         for item in self._tree.get_children():
             self._tree.delete(item)
         if self._columns:
             self._tree["columns"] = []
             self._columns = []
+        self._rows = []
+        self._modified_cells = {}
         self._status.config(text="Ready", foreground=theme.FG_STATUS)
 
     def show_message(self, message: str, is_error: bool = False) -> None:
@@ -219,16 +263,285 @@ class ResultsTable(Frame):
         color = theme.FG_ERROR if is_error else theme.FG_STATUS
         self._status.config(text=message, foreground=color)
 
-    # ── Toolbar button handlers (stubs — app.py can override) ──────────
+    # ── Cell Editing ─────────────────────────────────────────────────
 
-    def _on_refresh(self):
-        pass
+    def _on_cell_double_click(self, event) -> None:
+        """Start editing the cell under the cursor on double-click."""
+        region = self._tree.identify("region", event.x, event.y)
+        if region != "cell":
+            return
+        col = self._tree.identify_column(event.x)
+        item = self._tree.identify_row(event.y)
+        if item and col:
+            self._start_edit(item, col)
 
-    def _on_save(self):
-        pass
+    def _on_cell_edit_key(self, event) -> None:
+        """Start editing the focused cell when Enter is pressed."""
+        item = self._tree.focus()
+        if not item:
+            return
+        # Get the column under the mouse or the first column
+        col = "#1"  # default to first column
+        self._start_edit(item, col)
 
-    def _on_cancel(self):
-        pass
+    def _start_edit(self, item: str, col: str) -> None:
+        """Open an Entry widget over the cell to edit its value."""
+        self._cancel_edit()
+
+        # Convert column id like "#1" to column name
+        col_idx = int(col.replace("#", "")) - 1
+        if col_idx < 0 or col_idx >= len(self._columns):
+            return
+        col_name = self._columns[col_idx]
+
+        # Get current value
+        current = self._tree.set(item, col_name)
+
+        # Get cell bounding box
+        try:
+            x, y, w, h = self._tree.bbox(item, col)
+        except Exception:
+            return
+
+        # Create Entry overlay
+        self._entry = ttk.Entry(self._tree, style="Cell.TEntry")
+        self._entry.place(x=x, y=y, width=w, height=h)
+        self._entry.insert(0, current)
+        self._entry.select_range(0, END)
+        self._entry.focus_set()
+
+        self._editing_item = item
+        self._editing_col = col_name
+
+        # Commit on Enter / FocusOut, cancel on Escape
+        self._entry.bind("<Return>", lambda e: self._commit_edit())
+        self._entry.bind("<FocusOut>", lambda e: self._commit_edit())
+        self._entry.bind("<Escape>", lambda e: self._cancel_edit())
+
+    def _commit_edit(self) -> None:
+        """Save the edited cell value and mark it as modified."""
+        if (
+            self._entry is None
+            or self._editing_item is None
+            or self._editing_col is None
+        ):
+            return
+
+        new_value = self._entry.get()
+        item = self._editing_item
+        col = self._editing_col
+
+        # Get original value
+        col_idx = self._columns.index(col)
+        original = self._format_cell(self._rows[self._tree.index(item)][col_idx])
+
+        self._cancel_edit()
+
+        # If value changed, track it
+        if new_value != original:
+            # Store modification
+            if item not in self._modified_cells:
+                self._modified_cells[item] = {}
+            self._modified_cells[item][col] = new_value
+
+            # Update the cell display
+            self._tree.set(item, col, new_value)
+
+            # Highlight the row as modified
+            tags = list(self._tree.item(item, "tags"))
+            if "modified" not in tags:
+                tags.append("modified")
+            self._tree.item(item, tags=tags)
+
+            # Update status
+            total_changes = sum(len(v) for v in self._modified_cells.values())
+            self._status.config(
+                text=f"⚠ {total_changes} cell(s) modified — click 💾 Save to commit",
+                foreground=theme.FG_WARNING
+                if hasattr(theme, "FG_WARNING")
+                else "#ebcb8b",
+            )
+
+    def _cancel_edit(self) -> None:
+        """Close the Entry overlay without saving."""
+        if self._entry is not None:
+            self._entry.destroy()
+            self._entry = None
+        self._editing_item = None
+        self._editing_col = None
+
+    # ── Save (Commit) ────────────────────────────────────────────────
+
+    def _on_save(self) -> None:
+        """Generate and execute UPDATE statements for all modified cells."""
+        if not self._modified_cells:
+            self._status.config(text="No changes to save", foreground=theme.FG_STATUS)
+            return
+
+        if not self._source_table:
+            self._status.config(
+                text="Cannot commit: source table unknown (set via set_source_table)",
+                foreground=theme.FG_ERROR,
+            )
+            return
+
+        if not self._controller:
+            self._status.config(
+                text="Cannot commit: no SQL controller connected",
+                foreground=theme.FG_ERROR,
+            )
+            return
+
+        # Build UPDATE statements
+        # We need a primary key column to target the right row.
+        # Strategy: use the first column as the key (common for IRIS tables
+        # which typically have an ID column first).
+        if not self._columns:
+            return
+
+        pk_col = self._columns[0]  # assume first column is the primary key
+
+        updates_made = 0
+        updates_failed = 0
+
+        for item, changes in self._modified_cells.items():
+            if not changes:
+                continue
+
+            # Get the PK original value for this row
+            col_idx = self._tree.index(item)
+            original_pk = self._format_cell(self._rows[col_idx][0])
+
+            # Build SET clause
+            set_clauses = []
+            for col_name, new_val in changes.items():
+                escaped = new_val.replace("'", "''")
+                set_clauses.append(f"{col_name} = '{escaped}'")
+
+            set_clause = ", ".join(set_clauses)
+
+            # WHERE clause using the original PK value
+            pk_escaped = original_pk.replace("'", "''")
+            where_clause = f"{pk_col} = '{pk_escaped}'"
+
+            sql = f"UPDATE {self._source_table} SET {set_clause} WHERE {where_clause}"
+
+            # Execute synchronously (blocking — but UPDATEs are fast)
+            result = self._execute_sync(sql)
+
+            if result and result.is_error:
+                updates_failed += 1
+                self._status.config(
+                    text=f"Error: {result.error}",
+                    foreground=theme.FG_ERROR,
+                )
+            else:
+                updates_made += len(changes)
+
+        # Update local data cache
+        for item, changes in self._modified_cells.items():
+            col_idx = self._tree.index(item)
+            for col_name, new_val in changes.items():
+                cidx = self._columns.index(col_name)
+                self._rows[col_idx][cidx] = new_val
+
+        # Clear modification state
+        self._modified_cells = {}
+
+        # Remove modified tags
+        for item in self._tree.get_children():
+            tags = list(self._tree.item(item, "tags"))
+            if "modified" in tags:
+                tags.remove("modified")
+                self._tree.item(item, tags=tags)
+
+        if updates_failed > 0:
+            self._status.config(
+                text=f"⚠ {updates_made} cells saved, {updates_failed} UPDATE(s) failed",
+                foreground=theme.FG_ERROR,
+            )
+        else:
+            self._status.config(
+                text=f"✓ {updates_made} cell(s) committed to {self._source_table}",
+                foreground=theme.FG_STATUS,
+            )
+
+    def _execute_sync(self, sql: str) -> QueryResult | None:
+        """Execute an UPDATE synchronously (blocking).
+
+        We bypass the async controller and use httpx directly.
+        """
+        import httpx
+        from prism.settings import settings
+        from prism.iris.sdk.http import api_url, parse_json
+
+        result = QueryResult()
+
+        try:
+            url = f"{api_url(None)}/action/query"
+            r = httpx.post(
+                url,
+                json={"query": sql},
+                auth=httpx.BasicAuth(settings.iris_username, settings.iris_password),
+                timeout=15.0,
+            )
+            r.raise_for_status()
+            raw = parse_json(r)
+
+            status = raw.get("status", {})
+            errors = status.get("errors", [])
+            if errors:
+                result.error = errors[0].get("error", "Unknown IRIS error")
+                import html
+
+                result.error = html.unescape(result.error)
+
+        except Exception as exc:
+            result.error = str(exc)
+
+        return result
+
+    # ── Cancel / Revert ──────────────────────────────────────────────
+
+    def _on_cancel(self) -> None:
+        """Revert all modifications back to original values."""
+        if not self._modified_cells:
+            self._status.config(text="No changes to revert", foreground=theme.FG_STATUS)
+            return
+
+        # Restore original values
+        for item, changes in self._modified_cells.items():
+            col_idx = self._tree.index(item)
+            for col_name in changes:
+                cidx = self._columns.index(col_name)
+                original = self._format_cell(self._rows[col_idx][cidx])
+                self._tree.set(item, col_name, original)
+
+        # Clear modification state
+        self._modified_cells = {}
+
+        # Remove modified tags
+        for item in self._tree.get_children():
+            tags = list(self._tree.item(item, "tags"))
+            if "modified" in tags:
+                tags.remove("modified")
+                self._tree.item(item, tags=tags)
+
+        # Restore zebra striping
+        for i, item in enumerate(self._tree.get_children()):
+            tag = "even" if i % 2 == 0 else "odd"
+            self._tree.item(item, tags=(tag,))
+
+        self._status.config(text="Changes reverted", foreground=theme.FG_STATUS)
+
+    # ── Refresh ──────────────────────────────────────────────────────
+
+    def _on_refresh(self) -> None:
+        """Re-run the last query (delegates to app.py via callback)."""
+        if self._on_status:
+            self._on_status("refresh")
+
+    # ── Unused stubs ─────────────────────────────────────────────────
 
     def _on_filter(self):
         pass
@@ -239,7 +552,7 @@ class ResultsTable(Frame):
     def _on_grid_view(self):
         pass
 
-    # ── Internal ─────────────────────────────────────────────────────
+    # ── Sort ─────────────────────────────────────────────────────────
 
     def _sort_by(self, column: str) -> None:
         """Sort tree contents by *column* (toggle ascending/descending)."""
@@ -264,6 +577,22 @@ class ResultsTable(Frame):
                 text = f"{col} {'▼' if self._sort_reverse else '▲'}"
             self._tree.heading(col, text=text, command=lambda c=col: self._sort_by(c))
 
+    # ── Source table detection ──────────────────────────────────────
+
+    def _detect_source_table(self) -> None:
+        """Try to detect the source table from the SQL controller's last query.
+
+        Looks for SELECT ... FROM schema.table patterns.
+        """
+        if not self._controller:
+            return
+
+        # The controller doesn't store the last query, so we can't auto-detect.
+        # The app.py should call set_source_table() explicitly.
+        pass
+
+    # ── Helpers ──────────────────────────────────────────────────────
+
     @staticmethod
     def _format_cell(value) -> str:
         """Format a cell value for display."""
@@ -276,3 +605,13 @@ class ResultsTable(Frame):
 
             return json.dumps(value)
         return str(value)
+
+    @property
+    def modified_count(self) -> int:
+        """Number of modified cells."""
+        return sum(len(v) for v in self._modified_cells.values())
+
+    @property
+    def is_modified(self) -> bool:
+        """Whether any cells have been modified."""
+        return len(self._modified_cells) > 0

@@ -222,8 +222,9 @@ class PrismGUI:
         self._editor.set_execute_callback(self._execute_query)
         vpaned.add(self._editor, weight=3)
 
-        # Results table
+        # Results table — connect controller for UPDATE execution
         self._results = ResultsTable(vpaned)
+        self._results.set_controller(self._controller)
         vpaned.add(self._results, weight=2)
 
         # ── Status bar ────────────────────────────────────────────────
@@ -276,11 +277,38 @@ class PrismGUI:
 
         ns_var = self._toolbar.namespace_var
         namespace = (ns_var.get().strip() if ns_var else "USER") or None
+
+        # Detect source table from FROM clause so results can be edited
+        self._detect_source_table(query)
+
         self._controller.execute(
             query,
             namespace=namespace,
             on_done=self._on_query_done,
         )
+
+    def _detect_source_table(self, query: str) -> None:
+        """Parse the FROM clause to detect schema.table for UPDATE generation.
+
+        Handles patterns like:
+            SELECT * FROM schema.table
+            SELECT ... FROM schema.table WHERE ...
+        Sets the source table on the results panel.
+        """
+        import re
+
+        # Match: FROM schema.table (with optional alias)
+        match = re.search(
+            r"\bFROM\s+(\w+)\.(\w+)",
+            query,
+            re.IGNORECASE,
+        )
+        if match:
+            schema, table = match.group(1), match.group(2)
+            self._results.set_source_table(schema, table)
+        else:
+            # No source table — clear so Save is disabled
+            self._results._source_table = None
 
     def _execute_selection(self) -> None:
         """Execute only the selected text, or all if no selection."""
