@@ -353,39 +353,39 @@ class TestTheme:
     """Test that theme colors match DBeaver-inspired palette."""
 
     def test_editor_bg_is_dbeaver_dark(self):
-        """Editor background should be #2b2b2b (DBeaver main area)."""
+        """Editor background should be #2e3436 (DBeaver dark main area)."""
         from prism.gui import theme
 
-        assert theme.EDITOR_BG == "#2b2b2b"
+        assert theme.EDITOR_BG == "#2e3436"
 
     def test_sidebar_bg_is_dbeaver_panel(self):
-        """Sidebar background should be #252525 (DBeaver navigator)."""
+        """Sidebar background should be #2e3436 (DBeaver navigator, unified)."""
         from prism.gui import theme
 
-        assert theme.PANEL_BG == "#252525"
+        assert theme.PANEL_BG == "#2e3436"
 
     def test_toolbar_bg_is_dbeaver_header(self):
-        """Toolbar background should be #3c3f41 (DBeaver toolbar)."""
+        """Header background should be #3b4252 (DBeaver column headers)."""
         from prism.gui import theme
 
-        assert theme.HEADER_BG == "#3c3f41"
+        assert theme.HEADER_BG == "#3b4252"
 
     def test_tab_bar_bg_exists(self):
         """Tab bar background constant should exist."""
         from prism.gui import theme
 
         assert hasattr(theme, "TAB_BAR_BG")
-        assert theme.TAB_BAR_BG == "#313335"
+        assert theme.TAB_BAR_BG == "#2e3436"
 
     def test_status_bg_exists(self):
         """Status bar background constant should exist."""
         from prism.gui import theme
 
         assert hasattr(theme, "STATUS_BG")
-        assert theme.STATUS_BG == "#2d2d2d"
+        assert theme.STATUS_BG == "#2e3436"
 
     def test_separator_border_is_visible(self):
-        """Border color should be #454545 (DBeaver dividers)."""
+        """Border color should be #4c78a8 (DBeaver dividers/selection)."""
         from prism.gui import theme
 
-        assert theme.BORDER == "#454545"
+        assert theme.BORDER == "#4c78a8"

@@ -1,13 +1,15 @@
-"""Status bar widget — shows connection info and execution status.
+"""Status bar widget — DBeaver-style status bar at the bottom.
 
-A thin bar at the bottom of the window showing:
-- Connection status (connected/disconnected)
+Shows:
+- Connection status (colored dot + text)
 - Current namespace
-- Query status (running/idle)
-- Last execution time
+- Query result info (row count + execution time)
+- Timezone indicator
 """
 
 from __future__ import annotations
+
+import datetime
 
 from tkinter import LEFT, X, Frame, Label
 
@@ -20,6 +22,7 @@ class StatusBar(Frame):
 
     def __init__(self, parent, **kwargs):
         super().__init__(parent, background=theme.STATUS_BG, height=24)
+        self.pack_propagate(False)
         self._setup_widgets()
 
     def _setup_widgets(self) -> None:
@@ -41,7 +44,7 @@ class StatusBar(Frame):
             background=theme.STATUS_BG,
             font=theme.ui_font_sm(),
         )
-        self._conn_label.pack(side=LEFT, padx=(0, 16))
+        self._conn_label.pack(side=LEFT, padx=(0, 12))
 
         # Namespace
         self._ns_label = Label(
@@ -51,13 +54,13 @@ class StatusBar(Frame):
             background=theme.STATUS_BG,
             font=theme.ui_font_sm(),
         )
-        self._ns_label.pack(side=LEFT, padx=(0, 16))
+        self._ns_label.pack(side=LEFT, padx=(0, 12))
 
         # Spacer
         spacer = Frame(self, background=theme.STATUS_BG)
         spacer.pack(side=LEFT, fill=X, expand=True)
 
-        # Right-aligned status
+        # Right-aligned status (query results)
         self._status_label = Label(
             self,
             text="Ready",
@@ -65,7 +68,19 @@ class StatusBar(Frame):
             background=theme.STATUS_BG,
             font=theme.ui_font_sm(),
         )
-        self._status_label.pack(side=LEFT, padx=(16, 8))
+        self._status_label.pack(side=LEFT, padx=(12, 8))
+
+        # Timezone indicator
+        tz = datetime.datetime.now(datetime.timezone.utc).astimezone()
+        tz_name = tz.tzname() or "UTC"
+        self._tz_label = Label(
+            self,
+            text=tz_name,
+            foreground=theme.FG_DIM,
+            background=theme.STATUS_BG,
+            font=theme.ui_font_sm(),
+        )
+        self._tz_label.pack(side=LEFT, padx=(0, 8))
 
     # ── Public API ───────────────────────────────────────────────────
 

@@ -1,36 +1,41 @@
-"""Prism GUI main window — ties together all widgets into the SQL editor.
+"""Prism GUI main window — DBeaver-inspired SQL editor layout.
 
 Layout::
 
-    ┌──────────────────────────────────────────────────┐
-    │  Menu Bar                                         │
-    ├────────┬─────────────────────────────────────────┤
-    │        │  Toolbar: [▶ Execute] [■ Cancel] [Clear] │
-    │  Tree  ├─────────────────────────────────────────┤
-    │  Nav   │                                         │
-    │        │         SQL Editor (dark)               │
-    │        │                                         │
-    │        ├─────────────────────────────────────────┤
-    │        │         Results Table                    │
-    ├────────┴─────────────────────────────────────────┤
-    │  Status Bar                                       │
-    └──────────────────────────────────────────────────┘
+    ┌────────────────────────────────────────────────────────┐
+    │  Menu Bar                                               │
+    ├────────┬─────────────────────────────────────────────────┤
+    │        │  Toolbar: [New][Open][Save] | [🔌][⏏][🔄] |     │
+    │        │    [SQL][▶ Execute][■ Cancel][Clear] | [NS:USER] │
+    │  Tree  ├─────────────────────────────────────────────────┤
+    │  Nav   │  Tab Bar: [Script-1 ✕]                          │
+    │        ├─────────────────────────────────────────────────┤
+    │  +     │                                                 │
+    │  Search│         SQL Editor (dark, line numbers)          │
+    │  bar   │                                                 │
+    │        ├─────────────────────────────────────────────────┤
+    │        │  [Result 1 ✕] [🔄][💾][✕] | [Grid]               │
+    │        ├─────────────────────────────────────────────────┤
+    │        │         Results Table (zebra striped)             │
+    ├────────┴─────────────────────────────────────────────────┤
+    │  Status Bar: ● Connected | NS:USER | 37 rows | CET      │
+    └────────────────────────────────────────────────────────┘
 """
 
 from __future__ import annotations
 
 import tkinter as tk
-from tkinter import BOTH, LEFT, TOP, X, YES, Frame, Menu, messagebox, ttk
+from tkinter import BOTH, TOP, X, YES, Frame, Menu, messagebox, ttk
 
 from prism import __version__
 from prism.gui import theme
 from prism.gui.controllers.sql_controller import QueryResult, SQLController
 from prism.gui.widgets.database_tree import DatabaseTree
 from prism.gui.widgets.results_table import ResultsTable
-from prism.gui.widgets.sql_editor import SQLEditor
+from prism.gui.widgets.sql_editor import EditorTabBar, SQLEditor
 from prism.gui.widgets.status_bar import StatusBar
+from prism.gui.widgets.toolbar import Toolbar
 from prism.iris.sdk.http import base_url
-from prism.settings import settings
 
 
 class PrismGUI:
@@ -57,8 +62,8 @@ class PrismGUI:
     def _setup_window(self) -> None:
         """Configure the main window."""
         self._root.title(f"Prism {__version__} — SQL Editor")
-        self._root.geometry("1200x750")
-        self._root.minsize(800, 500)
+        self._root.geometry("1280x800")
+        self._root.minsize(900, 550)
         self._root.configure(bg=theme.BG)
         self._set_window_icon()
 
@@ -66,8 +71,6 @@ class PrismGUI:
         """Set the Prism logo as the window icon."""
         from pathlib import Path
 
-        # Try logo.ico (Windows) and logo PNG (Linux/macOS)
-        # Look in the package directory and common locations
         candidates = [
             Path(__file__).parent.parent.parent / "logo.ico",
             Path(__file__).parent.parent.parent / "docs" / "assets" / "logo-256.png",
@@ -81,10 +84,8 @@ class PrismGUI:
                 if icon_path.suffix == ".ico":
                     self._root.iconbitmap(str(icon_path))
                 else:
-                    # Convert PNG to PhotoImage for icon
                     icon_img = tk.PhotoImage(file=str(icon_path))
                     self._root.iconphoto(True, icon_img)
-                    # Keep a reference to prevent GC
                     self._icon_image = icon_img
                 break
             except (tk.TclError, FileNotFoundError):
@@ -183,85 +184,34 @@ class PrismGUI:
         self._db_tree.set_insert_callback(self._insert_table_name)
         self._paned.add(self._db_tree, weight=0)
 
-        # ── Right: Toolbar + Editor + Results ────────────────────────
+        # ── Right: Toolbar + Tab bar + Editor + Results ───────────────
         right_frame = Frame(self._paned, background=theme.BG)
         self._paned.add(right_frame, weight=1)
 
         # Toolbar
-        toolbar = Frame(right_frame, background=theme.HEADER_BG, height=36)
-        toolbar.pack(fill=X, side=TOP)
-        toolbar.pack_propagate(False)
+        self._toolbar = Toolbar(right_frame)
+        self._toolbar.pack(fill=X, side=TOP)
+        self._toolbar.set_callbacks(
+            on_new=self._new_query,
+            on_open=self._open_file,
+            on_save=self._save_file,
+            on_connect=self._check_connection,
+            on_refresh=self._refresh_tree,
+            on_new_sql=self._new_query,
+            on_execute=self._execute_query,
+            on_cancel=self._cancel_query,
+            on_clear=self._clear_results,
+        )
 
         # Separator below toolbar
-        Frame(right_frame, background=theme.BORDER, height=1).pack(fill=X, side=TOP)
+        Frame(right_frame, background=theme.BORDER_DIM, height=1).pack(fill=X, side=TOP)
 
-        # Execute button
-        self._btn_execute = ttk.Button(
-            toolbar,
-            text="▶ Execute",
-            style="Accent.TButton",
-            command=self._execute_query,
-        )
-        self._btn_execute.pack(side=LEFT, padx=(8, 4), pady=4)
+        # ── Editor tab bar ────────────────────────────────────────────
+        self._editor_tab_bar = EditorTabBar(right_frame)
+        self._editor_tab_bar.pack(fill=X, side=TOP)
 
-        # Cancel button
-        self._btn_cancel = ttk.Button(
-            toolbar,
-            text="■ Cancel",
-            state="disabled",
-            command=self._cancel_query,
-        )
-        self._btn_cancel.pack(side=LEFT, padx=4, pady=4)
-
-        # Clear button
-        self._btn_clear = ttk.Button(
-            toolbar,
-            text="Clear",
-            command=self._clear_results,
-        )
-        self._btn_clear.pack(side=LEFT, padx=4, pady=4)
-
-        # Spacer
-        spacer = Frame(toolbar, background=theme.HEADER_BG)
-        spacer.pack(side=LEFT, fill=X, expand=YES)
-
-        # Namespace selector
-        tk.Label(
-            toolbar,
-            text="Namespace:",
-            background=theme.HEADER_BG,
-            foreground=theme.FG,
-            font=theme.ui_font_sm(),
-        ).pack(side=LEFT, padx=(4, 2), pady=4)
-        self._ns_var = tk.StringVar(value=settings.iris_namespace or "USER")
-        self._ns_entry = ttk.Entry(toolbar, textvariable=self._ns_var, width=12)
-        self._ns_entry.pack(side=LEFT, padx=(0, 8), pady=4)
-
-        # ── Tab bar above editor ───────────────────────────────────────
-        tab_bar = Frame(right_frame, background=theme.TAB_BAR_BG, height=26)
-        tab_bar.pack(fill=X, side=TOP)
-        tab_bar.pack_propagate(False)
-
-        # Active tab
-        tab_frame = Frame(tab_bar, background=theme.BG, height=26)
-        tab_frame.pack(side=LEFT, padx=(4, 0), pady=0)
-        tk.Label(
-            tab_frame,
-            text=" Query 1 ",
-            background=theme.BG,
-            foreground=theme.FG,
-            font=theme.ui_font_sm(),
-            padx=8,
-        ).pack(side=LEFT, padx=0)
-        # Close button on tab
-        tk.Label(
-            tab_frame,
-            text="✕",
-            background=theme.BG,
-            foreground=theme.FG_DIM,
-            font=theme.ui_font_sm(),
-            padx=4,
-        ).pack(side=LEFT, padx=(0, 2))
+        # Separator below tab bar
+        Frame(right_frame, background=theme.BORDER_DIM, height=1).pack(fill=X, side=TOP)
 
         # ── Vertical paned: Editor (top) | Results (bottom) ──────────
         vpaned = ttk.Panedwindow(right_frame, orient="vertical")
@@ -303,8 +253,13 @@ class PrismGUI:
         except Exception:
             connected = False
 
-        ns = self._ns_var.get() or "USER" if connected else None
+        ns_var = self._toolbar.namespace_var
+        ns = (ns_var.get() if ns_var else "USER") or "USER" if connected else None
         self._status_bar.set_connected(connected, namespace=ns)
+
+    def _refresh_tree(self) -> None:
+        """Refresh the database tree."""
+        self._db_tree.load_async()
 
     # ── Query Execution ──────────────────────────────────────────────
 
@@ -315,13 +270,12 @@ class PrismGUI:
             self._status_bar.set_status("Error: query is empty", is_error=True)
             return
 
-        # Disable execute, enable cancel
-        self._btn_execute.config(state="disabled")
-        self._btn_cancel.config(state="normal")
+        self._toolbar.set_running(True)
         self._status_bar.set_running(True)
         self._results.show_message("Executing query...")
 
-        namespace = self._ns_var.get().strip() or None
+        ns_var = self._toolbar.namespace_var
+        namespace = (ns_var.get().strip() if ns_var else "USER") or None
         self._controller.execute(
             query,
             namespace=namespace,
@@ -338,8 +292,7 @@ class PrismGUI:
 
     def _on_query_done(self, result: QueryResult) -> None:
         """Handle query completion (called on Tk main thread)."""
-        self._btn_execute.config(state="normal")
-        self._btn_cancel.config(state="disabled")
+        self._toolbar.set_running(False)
         self._status_bar.set_running(False)
 
         if result.is_error:
@@ -362,6 +315,7 @@ class PrismGUI:
         """Clear the editor for a new query."""
         self._editor.clear()
         self._results.clear()
+        self._editor_tab_bar.add_tab(f"Script-{len(self._editor_tab_bar._tabs) + 1}")
         self._editor.set_focus()
 
     def _clear_results(self) -> None:

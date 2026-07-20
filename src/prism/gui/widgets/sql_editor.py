@@ -1,12 +1,33 @@
-"""SQL editor widget — ``tk.Text`` with real-time syntax highlighting.
+"""SQL editor widget — ``tk.Text`` with syntax highlighting, line numbers, and tab bar.
 
-Syntax highlighting uses regex patterns applied on ``<KeyRelease>``.
-Tags are configured once at init; colouring is re-applied to the
-visible range after each keystroke for responsiveness.
+Features:
+- Tab bar above editor with script names + close buttons
+- Line number gutter
+- Real-time syntax highlighting via regex
+- Right-click context menu
+- Ctrl+Enter to execute query
+
+Tab bar is managed by this widget so the editor owns its own tabs
+(like DBeaver's script tabs).
 """
 
-from tkinter import BOTH, END, INSERT, SEL_FIRST, SEL_LAST, TclError, WORD, YES
-from tkinter import Frame, Text, Scrollbar, Menu, Canvas
+from tkinter import (
+    BOTH,
+    END,
+    INSERT,
+    LEFT,
+    SEL_FIRST,
+    SEL_LAST,
+    TclError,
+    WORD,
+    YES,
+    Canvas,
+    Frame,
+    Menu,
+    Scrollbar,
+    Text,
+)
+import tkinter as tk
 import re
 
 from prism.gui import theme
@@ -118,8 +139,6 @@ SQL_FUNCTIONS = [
 ]
 
 # ── Regex patterns ───────────────────────────────────────────────────
-
-# Keywords: word-boundary, case-insensitive, exact match against list
 _KEYWORD_RE = re.compile(
     r"\b(" + "|".join(re.escape(k) for k in SQL_KEYWORDS) + r")\b",
     re.IGNORECASE,
@@ -132,7 +151,6 @@ _STRING_RE = re.compile(r"'(?:[^']|'')*'")
 _NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?\b")
 _COMMENT_RE = re.compile(r"--[^\n]*")
 
-# Token → tag name mapping
 _TAG_CONFIG = {
     "keyword": {"foreground": theme.SYNTAX_KEYWORD},
     "function": {"foreground": theme.SYNTAX_FUNC},
@@ -140,6 +158,79 @@ _TAG_CONFIG = {
     "number": {"foreground": theme.SYNTAX_NUMBER},
     "comment": {"foreground": theme.SYNTAX_COMMENT},
 }
+
+
+class EditorTabBar(Frame):
+    """Tab bar above the SQL editor showing script names."""
+
+    def __init__(self, parent, **kwargs):
+        super().__init__(parent, background=theme.TAB_BAR_BG, height=28, **kwargs)
+        self.pack_propagate(False)
+        self._tabs: list[dict] = []
+        self._active_tab = 0
+        self._setup_widgets()
+
+    def _setup_widgets(self) -> None:
+        """Create initial tab."""
+        self.add_tab("Script-1")
+
+    def add_tab(self, name: str, modified: bool = False) -> int:
+        """Add a new tab. Returns the tab index."""
+        tab_frame = Frame(self, background=theme.BG, height=28)
+        tab_frame.pack(side=LEFT, padx=(1, 0))
+
+        prefix = "*" if modified else ""
+        label_text = f" {prefix}{name} "
+        label = tk.Label(
+            tab_frame,
+            text=label_text,
+            background=theme.BG,
+            foreground=theme.FG_HEADER,
+            font=theme.ui_font_sm(),
+            padx=6,
+        )
+        label.pack(side=LEFT)
+
+        close_label = tk.Label(
+            tab_frame,
+            text="✕",
+            background=theme.BG,
+            foreground=theme.FG_DIM,
+            font=theme.ui_font_sm(),
+            padx=4,
+        )
+        close_label.pack(side=LEFT, padx=(0, 2))
+
+        tab_info = {
+            "frame": tab_frame,
+            "label": label,
+            "close": close_label,
+            "name": name,
+            "modified": modified,
+        }
+        self._tabs.append(tab_info)
+
+        # Bind close
+        close_label.bind(
+            "<Button-1>", lambda e, idx=len(self._tabs) - 1: self.close_tab(idx)
+        )
+        return len(self._tabs) - 1
+
+    def close_tab(self, idx: int) -> None:
+        """Close a tab by index."""
+        if idx < 0 or idx >= len(self._tabs):
+            return
+        tab = self._tabs.pop(idx)
+        tab["frame"].destroy()
+
+    def set_modified(self, idx: int, modified: bool) -> None:
+        """Update tab modified indicator."""
+        if idx < 0 or idx >= len(self._tabs):
+            return
+        tab = self._tabs[idx]
+        tab["modified"] = modified
+        prefix = "*" if modified else ""
+        tab["label"].config(text=f" {prefix}{tab['name']} ")
 
 
 class SQLEditor(Frame):
@@ -162,12 +253,15 @@ class SQLEditor(Frame):
         # Line number gutter (canvas on the left)
         self._gutter = Canvas(
             self,
-            width=44,
+            width=40,
             background=theme.PANEL_BG,
             highlightthickness=0,
             borderwidth=0,
         )
         self._gutter.pack(side="left", fill="y")
+
+        # Separator between gutter and editor
+        Frame(self, background=theme.BORDER_DIM, width=1).pack(side="left", fill="y")
 
         # Text widget
         self._text = Text(
@@ -176,7 +270,7 @@ class SQLEditor(Frame):
             foreground=theme.SYNTAX_DEFAULT,
             insertbackground=theme.FG,
             selectbackground=theme.SELECTED_BG,
-            selectforeground=theme.FG_HEADER,
+            selectforeground=theme.SELECTED_FG,
             font=theme.editor_font(),
             undo=True,
             wrap=WORD,
@@ -207,14 +301,12 @@ class SQLEditor(Frame):
         """Redraw line numbers in the gutter canvas."""
         self._gutter.delete("all")
         try:
-            # Get the first visible line
             first_line = int(self._text.index("@0,0").split(".")[0])
             last_line = int(self._text.index("@0,999999").split(".")[0])
         except Exception:
             return
 
         font_obj = theme.editor_font()
-        # Get line height from the text widget
         try:
             line_bbox = self._text.bbox("1.0")
             if line_bbox:
@@ -224,11 +316,11 @@ class SQLEditor(Frame):
         except Exception:
             line_height = 18
 
-        gutter_width = self._gutter.winfo_width() or 44
+        gutter_width = self._gutter.winfo_width() or 40
         for line_num in range(first_line, last_line + 1):
             y = (line_num - first_line) * line_height
             self._gutter.create_text(
-                gutter_width - 8,
+                gutter_width - 6,
                 y + 3,
                 anchor="ne",
                 text=str(line_num),
@@ -240,9 +332,8 @@ class SQLEditor(Frame):
         """Configure text tags for syntax highlighting."""
         for tag, config in _TAG_CONFIG.items():
             self._text.tag_config(tag, **config)
-        # Make sure default text has the right colour
         self._text.tag_config(
-            "sel", background=theme.SELECTED_BG, foreground=theme.FG_HEADER
+            "sel", background=theme.SELECTED_BG, foreground=theme.SELECTED_FG
         )
 
     def _setup_events(self) -> None:
@@ -250,7 +341,6 @@ class SQLEditor(Frame):
         self._text.bind("<KeyRelease>", self._on_key_release)
         self._text.bind("<Control-Return>", self._on_ctrl_enter)
         self._text.bind("<Control-a>", self._on_select_all)
-        # Right-click context menu
         self._text.bind("<Button-3>", self._on_right_click)
 
     # ── Public API ───────────────────────────────────────────────────
@@ -307,7 +397,6 @@ class SQLEditor(Frame):
     def _on_key_release(self, event=None) -> None:
         """Re-highlight visible text after each keystroke."""
         self._redraw_gutter()
-        # Skip non-text-editing keys
         if event and event.keysym in (
             "Up",
             "Down",
@@ -329,14 +418,11 @@ class SQLEditor(Frame):
 
     def _highlight_visible(self) -> None:
         """Highlight only the currently visible text range."""
-        # Get visible range
         index_y = self._text.yview()
         if index_y[0] == 0.0 and index_y[1] == 0.0:
-            # Editor not yet rendered
             return
 
         first_line = int(self._text.index("@0,0 linestart").split(".")[0])
-        # Estimate last visible line from yview fraction
         total_lines = int(self._text.index("end-1c").split(".")[0])
         last_line = min(
             first_line + (total_lines - first_line) + 2
@@ -353,7 +439,6 @@ class SQLEditor(Frame):
 
     def _highlight_range(self, start: str, end: str) -> None:
         """Apply syntax highlighting to a range of text."""
-        # Remove existing tags in range
         for tag in _TAG_CONFIG:
             self._text.tag_remove(tag, start, end)
 
@@ -361,12 +446,10 @@ class SQLEditor(Frame):
         if not text:
             return
 
-        # Map absolute offset → Tk index for tag application
         base_line = int(start.split(".")[0])
         base_col = int(start.split(".")[1])
 
         def offset_to_index(offset: int) -> str:
-            """Convert char offset within *text* to a Tk index."""
             prefix = text[:offset]
             lines = prefix.count("\n")
             if lines == 0:
@@ -403,13 +486,11 @@ class SQLEditor(Frame):
         cb = getattr(self, "_execute_cb", None)
         if cb:
             cb()
-        return "break"  # prevent default newline insertion
+        return "break"
 
     def _on_select_all(self, event=None):
         """Ctrl+A: select all text."""
-        self._text.tag_add(SEL_FIRST, "1.0", "end-1c") if False else self._text.tag_add(
-            "sel", "1.0", "end-1c"
-        )
+        self._text.tag_add("sel", "1.0", "end-1c")
         return "break"
 
     def _on_right_click(self, event=None):
