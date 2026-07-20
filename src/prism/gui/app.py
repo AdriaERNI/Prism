@@ -372,10 +372,9 @@ class PrismGUI:
     def _on_results_status(self, action: str) -> None:
         """Handle status callbacks from the results table."""
         if action == "refresh":
-            # Re-run the last executed query
-            if hasattr(self, "_last_query") and self._last_query:
-                self._editor.set_text(self._last_query)
-                self._execute_query()
+            # N4: Re-execute whatever is currently in the editor,
+            # NOT the last query — don't overwrite unsaved edits
+            self._execute_query()
 
     def _new_query(self) -> None:
         """Clear the editor for a new query."""
@@ -468,5 +467,12 @@ def launch(initial_query: str | None = None) -> None:
     """
     root = tk.Tk()
     theme.apply_theme(root)
-    PrismGUI(root, initial_query=initial_query)
+    app = PrismGUI(root, initial_query=initial_query)
+
+    # I7: Clean shutdown — stop polling before destroying window
+    def _on_close() -> None:
+        app._controller.stop_polling()
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", _on_close)
     root.mainloop()

@@ -235,10 +235,6 @@ class ResultsTable(Frame):
         # Auto-size columns based on content width
         self._auto_size_columns()
 
-        # Try to detect source table from result.raw (if the query was a
-        # simple SELECT). We look at the query text stored in the controller.
-        self._detect_source_table()
-
         elapsed_ms = int(result.elapsed * 1000)
         self._status.config(
             text=f"{result.row_count} row(s) fetched  |  {elapsed_ms} ms",
@@ -417,8 +413,9 @@ class ResultsTable(Frame):
     def _on_save(self) -> None:
         """Generate and execute UPDATE statements for all modified cells.
 
-        UPDATEs are executed off the UI thread via the SQL controller so
-        the interface stays responsive.
+        All UPDATEs are batched into a single background thread via
+        ``execute_updates`` so the UI stays responsive and multi-row
+        saves work correctly.
         """
         if not self._modified_cells:
             self._status.config(text="No changes to save", foreground=theme.FG_STATUS)
@@ -473,12 +470,10 @@ class ResultsTable(Frame):
             )
             return
 
-        updates_made = 0
-        total_updates = sum(len(c) for c in self._modified_cells.values())
-        completed = 0
+        # Build all UPDATE statements + their context (item, changes)
+        statements: list[tuple[str, tuple[str, dict[str, str]]]] = []
 
-        # Build and execute each UPDATE asynchronously
-        for item, changes in list(self._modified_cells.items()):
+        for item, changes in self._modified_cells.items():
             if not changes:
                 continue
 
@@ -509,31 +504,30 @@ class ResultsTable(Frame):
 
             sql = f"UPDATE {self._source_table} SET {set_clause} WHERE {where_clause}"
 
-            # Execute asynchronously via the controller
+            # Context carries the item ID and changes for the callback
+            context = (item, dict(changes))
+            statements.append((sql, context))
+
+        if not statements:
+            return
+
+        total = len(statements)
+        self._status.config(
+            text=f"Saving {total} update(s)...",
+            foreground=theme.FG_WARNING if hasattr(theme, "FG_WARNING") else "#ebcb8b",
+        )
+
+        # N1: Execute all UPDATEs in a single batch (one background thread)
+        queued = self._controller.execute_updates(
+            statements,
+            on_done=self._on_all_updates_done,
+        )
+
+        if not queued:
             self._status.config(
-                text=f"Saving {completed + 1}/{total_updates}...",
-                foreground=theme.FG_WARNING
-                if hasattr(theme, "FG_WARNING")
-                else "#ebcb8b",
+                text="Controller busy — wait for current operation",
+                foreground=theme.FG_ERROR,
             )
-
-            result = self._controller.execute_update(
-                sql,
-                on_done=lambda r, item=item, changes=changes: self._on_update_done(
-                    r, item, changes
-                ),
-            )
-
-            if not result:
-                # Controller is busy
-                self._status.config(
-                    text="Controller busy — wait for current operation",
-                    foreground=theme.FG_ERROR,
-                )
-                return
-
-            updates_made += len(changes)
-            completed += 1
 
     @staticmethod
     def _escape_sql_value(value) -> str:
@@ -556,45 +550,80 @@ class ResultsTable(Frame):
         escaped = s.replace("'", "''")
         return f"'{escaped}'"
 
-    def _on_update_done(
-        self,
-        result: QueryResult,
-        item: str,
-        changes: dict[str, str],
-    ) -> None:
-        """Handle completion of an UPDATE statement (Tk main thread)."""
-        if result.is_error:
+    def _on_all_updates_done(self, result: QueryResult) -> None:
+        """Handle completion of all UPDATE statements (Tk main thread).
+
+        N3: Defensive against stale tree items — if the user ran a new
+        query or cleared results between Save and callback, we gracefully
+        skip the UI update instead of crashing.
+        """
+        if not result.raw or "results" not in result.raw:
+            # Fallback for single-statement results
+            if result.is_error:
+                self._status.config(
+                    text=f"Error: {result.error}",
+                    foreground=theme.FG_ERROR,
+                )
+            else:
+                self._status.config(
+                    text=f"✓ Changes committed to {self._source_table}",
+                    foreground=theme.FG_STATUS,
+                )
+            return
+
+        results_list = result.raw.get("results", [])
+        total = len(results_list)
+
+        # Process each statement result — update local cache + remove modified tags
+        committed = 0
+        for stmt_result in results_list:
+            context = stmt_result.get("context")
+            if context is None:
+                continue
+
+            item, changes = context
+
+            if "error" in stmt_result:
+                # This particular UPDATE failed — leave the cell marked as modified
+                continue
+
+            committed += 1
+
+            # N3: Wrap in try/except — tree may have been cleared
+            try:
+                col_idx = self._tree.index(item)
+                for col_name, new_val in changes.items():
+                    cidx = self._columns.index(col_name)
+                    self._rows[col_idx][cidx] = new_val
+
+                # Remove modification state for this item
+                if item in self._modified_cells:
+                    del self._modified_cells[item]
+
+                # Remove modified tag
+                tags = list(self._tree.item(item, "tags"))
+                if "modified" in tags:
+                    tags.remove("modified")
+                    self._tree.item(item, tags=tags)
+            except Exception:
+                # Tree was cleared or item no longer exists — skip UI update
+                pass
+
+        # Update status line
+        if result.is_error and committed == 0:
             self._status.config(
                 text=f"Error: {result.error}",
                 foreground=theme.FG_ERROR,
             )
-            return
-
-        # Update local data cache for this row
-        col_idx = self._tree.index(item)
-        for col_name, new_val in changes.items():
-            cidx = self._columns.index(col_name)
-            self._rows[col_idx][cidx] = new_val
-
-        # Remove modification state for this item
-        if item in self._modified_cells:
-            del self._modified_cells[item]
-
-        # Remove modified tag
-        tags = list(self._tree.item(item, "tags"))
-        if "modified" in tags:
-            tags.remove("modified")
-            self._tree.item(item, tags=tags)
-
-        if not self._modified_cells:
+        elif committed == total:
             self._status.config(
-                text=f"✓ Changes committed to {self._source_table}",
+                text=f"✓ {committed} cell(s) committed to {self._source_table}",
                 foreground=theme.FG_STATUS,
             )
         else:
-            remaining = sum(len(v) for v in self._modified_cells.values())
+            failed = total - committed
             self._status.config(
-                text=f"⚠ {remaining} cell(s) still pending...",
+                text=f"⚠ {committed} saved, {failed} failed — {self._source_table}",
                 foreground=theme.FG_WARNING
                 if hasattr(theme, "FG_WARNING")
                 else "#ebcb8b",
@@ -675,20 +704,6 @@ class ResultsTable(Frame):
             if col == column:
                 text = f"{col} {'▼' if self._sort_reverse else '▲'}"
             self._tree.heading(col, text=text, command=lambda c=col: self._sort_by(c))
-
-    # ── Source table detection ──────────────────────────────────────
-
-    def _detect_source_table(self) -> None:
-        """Try to detect the source table from the SQL controller's last query.
-
-        Looks for SELECT ... FROM schema.table patterns.
-        """
-        if not self._controller:
-            return
-
-        # The controller doesn't store the last query, so we can't auto-detect.
-        # The app.py should call set_source_table() explicitly.
-        pass
 
     # ── Helpers ──────────────────────────────────────────────────────
 

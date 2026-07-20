@@ -418,9 +418,9 @@ def test_7_edit_cell_save(app, root):
     assert app._results._source_table is not None, "Source table not detected"
     print(f"  Source table: {app._results._source_table}")
 
-    # Save changes (execute UPDATE)
+    # Save changes (execute UPDATE — async via controller, pump longer)
     app._results._on_save()
-    pump(root, 2)
+    pump(root, 5)
 
     # Verify in DB
     cols, db_rows = execute_sql_direct(

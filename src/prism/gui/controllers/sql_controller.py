@@ -171,11 +171,30 @@ class SQLController:
         sql: str,
         on_done: Callable[[QueryResult], None] | None = None,
     ) -> bool:
-        """Execute an UPDATE/INSERT/DELETE off the UI thread.
+        """Execute a single UPDATE/INSERT/DELETE off the UI thread.
 
         Returns True if the update was queued, False if the controller
         is busy. The ``on_done`` callback receives a QueryResult with
         ``error`` set on failure.
+        """
+        return self.execute_updates([(sql, None)], on_done)
+
+    def execute_updates(
+        self,
+        statements: list[tuple[str, Any]],
+        on_done: Callable[[QueryResult], None] | None = None,
+    ) -> bool:
+        """Execute multiple UPDATE statements in a single background thread.
+
+        Args:
+            statements: List of (sql, context) pairs. The context is
+                        opaque user data passed back in the callback
+                        result's ``raw`` field as a list.
+            on_done: Callback receiving a single QueryResult. If any
+                     statement fails, ``error`` is set and remaining
+                     statements are still attempted.
+
+        Returns True if queued, False if the controller is busy.
         """
         if self._running:
             return False
@@ -184,8 +203,8 @@ class SQLController:
         self._cancel_requested = False
         self._pending_callback = on_done
         self._thread = threading.Thread(
-            target=self._run_update,
-            args=(sql,),
+            target=self._run_updates,
+            args=(statements,),
             daemon=True,
         )
         self._thread.start()
@@ -202,45 +221,80 @@ class SQLController:
         try:
             url = base_url()
             r = httpx.get(f"{url}/csp/sys/UtilHome.csp", timeout=3.0)
+            # 401 is OK — it means IRIS is running but requires auth
             connected = r.status_code in (200, 302, 401)
         except Exception:
             connected = False
 
         on_done(connected)
 
-    def _run_update(self, sql: str) -> None:
-        """Execute an UPDATE statement in a background thread."""
+    def _run_updates(self, statements: list[tuple[str, Any]]) -> None:
+        """Execute multiple UPDATE statements sequentially in one thread."""
         import httpx
 
         from prism.iris.sdk.http import api_url, parse_json
         from prism.settings import settings
 
         result = QueryResult()
+        results: list[dict] = []
+        any_error = False
+        first_error = None
+        success_count = 0
 
         try:
             url = f"{api_url(None)}/action/query"
-            r = httpx.post(
-                url,
-                json={"query": sql},
-                auth=httpx.BasicAuth(settings.iris_username, settings.iris_password),
-                timeout=15.0,
-            )
-            r.raise_for_status()
-            raw = parse_json(r)
+            auth_obj = httpx.BasicAuth(settings.iris_username, settings.iris_password)
 
-            status = raw.get("status", {})
-            errors = status.get("errors", [])
-            if errors:
-                result.error = errors[0].get("error", "Unknown IRIS error")
-                result.error = html.unescape(result.error)
+            for sql_stmt, context in statements:
+                # Check for cancellation between statements
+                if self._cancel_requested:
+                    break
+
+                stmt_result: dict = {"sql": sql_stmt, "context": context}
+                try:
+                    r = httpx.post(
+                        url,
+                        json={"query": sql_stmt},
+                        auth=auth_obj,
+                        timeout=15.0,
+                    )
+                    r.raise_for_status()
+                    raw = parse_json(r)
+
+                    status = raw.get("status", {})
+                    errors = status.get("errors", [])
+                    if errors:
+                        msg = errors[0].get("error", "Unknown IRIS error")
+                        msg = html.unescape(msg)
+                        stmt_result["error"] = msg
+                        any_error = True
+                        if first_error is None:
+                            first_error = msg
+                    else:
+                        success_count += 1
+                except Exception as exc:
+                    stmt_result["error"] = str(exc)
+                    any_error = True
+                    if first_error is None:
+                        first_error = str(exc)
+
+                results.append(stmt_result)
+
         except Exception as exc:
-            result.error = str(exc)
+            any_error = True
+            if first_error is None:
+                first_error = str(exc)
 
-        # Check if cancelled while running — discard result if so
+        # Build aggregate result
+        result.raw = {"results": results, "success_count": success_count}
+        if any_error:
+            result.error = first_error
+
+        # N2: Always invoke callback — even on cancel — so UI is restored
         if self._cancel_requested:
-            self._running = False
-            self._pending_callback = None
-            return
+            # Still put result in queue so _poll() picks it up and
+            # calls the callback to restore toolbar/status bar
+            pass
 
         self._queue.put(result)
 
@@ -288,12 +342,9 @@ class SQLController:
                 pass
             loop.close()
 
-        # Put result in the queue — poll() will pick it up on the main thread
-        if self._cancel_requested:
-            self._running = False
-            self._pending_callback = None
-            return
-
+        # N2: Always put result in queue — even on cancel — so _poll()
+        # picks it up and calls the callback to restore toolbar/status bar.
+        # The cancelled result is still valid (just might be partial).
         self._queue.put(result)
 
     @staticmethod
