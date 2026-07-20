@@ -249,6 +249,10 @@ class ResultsTable(Frame):
         """Manually set the source table for UPDATE generation."""
         self._source_table = f"{schema}.{table}" if schema else table
 
+    def clear_source_table(self) -> None:
+        """Clear the source table so Save is disabled."""
+        self._source_table = None
+
     def clear(self) -> None:
         """Remove all rows and columns, reset editing state."""
         self._cancel_edit()
@@ -411,7 +415,11 @@ class ResultsTable(Frame):
     # ── Save (Commit) ────────────────────────────────────────────────
 
     def _on_save(self) -> None:
-        """Generate and execute UPDATE statements for all modified cells."""
+        """Generate and execute UPDATE statements for all modified cells.
+
+        UPDATEs are executed off the UI thread via the SQL controller so
+        the interface stays responsive.
+        """
         if not self._modified_cells:
             self._status.config(text="No changes to save", foreground=theme.FG_STATUS)
             return
@@ -430,114 +438,167 @@ class ResultsTable(Frame):
             )
             return
 
-        # Build UPDATE statements
-        # We need a primary key column to target the right row.
-        # Strategy: use the first column as the key (common for IRIS tables
-        # which typically have an ID column first).
         if not self._columns:
+            return
+
+        # C3: Whitelist identifiers to prevent SQL injection
+        import re
+
+        def _is_safe_identifier(name: str) -> bool:
+            """Only allow alphanumeric + underscore identifiers."""
+            return bool(re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name))
+
+        # Validate source table (schema.table)
+        if "." in self._source_table:
+            schema_part, table_part = self._source_table.split(".", 1)
+        else:
+            schema_part, table_part = "", self._source_table
+
+        if not _is_safe_identifier(table_part) or (
+            schema_part and not _is_safe_identifier(schema_part)
+        ):
+            self._status.config(
+                text=f"Cannot commit: invalid table name '{self._source_table}'",
+                foreground=theme.FG_ERROR,
+            )
             return
 
         pk_col = self._columns[0]  # assume first column is the primary key
 
-        updates_made = 0
-        updates_failed = 0
+        # Validate PK column name
+        if not _is_safe_identifier(pk_col):
+            self._status.config(
+                text=f"Cannot commit: invalid column name '{pk_col}'",
+                foreground=theme.FG_ERROR,
+            )
+            return
 
-        for item, changes in self._modified_cells.items():
+        updates_made = 0
+        total_updates = sum(len(c) for c in self._modified_cells.values())
+        completed = 0
+
+        # Build and execute each UPDATE asynchronously
+        for item, changes in list(self._modified_cells.items()):
             if not changes:
                 continue
+
+            # Validate each column name
+            for col_name in changes:
+                if not _is_safe_identifier(col_name):
+                    self._status.config(
+                        text=f"Cannot commit: invalid column name '{col_name}'",
+                        foreground=theme.FG_ERROR,
+                    )
+                    return
 
             # Get the PK original value for this row
             col_idx = self._tree.index(item)
             original_pk = self._format_cell(self._rows[col_idx][0])
 
-            # Build SET clause
+            # Build SET clause with escaped values
             set_clauses = []
             for col_name, new_val in changes.items():
-                escaped = new_val.replace("'", "''")
-                set_clauses.append(f"{col_name} = '{escaped}'")
+                escaped = self._escape_sql_value(new_val)
+                set_clauses.append(f"{col_name} = {escaped}")
 
             set_clause = ", ".join(set_clauses)
 
             # WHERE clause using the original PK value
-            pk_escaped = original_pk.replace("'", "''")
-            where_clause = f"{pk_col} = '{pk_escaped}'"
+            pk_escaped = self._escape_sql_value(original_pk)
+            where_clause = f"{pk_col} = {pk_escaped}"
 
             sql = f"UPDATE {self._source_table} SET {set_clause} WHERE {where_clause}"
 
-            # Execute synchronously (blocking — but UPDATEs are fast)
-            result = self._execute_sync(sql)
+            # Execute asynchronously via the controller
+            self._status.config(
+                text=f"Saving {completed + 1}/{total_updates}...",
+                foreground=theme.FG_WARNING
+                if hasattr(theme, "FG_WARNING")
+                else "#ebcb8b",
+            )
 
-            if result and result.is_error:
-                updates_failed += 1
+            result = self._controller.execute_update(
+                sql,
+                on_done=lambda r, item=item, changes=changes: self._on_update_done(
+                    r, item, changes
+                ),
+            )
+
+            if not result:
+                # Controller is busy
                 self._status.config(
-                    text=f"Error: {result.error}",
+                    text="Controller busy — wait for current operation",
                     foreground=theme.FG_ERROR,
                 )
-            else:
-                updates_made += len(changes)
+                return
 
-        # Update local data cache
-        for item, changes in self._modified_cells.items():
-            col_idx = self._tree.index(item)
-            for col_name, new_val in changes.items():
-                cidx = self._columns.index(col_name)
-                self._rows[col_idx][cidx] = new_val
+            updates_made += len(changes)
+            completed += 1
 
-        # Clear modification state
-        self._modified_cells = {}
+    @staticmethod
+    def _escape_sql_value(value) -> str:
+        """Escape a value for safe inclusion in SQL.
 
-        # Remove modified tags
-        for item in self._tree.get_children():
-            tags = list(self._tree.item(item, "tags"))
-            if "modified" in tags:
-                tags.remove("modified")
-                self._tree.item(item, tags=tags)
+        Numbers are returned unquoted; strings are single-quoted with
+        internal single quotes doubled.
+        """
+        if value is None:
+            return "NULL"
+        # Try to interpret as a number
+        s = str(value)
+        try:
+            float(s)
+            # It's a number — return without quotes
+            return s
+        except (ValueError, TypeError):
+            pass
+        # It's a string — escape and quote
+        escaped = s.replace("'", "''")
+        return f"'{escaped}'"
 
-        if updates_failed > 0:
+    def _on_update_done(
+        self,
+        result: QueryResult,
+        item: str,
+        changes: dict[str, str],
+    ) -> None:
+        """Handle completion of an UPDATE statement (Tk main thread)."""
+        if result.is_error:
             self._status.config(
-                text=f"⚠ {updates_made} cells saved, {updates_failed} UPDATE(s) failed",
+                text=f"Error: {result.error}",
                 foreground=theme.FG_ERROR,
             )
-        else:
+            return
+
+        # Update local data cache for this row
+        col_idx = self._tree.index(item)
+        for col_name, new_val in changes.items():
+            cidx = self._columns.index(col_name)
+            self._rows[col_idx][cidx] = new_val
+
+        # Remove modification state for this item
+        if item in self._modified_cells:
+            del self._modified_cells[item]
+
+        # Remove modified tag
+        tags = list(self._tree.item(item, "tags"))
+        if "modified" in tags:
+            tags.remove("modified")
+            self._tree.item(item, tags=tags)
+
+        if not self._modified_cells:
             self._status.config(
-                text=f"✓ {updates_made} cell(s) committed to {self._source_table}",
+                text=f"✓ Changes committed to {self._source_table}",
                 foreground=theme.FG_STATUS,
             )
-
-    def _execute_sync(self, sql: str) -> QueryResult | None:
-        """Execute an UPDATE synchronously (blocking).
-
-        We bypass the async controller and use httpx directly.
-        """
-        import httpx
-        from prism.settings import settings
-        from prism.iris.sdk.http import api_url, parse_json
-
-        result = QueryResult()
-
-        try:
-            url = f"{api_url(None)}/action/query"
-            r = httpx.post(
-                url,
-                json={"query": sql},
-                auth=httpx.BasicAuth(settings.iris_username, settings.iris_password),
-                timeout=15.0,
+        else:
+            remaining = sum(len(v) for v in self._modified_cells.values())
+            self._status.config(
+                text=f"⚠ {remaining} cell(s) still pending...",
+                foreground=theme.FG_WARNING
+                if hasattr(theme, "FG_WARNING")
+                else "#ebcb8b",
             )
-            r.raise_for_status()
-            raw = parse_json(r)
-
-            status = raw.get("status", {})
-            errors = status.get("errors", [])
-            if errors:
-                result.error = errors[0].get("error", "Unknown IRIS error")
-                import html
-
-                result.error = html.unescape(result.error)
-
-        except Exception as exc:
-            result.error = str(exc)
-
-        return result
 
     # ── Cancel / Revert ──────────────────────────────────────────────
 

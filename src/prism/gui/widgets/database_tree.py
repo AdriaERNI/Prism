@@ -328,6 +328,8 @@ class DatabaseTree(Frame):
             return
         except queue.Empty:
             pass
+        # C5: Always reschedule, even on error path — _polling stays True
+        # until the queue delivers a result (empty or error).
         self.after(100, self._start_polling)
 
     def _load_tables(self) -> None:
@@ -341,7 +343,7 @@ class DatabaseTree(Frame):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
-
+                # C5: Ensure _polling is cleared on unexpected errors
                 async def _fetch():
                     ns = settings.iris_namespace or "USER"
                     url = f"{api_url(ns)}/action/query"
@@ -400,6 +402,10 @@ class DatabaseTree(Frame):
             from prism.iris.sdk.http import api_url, auth, parse_json
             from prism.settings import settings
 
+            # C4: Escape single quotes in schema/table to prevent SQL injection
+            safe_schema = schema.replace("'", "''")
+            safe_table = table.replace("'", "''")
+
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             try:
@@ -409,10 +415,10 @@ class DatabaseTree(Frame):
                     url = f"{api_url(ns)}/action/query"
                     payload = {
                         "query": (
-                            f"SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH "
-                            f"FROM INFORMATION_SCHEMA.COLUMNS "
-                            f"WHERE TABLE_SCHEMA = '{schema}' AND TABLE_NAME = '{table}' "
-                            f"ORDER BY ORDINAL_POSITION"
+                            "SELECT COLUMN_NAME, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH "
+                            "FROM INFORMATION_SCHEMA.COLUMNS "
+                            f"WHERE TABLE_SCHEMA = '{safe_schema}' AND TABLE_NAME = '{safe_table}' "
+                            "ORDER BY ORDINAL_POSITION"
                         ),
                     }
                     async with httpx.AsyncClient(
