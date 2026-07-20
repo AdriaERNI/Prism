@@ -68,13 +68,22 @@ class PrismGUI:
         self._set_window_icon()
 
     def _set_window_icon(self) -> None:
-        """Set the Prism logo as the window icon."""
+        """Set the Prism logo as the window icon.
+
+        Looks for logo.ico / logo-256.png relative to the package root
+        (src/prism/gui/app.py → 4 levels up = project root).
+        """
         from pathlib import Path
 
+        # src/prism/gui/app.py → parent ×4 = project root
+        pkg_root = Path(__file__).resolve().parent.parent.parent.parent
+
         candidates = [
-            Path(__file__).parent.parent.parent / "logo.ico",
-            Path(__file__).parent.parent.parent / "docs" / "assets" / "logo-256.png",
-            Path(__file__).parent.parent / "logo.ico",
+            pkg_root / "logo.ico",
+            pkg_root / "docs" / "assets" / "logo-256.png",
+            pkg_root / "logo-256.png",
+            # Fallback: relative to src/ for installed packages
+            Path(__file__).resolve().parent.parent.parent / "logo.ico",
         ]
 
         for icon_path in candidates:
