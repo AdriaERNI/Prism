@@ -561,7 +561,9 @@ class TestResultsEditing:
             app._detect_source_table("SELECT * FROM Ens.AlarmRequest")
             assert app._results._source_table == "Ens.AlarmRequest"
 
-            app._detect_source_table("SELECT TOP 5 TABLE_SCHEMA FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'")
+            app._detect_source_table(
+                "SELECT TOP 5 TABLE_SCHEMA FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'"
+            )
             # INFORMATION_SCHEMA.TABLES IS a schema.table pattern — should be detected
             assert app._results._source_table == "INFORMATION_SCHEMA.TABLES"
 
