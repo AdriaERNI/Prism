@@ -122,7 +122,7 @@ class DatabaseTree(Frame):
             show="tree",
             yscrollcommand=vsb.set,
             selectmode="browse",
-            style="Treeview",
+            style="Sidebar.Treeview",
         )
         self._tree.pack(side="left", fill=BOTH, expand=True)
         vsb.config(command=self._tree.yview)

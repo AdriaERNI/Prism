@@ -124,13 +124,14 @@ class ResultsTable(Frame):
         hsb = Scrollbar(tree_frame, orient="horizontal")
         hsb.pack(side="bottom", fill=X)
 
-        # Treeview — extended mode allows cell selection for editing
+        # Treeview — with grid lines and better styling
         self._tree = ttk.Treeview(
             tree_frame,
             show="headings",
             yscrollcommand=vsb.set,
             xscrollcommand=hsb.set,
             selectmode="browse",
+            style="Treeview",
         )
         self._tree.pack(side=LEFT, fill=BOTH, expand=YES)
         vsb.config(command=self._tree.yview)
@@ -224,12 +225,15 @@ class ResultsTable(Frame):
         self._tree["columns"] = self._columns
         for col in self._columns:
             self._tree.heading(col, text=col, command=lambda c=col: self._sort_by(c))
-            self._tree.column(col, width=120, minwidth=60, stretch=False)
+            self._tree.column(col, width=130, minwidth=60, stretch=False, anchor="w")
 
         for i, row in enumerate(self._rows):
             tag = "even" if i % 2 == 0 else "odd"
             values = [self._format_cell(v) for v in row]
             self._tree.insert("", END, values=values, tags=(tag,))
+
+        # Auto-size columns based on content width
+        self._auto_size_columns()
 
         # Try to detect source table from result.raw (if the query was a
         # simple SELECT). We look at the query text stored in the controller.
@@ -262,6 +266,40 @@ class ResultsTable(Frame):
         self.clear()
         color = theme.FG_ERROR if is_error else theme.FG_STATUS
         self._status.config(text=message, foreground=color)
+
+    def _auto_size_columns(self) -> None:
+        """Auto-size columns based on content width.
+
+        Measures header text and first N rows of data to find the widest
+        cell, then sets the column width to fit (capped at 350px).
+        """
+        import tkinter.font as tkfont
+
+        if not self._columns or not self._rows:
+            return
+
+        try:
+            font_obj = tkfont.nametofont("TkDefaultFont")
+            header_font = tkfont.Font(font=font_obj.actual())
+            header_font.configure(weight="bold")
+        except Exception:
+            return
+
+        sample_rows = self._rows[:50]
+        for idx, col in enumerate(self._columns):
+            header_w = header_font.measure(col) + 24
+
+            max_data_w = 0
+            for row in sample_rows:
+                if idx < len(row):
+                    val = self._format_cell(row[idx])
+                    w = font_obj.measure(str(val)) + 24
+                    if w > max_data_w:
+                        max_data_w = w
+
+            best_w = max(header_w, max_data_w, 60)
+            best_w = min(best_w, 350)
+            self._tree.column(col, width=best_w, minwidth=60, stretch=False, anchor="w")
 
     # ── Cell Editing ─────────────────────────────────────────────────
 
