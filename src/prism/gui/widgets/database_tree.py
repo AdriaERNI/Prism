@@ -539,9 +539,12 @@ class DatabaseTree(Frame):
             # Extract table name from values (schema, table) or from text
             values = item.get("values", [])
             if values and len(values) >= 2:
-                table_name = values[1]
+                schema, table_name = values[0], values[1]
             else:
                 text = item["text"]
                 parts = text.split(" ", 1)
                 table_name = parts[1] if len(parts) > 1 else text
-            self._insert_callback(table_name)
+                schema = ""
+            # Generate SELECT * query and insert into editor
+            qualified = f"{schema}.{table_name}" if schema else table_name
+            self._insert_callback(f"SELECT * FROM {qualified}")

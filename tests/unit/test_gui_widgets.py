@@ -160,6 +160,35 @@ class TestSQLEditor:
         editor.insert_at_cursor("TOP ")
         assert "SELECT TOP 1" in editor.text
 
+    def test_double_click_generates_select_query(self, tk_root):
+        """Double-clicking a table should generate SELECT * FROM schema.table."""
+        from prism.gui.widgets.database_tree import DatabaseTree
+
+        tree = DatabaseTree(tk_root)
+        tree.populate(
+            [
+                {"schema": "Ens", "name": "AlarmRequest", "type": "BASE TABLE"},
+            ]
+        )
+
+        # Set up a callback to capture what gets inserted
+        inserted = []
+        tree.set_insert_callback(lambda text: inserted.append(text))
+
+        # Find the table node and double-click it
+        root = tree._tree.get_children()[0]
+        schemas_folder = tree._tree.get_children(root)[0]
+        schema_node = tree._tree.get_children(schemas_folder)[0]
+        tables_folder = tree._tree.get_children(schema_node)[0]
+        table_node = tree._tree.get_children(tables_folder)[0]
+
+        tree._tree.selection_set(table_node)
+        tree._tree.focus(table_node)
+        tree._on_double_click()
+
+        assert len(inserted) == 1
+        assert inserted[0] == "SELECT * FROM Ens.AlarmRequest"
+
     def test_get_selection_or_all_returns_all_when_no_selection(self, tk_root):
         """When nothing is selected, get_selection_or_all should return full text."""
         from prism.gui.widgets.sql_editor import SQLEditor
