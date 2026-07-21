@@ -79,7 +79,7 @@ the Prism logo icon — drop it anywhere on your `PATH` (or invoke it with a
 full path).
 
 ```
-prism-0.1.3.exe --help
+prism-0.2.1-beta2.exe --help
 ```
 
 ## Uninstall

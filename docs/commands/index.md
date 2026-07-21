@@ -79,12 +79,12 @@ prism <command> --help
 
 Several options appear on multiple commands. They all behave the same way:
 
-| Option | Long / short | Applies to | Meaning |
+| Option | Long / Short | Applies to | Meaning |
 |--------|--------------|-----------|---------|
 | `--format` | — | **Global** (before the subcommand) | Output format: `json` (default) or `toon`. Example: `prism --format toon sql "SELECT 1"`. |
-| `--namespace` | `-n` | `sql`, `terminal`, `ws`, `compile`, `get-doc`, `list-docs`, `put-doc`, `delete-doc`, `test`, `list-tests` | Target IRIS namespace. Defaults to `IRIS_NAMESPACE` from your settings. |
+| `--namespace` | `-n` | `sql`, `terminal`, `ws`, `compile`, `get-doc`, `list-docs`, `put-doc`, `delete-doc`, `test`, `list-tests`, `index` | Target IRIS namespace. Defaults to `IRIS_NAMESPACE` from your settings. |
 | `--timeout` | `-t` | `terminal`, `ws` | Command timeout in seconds. Default `30.0`. |
-| `--port` | `-p` | `serve` | Port for the MCP server. Default `3000`. |
+| `--port` | `-p` | `serve`, `setup` | Port for the MCP server. Default `3000`. |
 | `--flags` | — | `compile` | IRIS compiler flags (default `cuk`, from `IRIS_COMPILE_FLAGS`). |
 
 ## Where outputs go

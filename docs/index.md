@@ -94,10 +94,9 @@ Options:
 
 Commands:
   config      View or edit Prism settings.
-  cast        Manage and run custom command repositories (casts).
   sql         Run an SQL query and print the IRIS response as JSON.
   terminal    Run an ObjectScript command via irisnative (SuperServer).
-  ws          Run an ObjectScript command via the Atelier WebSocket terminal.
+  ws          Run an ObjectScript command or start an interactive terminal.
   compile     Compile documents on IRIS.
   get-doc     Retrieve a document from IRIS and print the response as JSON.
   list-docs   List source documents on the IRIS server.
@@ -110,4 +109,5 @@ Commands:
   serve       Start the Prism MCP server (streamable-http transport).
   setup       Set up Prism MCP server in external AI tools.
   gui         Launch the Prism GUI SQL editor (requires a display).
+  cast        Manage and run custom command repositories (casts).
 ```
