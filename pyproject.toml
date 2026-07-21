@@ -9,7 +9,7 @@ description = "Prism lets AI see through IRIS — MCP server for SQL, documents,
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=2.0",
+    "fastmcp>=3.4.4",
     "httpx>=0.28.1",
     "intersystems-irispython>=5.0",
     "platformdirs>=4.0",
