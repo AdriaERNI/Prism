@@ -104,6 +104,7 @@ nav:
     - prism index: commands/indexing.md
     - prism serve: commands/serve.md
     - prism setup: commands/setup.md
+    - prism gui: commands/gui.md
     - prism cast: commands/cast.md
   - Testing: testing.md
   - MCP Server:

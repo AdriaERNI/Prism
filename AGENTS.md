@@ -17,6 +17,7 @@ License v3.0 (AGPL-3.0). See [LICENSE](LICENSE) for full terms.
 | Run server | `uv run prism serve` |
 | Unit tests | `uv run pytest tests/unit/ -v` |
 | Integration tests | `IRIS_BASE_URL=http://localhost:52773 uv run pytest tests/integration/ -v` |
+| GUI tests | `uv run pytest tests/gui/ -v` (needs a display) |
 | Document slicing tests | `uv run pytest tests/integration/test_document_slicing.py -v` |
 | Debugger extra tests | `uv run pytest tests/integration/test_debugger_extra.py -v` (skips if XDebug unavailable) |
 | Windows tests | `bash vagrant/run-integration-tests.sh` (see [docs/testing.md](docs/testing.md)) |
@@ -26,7 +27,7 @@ License v3.0 (AGPL-3.0). See [LICENSE](LICENSE) for full terms.
 | CLI help | `uv run prism --help` |
 
 Full testing guide: [docs/testing.md](docs/testing.md) — covers unit, integration,
-and Windows Vagrant tests with log reading and troubleshooting.
+GUI, and Windows Vagrant tests with log reading and troubleshooting.
 
 ## CI
 
@@ -73,6 +74,11 @@ src/prism/
 │   ├── _decorator.py   # logged_tool implementation
 │   ├── server.py       # FastMCP server with auto-discovery
 │   └── *.py            # One module per tool domain
+├── gui/                # tkinter SQL editor GUI
+│   ├── app.py          # Main window, menu, layout, shortcuts
+│   ├── theme.py        # Dark colour palette
+│   ├── controllers/    # SQL execution controller (async)
+│   └── widgets/        # DatabaseTree, SQLEditor, ResultsTable, StatusBar, Toolbar
 └── cli/                # Typer commands (sync wrappers around async API)
 ```
 
@@ -82,10 +88,10 @@ Tools are registered conditionally based on settings:
 
 | Category | Count | Condition |
 |----------|-------|-----------|
-| Always-on | 10 | Always registered |
+| Always-on | 11 | Always registered (including `index_code`) |
 | Workspace-gated | 2 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`) |
 | Debug-gated | 9 | `IRIS_DEBUG_ENABLED=true` (`debug_*` tools) |
-| **Maximum** | **21** | Both workspace + debug enabled |
+| **Maximum** | **22** | Both workspace + debug enabled |
 
 ### Settings (21 fields)
 
@@ -171,8 +177,8 @@ async def test_with_iris(live, cleanup):
 **Key fixtures**: `client` (MCP client), `live` (connected client), `workspace`
 (tmp_path), `cleanup` (auto-delete docs), `debug_session` (skip if XDebug unavailable).
 
-**Test counts**: 249 unit tests, 72 integration tests (7 skip on CI due to IRIS
-Community license limits).
+**Test counts**: 586 unit tests, 87 integration tests, 29 GUI tests (7 integration
+tests skip on CI due to IRIS Community license limits).
 
 ## Conventions
 
@@ -188,6 +194,7 @@ Community license limits).
 - [docs/](docs/) — MkDocs Material site with command reference and MCP tool docs
 - [mkdocs.yml](mkdocs.yml) — Theme config (indigo palette, JetBrains Mono, sticky tabs)
 - [docs/mcp/tools.md](docs/mcp/tools.md) — Full MCP tool reference with return shapes
+- [docs/commands/gui.md](docs/commands/gui.md) — GUI SQL editor documentation
 - [docs/getting-started/configuration.md](docs/getting-started/configuration.md) — All 21 environment variables
 - [docs/testing.md](docs/testing.md) — CI section, test layers, troubleshooting
 

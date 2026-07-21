@@ -1,6 +1,6 @@
 # Commands
 
-Prism ships 15 CLI commands. Each one is a thin wrapper around a single
+Prism ships 17 CLI commands. Each one is a thin wrapper around a single
 IRIS operation, so the output is the raw Atelier REST response (as JSON)
 unless otherwise noted.
 
@@ -62,6 +62,12 @@ prism <command> --help
 |---------|---------|
 | [`prism serve`](serve.md) | Start the Prism MCP server on `http://localhost:3000/mcp`. |
 | [`prism setup`](setup.md) | Register Prism MCP in external tools (Claude Code, Codex CLI, OpenCode, Hermes Agent). |
+
+### GUI
+
+| Command | Summary |
+|---------|---------|
+| [`prism gui`](gui.md) | Launch the tkinter SQL editor GUI with database navigator, inline-editable results grid, and multi-tab editing. |
 
 ### Plugins
 
