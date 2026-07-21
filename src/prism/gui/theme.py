@@ -49,6 +49,11 @@ SYNTAX_DEFAULT = "#d3d7cf"  # default text
 # Borders & Separators
 BORDER = "#4c78a8"  # separator lines (blue-gray, same as selection)
 BORDER_DIM = "#3b4252"  # subtle gridlines in tables
+GRID_LINE = "#3b4252"  # cell grid lines in results table (visible but subtle)
+HEADER_BORDER = "#4c78a8"  # header bottom border (blue-gray accent)
+ROW_HEIGHT = 24  # tree + results row height (taller for readability)
+TREE_ROWHEIGHT = 22  # sidebar tree row height
+RESULTS_ROWHEIGHT = 24  # results table row height
 
 # ── Fonts ─────────────────────────────────────────────────────────────
 
@@ -194,22 +199,39 @@ def apply_theme(root: tk.Tk) -> None:
     )
     style.map("TEntry", bordercolor=[("focus", BORDER)])
 
+    # Cell edit entry (in results table)
+    style.configure(
+        "Cell.TEntry",
+        fieldbackground=RESULT_ALT,
+        foreground=FG,
+        borderwidth=2,
+        bordercolor=SELECTED_BG,
+        insertcolor=FG,
+    )
+
     # ── Treeview (results table + database navigator) ─────────────────
+    # Results table style — with grid lines and styled headers
     style.configure(
         "Treeview",
         background=RESULT_BG,
         foreground=FG,
         fieldbackground=RESULT_BG,
-        borderwidth=0,
-        rowheight=22,
+        borderwidth=1,
+        relief="solid",
+        rowheight=RESULTS_ROWHEIGHT,
+        gridlinecolor=GRID_LINE,
+        bordercolor=GRID_LINE,
+        lightcolor=GRID_LINE,
+        darkcolor=GRID_LINE,
     )
     style.configure(
         "Treeview.Heading",
         background=HEADER_BG,
         foreground=FG_HEADER,
         borderwidth=1,
-        bordercolor=BORDER_DIM,
-        relief="flat",
+        bordercolor=HEADER_BORDER,
+        relief="raised",
+        font=(ui_font_sm()[0], ui_font_sm()[1], "bold"),
     )
     style.map(
         "Treeview",
@@ -217,6 +239,28 @@ def apply_theme(root: tk.Tk) -> None:
         foreground=[("selected", SELECTED_FG)],
     )
     style.map("Treeview.Heading", background=[("active", HOVER_BG)])
+
+    # Sidebar tree style — taller rows, no grid lines
+    style.configure(
+        "Sidebar.Treeview",
+        background=PANEL_BG,
+        foreground=FG,
+        fieldbackground=PANEL_BG,
+        borderwidth=0,
+        rowheight=TREE_ROWHEIGHT,
+    )
+    style.configure(
+        "Sidebar.Treeview.Heading",
+        background=HEADER_BG,
+        foreground=FG_HEADER,
+        borderwidth=0,
+        relief="flat",
+    )
+    style.map(
+        "Sidebar.Treeview",
+        background=[("selected", SELECTED_BG)],
+        foreground=[("selected", SELECTED_FG)],
+    )
 
     # ── Scrollbar ─────────────────────────────────────────────────────
     style.configure(
