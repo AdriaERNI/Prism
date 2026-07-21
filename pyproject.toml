@@ -30,7 +30,7 @@ packages = ["src/prism"]
 [dependency-groups]
 dev = [
     "pyautogui>=0.9.54",
-    "pytest>=8.0",
+    "pytest>=9.1.1",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.9",
 ]
