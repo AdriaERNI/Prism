@@ -564,8 +564,12 @@ class TestResultsEditing:
             app._detect_source_table(
                 "SELECT TOP 5 TABLE_SCHEMA FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'"
             )
-            # INFORMATION_SCHEMA.TABLES IS a schema.table pattern — should be detected
-            assert app._results._source_table == "INFORMATION_SCHEMA.TABLES"
+            # INFORMATION_SCHEMA is a system schema — should NOT be set as editable
+            assert app._results._source_table is None
+
+            # System schemas (% prefix) are also excluded
+            app._detect_source_table("SELECT * FROM %SYS.Roles")
+            assert app._results._source_table is None
 
             # No schema.table pattern in this query
             app._detect_source_table("SELECT 1")

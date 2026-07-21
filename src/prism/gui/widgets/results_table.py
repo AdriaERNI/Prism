@@ -124,13 +124,14 @@ class ResultsTable(Frame):
         hsb = Scrollbar(tree_frame, orient="horizontal")
         hsb.pack(side="bottom", fill=X)
 
-        # Treeview — extended mode allows cell selection for editing
+        # Treeview — with grid lines and better styling
         self._tree = ttk.Treeview(
             tree_frame,
             show="headings",
             yscrollcommand=vsb.set,
             xscrollcommand=hsb.set,
             selectmode="browse",
+            style="Treeview",
         )
         self._tree.pack(side=LEFT, fill=BOTH, expand=YES)
         vsb.config(command=self._tree.yview)
@@ -224,16 +225,15 @@ class ResultsTable(Frame):
         self._tree["columns"] = self._columns
         for col in self._columns:
             self._tree.heading(col, text=col, command=lambda c=col: self._sort_by(c))
-            self._tree.column(col, width=120, minwidth=60, stretch=False)
+            self._tree.column(col, width=130, minwidth=60, stretch=False, anchor="w")
 
         for i, row in enumerate(self._rows):
             tag = "even" if i % 2 == 0 else "odd"
             values = [self._format_cell(v) for v in row]
             self._tree.insert("", END, values=values, tags=(tag,))
 
-        # Try to detect source table from result.raw (if the query was a
-        # simple SELECT). We look at the query text stored in the controller.
-        self._detect_source_table()
+        # Auto-size columns based on content width
+        self._auto_size_columns()
 
         elapsed_ms = int(result.elapsed * 1000)
         self._status.config(
@@ -244,6 +244,10 @@ class ResultsTable(Frame):
     def set_source_table(self, schema: str, table: str) -> None:
         """Manually set the source table for UPDATE generation."""
         self._source_table = f"{schema}.{table}" if schema else table
+
+    def clear_source_table(self) -> None:
+        """Clear the source table so Save is disabled."""
+        self._source_table = None
 
     def clear(self) -> None:
         """Remove all rows and columns, reset editing state."""
@@ -262,6 +266,40 @@ class ResultsTable(Frame):
         self.clear()
         color = theme.FG_ERROR if is_error else theme.FG_STATUS
         self._status.config(text=message, foreground=color)
+
+    def _auto_size_columns(self) -> None:
+        """Auto-size columns based on content width.
+
+        Measures header text and first N rows of data to find the widest
+        cell, then sets the column width to fit (capped at 350px).
+        """
+        import tkinter.font as tkfont
+
+        if not self._columns or not self._rows:
+            return
+
+        try:
+            font_obj = tkfont.nametofont("TkDefaultFont")
+            header_font = tkfont.Font(font=font_obj.actual())
+            header_font.configure(weight="bold")
+        except Exception:
+            return
+
+        sample_rows = self._rows[:50]
+        for idx, col in enumerate(self._columns):
+            header_w = header_font.measure(col) + 24
+
+            max_data_w = 0
+            for row in sample_rows:
+                if idx < len(row):
+                    val = self._format_cell(row[idx])
+                    w = font_obj.measure(str(val)) + 24
+                    if w > max_data_w:
+                        max_data_w = w
+
+            best_w = max(header_w, max_data_w, 60)
+            best_w = min(best_w, 350)
+            self._tree.column(col, width=best_w, minwidth=60, stretch=False, anchor="w")
 
     # ── Cell Editing ─────────────────────────────────────────────────
 
@@ -373,7 +411,12 @@ class ResultsTable(Frame):
     # ── Save (Commit) ────────────────────────────────────────────────
 
     def _on_save(self) -> None:
-        """Generate and execute UPDATE statements for all modified cells."""
+        """Generate and execute UPDATE statements for all modified cells.
+
+        All UPDATEs are batched into a single background thread via
+        ``execute_updates`` so the UI stays responsive and multi-row
+        saves work correctly.
+        """
         if not self._modified_cells:
             self._status.config(text="No changes to save", foreground=theme.FG_STATUS)
             return
@@ -392,114 +435,199 @@ class ResultsTable(Frame):
             )
             return
 
-        # Build UPDATE statements
-        # We need a primary key column to target the right row.
-        # Strategy: use the first column as the key (common for IRIS tables
-        # which typically have an ID column first).
         if not self._columns:
+            return
+
+        # C3: Whitelist identifiers to prevent SQL injection
+        import re
+
+        def _is_safe_identifier(name: str) -> bool:
+            """Only allow alphanumeric + underscore identifiers."""
+            return bool(re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name))
+
+        # Validate source table (schema.table)
+        if "." in self._source_table:
+            schema_part, table_part = self._source_table.split(".", 1)
+        else:
+            schema_part, table_part = "", self._source_table
+
+        if not _is_safe_identifier(table_part) or (
+            schema_part and not _is_safe_identifier(schema_part)
+        ):
+            self._status.config(
+                text=f"Cannot commit: invalid table name '{self._source_table}'",
+                foreground=theme.FG_ERROR,
+            )
             return
 
         pk_col = self._columns[0]  # assume first column is the primary key
 
-        updates_made = 0
-        updates_failed = 0
+        # Validate PK column name
+        if not _is_safe_identifier(pk_col):
+            self._status.config(
+                text=f"Cannot commit: invalid column name '{pk_col}'",
+                foreground=theme.FG_ERROR,
+            )
+            return
+
+        # Build all UPDATE statements + their context (item, changes)
+        statements: list[tuple[str, tuple[str, dict[str, str]]]] = []
 
         for item, changes in self._modified_cells.items():
             if not changes:
                 continue
 
+            # Validate each column name
+            for col_name in changes:
+                if not _is_safe_identifier(col_name):
+                    self._status.config(
+                        text=f"Cannot commit: invalid column name '{col_name}'",
+                        foreground=theme.FG_ERROR,
+                    )
+                    return
+
             # Get the PK original value for this row
             col_idx = self._tree.index(item)
             original_pk = self._format_cell(self._rows[col_idx][0])
 
-            # Build SET clause
+            # Build SET clause with escaped values
             set_clauses = []
             for col_name, new_val in changes.items():
-                escaped = new_val.replace("'", "''")
-                set_clauses.append(f"{col_name} = '{escaped}'")
+                escaped = self._escape_sql_value(new_val)
+                set_clauses.append(f"{col_name} = {escaped}")
 
             set_clause = ", ".join(set_clauses)
 
             # WHERE clause using the original PK value
-            pk_escaped = original_pk.replace("'", "''")
-            where_clause = f"{pk_col} = '{pk_escaped}'"
+            pk_escaped = self._escape_sql_value(original_pk)
+            where_clause = f"{pk_col} = {pk_escaped}"
 
             sql = f"UPDATE {self._source_table} SET {set_clause} WHERE {where_clause}"
 
-            # Execute synchronously (blocking — but UPDATEs are fast)
-            result = self._execute_sync(sql)
+            # Context carries the item ID and changes for the callback
+            context = (item, dict(changes))
+            statements.append((sql, context))
 
-            if result and result.is_error:
-                updates_failed += 1
+        if not statements:
+            return
+
+        total = len(statements)
+        self._status.config(
+            text=f"Saving {total} update(s)...",
+            foreground=theme.FG_WARNING if hasattr(theme, "FG_WARNING") else "#ebcb8b",
+        )
+
+        # N1: Execute all UPDATEs in a single batch (one background thread)
+        queued = self._controller.execute_updates(
+            statements,
+            on_done=self._on_all_updates_done,
+        )
+
+        if not queued:
+            self._status.config(
+                text="Controller busy — wait for current operation",
+                foreground=theme.FG_ERROR,
+            )
+
+    @staticmethod
+    def _escape_sql_value(value) -> str:
+        """Escape a value for safe inclusion in SQL.
+
+        Numbers are returned unquoted; strings are single-quoted with
+        internal single quotes doubled.
+        """
+        if value is None:
+            return "NULL"
+        # Try to interpret as a number
+        s = str(value)
+        try:
+            float(s)
+            # It's a number — return without quotes
+            return s
+        except (ValueError, TypeError):
+            pass
+        # It's a string — escape and quote
+        escaped = s.replace("'", "''")
+        return f"'{escaped}'"
+
+    def _on_all_updates_done(self, result: QueryResult) -> None:
+        """Handle completion of all UPDATE statements (Tk main thread).
+
+        N3: Defensive against stale tree items — if the user ran a new
+        query or cleared results between Save and callback, we gracefully
+        skip the UI update instead of crashing.
+        """
+        if not result.raw or "results" not in result.raw:
+            # Fallback for single-statement results
+            if result.is_error:
                 self._status.config(
                     text=f"Error: {result.error}",
                     foreground=theme.FG_ERROR,
                 )
             else:
-                updates_made += len(changes)
+                self._status.config(
+                    text=f"✓ Changes committed to {self._source_table}",
+                    foreground=theme.FG_STATUS,
+                )
+            return
 
-        # Update local data cache
-        for item, changes in self._modified_cells.items():
-            col_idx = self._tree.index(item)
-            for col_name, new_val in changes.items():
-                cidx = self._columns.index(col_name)
-                self._rows[col_idx][cidx] = new_val
+        results_list = result.raw.get("results", [])
+        total = len(results_list)
 
-        # Clear modification state
-        self._modified_cells = {}
+        # Process each statement result — update local cache + remove modified tags
+        committed = 0
+        for stmt_result in results_list:
+            context = stmt_result.get("context")
+            if context is None:
+                continue
 
-        # Remove modified tags
-        for item in self._tree.get_children():
-            tags = list(self._tree.item(item, "tags"))
-            if "modified" in tags:
-                tags.remove("modified")
-                self._tree.item(item, tags=tags)
+            item, changes = context
 
-        if updates_failed > 0:
+            if "error" in stmt_result:
+                # This particular UPDATE failed — leave the cell marked as modified
+                continue
+
+            committed += 1
+
+            # N3: Wrap in try/except — tree may have been cleared
+            try:
+                col_idx = self._tree.index(item)
+                for col_name, new_val in changes.items():
+                    cidx = self._columns.index(col_name)
+                    self._rows[col_idx][cidx] = new_val
+
+                # Remove modification state for this item
+                if item in self._modified_cells:
+                    del self._modified_cells[item]
+
+                # Remove modified tag
+                tags = list(self._tree.item(item, "tags"))
+                if "modified" in tags:
+                    tags.remove("modified")
+                    self._tree.item(item, tags=tags)
+            except Exception:
+                # Tree was cleared or item no longer exists — skip UI update
+                pass
+
+        # Update status line
+        if result.is_error and committed == 0:
             self._status.config(
-                text=f"⚠ {updates_made} cells saved, {updates_failed} UPDATE(s) failed",
+                text=f"Error: {result.error}",
                 foreground=theme.FG_ERROR,
             )
-        else:
+        elif committed == total:
             self._status.config(
-                text=f"✓ {updates_made} cell(s) committed to {self._source_table}",
+                text=f"✓ {committed} cell(s) committed to {self._source_table}",
                 foreground=theme.FG_STATUS,
             )
-
-    def _execute_sync(self, sql: str) -> QueryResult | None:
-        """Execute an UPDATE synchronously (blocking).
-
-        We bypass the async controller and use httpx directly.
-        """
-        import httpx
-        from prism.settings import settings
-        from prism.iris.sdk.http import api_url, parse_json
-
-        result = QueryResult()
-
-        try:
-            url = f"{api_url(None)}/action/query"
-            r = httpx.post(
-                url,
-                json={"query": sql},
-                auth=httpx.BasicAuth(settings.iris_username, settings.iris_password),
-                timeout=15.0,
+        else:
+            failed = total - committed
+            self._status.config(
+                text=f"⚠ {committed} saved, {failed} failed — {self._source_table}",
+                foreground=theme.FG_WARNING
+                if hasattr(theme, "FG_WARNING")
+                else "#ebcb8b",
             )
-            r.raise_for_status()
-            raw = parse_json(r)
-
-            status = raw.get("status", {})
-            errors = status.get("errors", [])
-            if errors:
-                result.error = errors[0].get("error", "Unknown IRIS error")
-                import html
-
-                result.error = html.unescape(result.error)
-
-        except Exception as exc:
-            result.error = str(exc)
-
-        return result
 
     # ── Cancel / Revert ──────────────────────────────────────────────
 
@@ -576,20 +704,6 @@ class ResultsTable(Frame):
             if col == column:
                 text = f"{col} {'▼' if self._sort_reverse else '▲'}"
             self._tree.heading(col, text=text, command=lambda c=col: self._sort_by(c))
-
-    # ── Source table detection ──────────────────────────────────────
-
-    def _detect_source_table(self) -> None:
-        """Try to detect the source table from the SQL controller's last query.
-
-        Looks for SELECT ... FROM schema.table patterns.
-        """
-        if not self._controller:
-            return
-
-        # The controller doesn't store the last query, so we can't auto-detect.
-        # The app.py should call set_source_table() explicitly.
-        pass
 
     # ── Helpers ──────────────────────────────────────────────────────
 

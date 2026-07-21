@@ -35,7 +35,6 @@ from prism.gui.widgets.results_table import ResultsTable
 from prism.gui.widgets.sql_editor import EditorTabBar, SQLEditor
 from prism.gui.widgets.status_bar import StatusBar
 from prism.gui.widgets.toolbar import Toolbar
-from prism.iris.sdk.http import base_url
 
 
 class PrismGUI:
@@ -68,13 +67,22 @@ class PrismGUI:
         self._set_window_icon()
 
     def _set_window_icon(self) -> None:
-        """Set the Prism logo as the window icon."""
+        """Set the Prism logo as the window icon.
+
+        Looks for logo.ico / logo-256.png relative to the package root
+        (src/prism/gui/app.py → 4 levels up = project root).
+        """
         from pathlib import Path
 
+        # src/prism/gui/app.py → parent ×4 = project root
+        pkg_root = Path(__file__).resolve().parent.parent.parent.parent
+
         candidates = [
-            Path(__file__).parent.parent.parent / "logo.ico",
-            Path(__file__).parent.parent.parent / "docs" / "assets" / "logo-256.png",
-            Path(__file__).parent.parent / "logo.ico",
+            pkg_root / "logo.ico",
+            pkg_root / "docs" / "assets" / "logo-256.png",
+            pkg_root / "logo-256.png",
+            # Fallback: relative to src/ for installed packages
+            Path(__file__).resolve().parent.parent.parent / "logo.ico",
         ]
 
         for icon_path in candidates:
@@ -225,6 +233,7 @@ class PrismGUI:
         # Results table — connect controller for UPDATE execution
         self._results = ResultsTable(vpaned)
         self._results.set_controller(self._controller)
+        self._results.set_status_callback(self._on_results_status)
         vpaned.add(self._results, weight=2)
 
         # ── Status bar ────────────────────────────────────────────────
@@ -244,19 +253,21 @@ class PrismGUI:
     # ── Connection ────────────────────────────────────────────────────
 
     def _check_connection(self) -> None:
-        """Check if IRIS is reachable and update status bar."""
-        import httpx
+        """Check if IRIS is reachable and update status bar (async, non-blocking)."""
+        self._status_bar.set_status("Connecting...")
+        self._controller.check_connection(on_done=self._on_connection_checked)
 
-        try:
-            url = base_url()
-            r = httpx.get(f"{url}/csp/sys/UtilHome.csp", timeout=3.0)
-            connected = r.status_code in (200, 302, 401)
-        except Exception:
-            connected = False
-
+    def _on_connection_checked(self, connected: bool) -> None:
+        """Handle connection check result (called on Tk main thread)."""
         ns_var = self._toolbar.namespace_var
-        ns = (ns_var.get() if ns_var else "USER") or "USER" if connected else None
+        ns = None
+        if connected:
+            ns = (ns_var.get().strip() if ns_var else "USER") or "USER"
         self._status_bar.set_connected(connected, namespace=ns)
+        if not connected:
+            self._status_bar.set_status(
+                "Cannot connect to IRIS — check settings", is_error=True
+            )
 
     def _refresh_tree(self) -> None:
         """Refresh the database tree."""
@@ -266,10 +277,18 @@ class PrismGUI:
 
     def _execute_query(self) -> None:
         """Execute the current SQL query."""
+        if self._controller.is_running:
+            self._status_bar.set_status(
+                "Query already running — press Cancel to abort", is_error=True
+            )
+            return
+
         query = self._editor.get_selection_or_all()
         if not query.strip():
             self._status_bar.set_status("Error: query is empty", is_error=True)
             return
+
+        self._last_query = query  # store for Refresh button
 
         self._toolbar.set_running(True)
         self._status_bar.set_running(True)
@@ -293,6 +312,10 @@ class PrismGUI:
         Handles patterns like:
             SELECT * FROM schema.table
             SELECT ... FROM schema.table WHERE ...
+
+        Excludes system schemas (INFORMATION_SCHEMA, %*) so that
+        metadata queries don't enable the Save button.
+
         Sets the source table on the results panel.
         """
         import re
@@ -305,18 +328,25 @@ class PrismGUI:
         )
         if match:
             schema, table = match.group(1), match.group(2)
+            # Exclude system schemas — can't/shouldn't UPDATE them
+            schema_upper = schema.upper()
+            if schema.startswith("%") or schema_upper == "INFORMATION_SCHEMA":
+                self._results.clear_source_table()
+                return
             self._results.set_source_table(schema, table)
         else:
-            # No source table — clear so Save is disabled
-            self._results._source_table = None
+            self._results.clear_source_table()
 
     def _execute_selection(self) -> None:
         """Execute only the selected text, or all if no selection."""
         self._execute_query()
 
     def _cancel_query(self) -> None:
-        """Cancel is not yet supported (would need async cancellation)."""
-        self._status_bar.set_status("Cancel not yet implemented", is_error=True)
+        """Cancel the currently running query."""
+        if self._controller.cancel():
+            self._status_bar.set_status("Cancelling query...")
+        else:
+            self._status_bar.set_status("No query running to cancel")
 
     def _on_query_done(self, result: QueryResult) -> None:
         """Handle query completion (called on Tk main thread)."""
@@ -338,6 +368,13 @@ class PrismGUI:
     def _insert_table_name(self, name: str) -> None:
         """Insert a table name from the database tree."""
         self._editor.insert_at_cursor(name)
+
+    def _on_results_status(self, action: str) -> None:
+        """Handle status callbacks from the results table."""
+        if action == "refresh":
+            # N4: Re-execute whatever is currently in the editor,
+            # NOT the last query — don't overwrite unsaved edits
+            self._execute_query()
 
     def _new_query(self) -> None:
         """Clear the editor for a new query."""
@@ -430,5 +467,12 @@ def launch(initial_query: str | None = None) -> None:
     """
     root = tk.Tk()
     theme.apply_theme(root)
-    PrismGUI(root, initial_query=initial_query)
+    app = PrismGUI(root, initial_query=initial_query)
+
+    # I7: Clean shutdown — stop polling before destroying window
+    def _on_close() -> None:
+        app._controller.stop_polling()
+        root.destroy()
+
+    root.protocol("WM_DELETE_WINDOW", _on_close)
     root.mainloop()
