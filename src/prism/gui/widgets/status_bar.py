@@ -103,12 +103,20 @@ class StatusBar(Frame):
             self._status_label.config(
                 text="Executing query...", foreground=theme.SYNTAX_KEYWORD
             )
-        else:
-            self._status_label.config(text="Ready", foreground=theme.FG_STATUS)
+        # Don't overwrite status on set_running(False) — let callers set it
 
     def set_status(self, message: str, is_error: bool = False) -> None:
-        """Set a status message."""
-        color = theme.FG_ERROR if is_error else theme.FG_SUCCESS
+        """Set a status message.
+
+        Uses neutral color for normal messages, red for errors,
+        and green only for explicit success messages containing '✓'.
+        """
+        if is_error:
+            color = theme.FG_ERROR
+        elif "✓" in message:
+            color = theme.FG_SUCCESS
+        else:
+            color = theme.FG_STATUS  # neutral
         self._status_label.config(text=message, foreground=color)
 
     def set_namespace(self, namespace: str) -> None:
