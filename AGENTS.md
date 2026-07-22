@@ -180,7 +180,7 @@ async def test_with_iris(live, cleanup):
 **Key fixtures**: `client` (MCP client), `live` (connected client), `workspace`
 (tmp_path), `cleanup` (auto-delete docs), `debug_session` (skip if XDebug unavailable).
 
-**Test counts**: 586 unit tests, 87 integration tests, 29 GUI tests (7 integration
+**Test counts**: 703 unit tests, 87 integration tests, 29 GUI tests (7 integration
 tests skip on CI due to IRIS Community license limits).
 
 ## Conventions

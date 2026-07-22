@@ -20,10 +20,18 @@ Layout::
     ├────────┴─────────────────────────────────────────────────┤
     │  Status Bar: ● Connected | NS:USER | 37 rows | CET      │
     └────────────────────────────────────────────────────────┘
+
+Tab management:
+    Each tab has its own query text. Switching tabs saves the current
+    editor content to the previous tab and loads the new tab's content
+    into the editor. Query text is auto-saved to ``config.json`` after
+    ``gui_autosave_delay_ms`` (default 3000 ms) of typing inactivity,
+    and restored when the GUI is reopened.
 """
 
 from __future__ import annotations
 
+import json
 import tkinter as tk
 from tkinter import BOTH, TOP, X, YES, Frame, Menu, messagebox, ttk
 
@@ -35,6 +43,7 @@ from prism.gui.widgets.results_table import ResultsTable
 from prism.gui.widgets.sql_editor import EditorTabBar, SQLEditor
 from prism.gui.widgets.status_bar import StatusBar
 from prism.gui.widgets.toolbar import Toolbar
+from prism.settings import save_config, settings
 
 
 class PrismGUI:
@@ -44,14 +53,27 @@ class PrismGUI:
         self._root = root
         self._controller = SQLController(root)
         self._controller.start_polling()
+        self._autosave_timer_id: str | None = None
+        self._last_saved_text: str = ""
 
         self._setup_window()
         self._setup_menu()
         self._setup_layout()
         self._bind_shortcuts()
 
+        # Wire tab bar callbacks
+        self._editor_tab_bar.set_switch_callback(self._on_tab_switch)
+        self._editor_tab_bar.set_close_callback(self._on_tab_close)
+
+        # Restore saved queries or set initial query
         if initial_query:
             self._editor.set_text(initial_query)
+            self._editor_tab_bar.set_tab_content(0, initial_query)
+        else:
+            self._restore_saved_queries()
+
+        # Track editor changes for auto-save
+        self._editor._text.bind("<KeyRelease>", self._on_editor_key_release, add="+")
 
         self._check_connection()
         self._db_tree.load_async()
@@ -125,7 +147,7 @@ class PrismGUI:
         file_menu.add_command(label="Open File...\tCtrl+O", command=self._open_file)
         file_menu.add_command(label="Save File...\tCtrl+S", command=self._save_file)
         file_menu.add_separator()
-        file_menu.add_command(label="Exit\tCtrl+Q", command=self._root.quit)
+        file_menu.add_command(label="Exit\tCtrl+Q", command=self._on_close)
         menubar.add_cascade(label="File", menu=file_menu)
 
         # Edit menu
@@ -248,7 +270,110 @@ class PrismGUI:
         self._root.bind("<Control-Return>", lambda e: self._execute_query())
         self._root.bind("<Control-n>", lambda e: self._new_query())
         self._root.bind("<Control-s>", lambda e: self._save_file())
-        self._root.bind("<Control-q>", lambda e: self._root.quit())
+        self._root.bind("<Control-q>", lambda e: self._on_close())
+
+    # ── Tab Management ───────────────────────────────────────────────
+
+    def _on_tab_switch(self, old_idx: int, new_idx: int) -> None:
+        """Handle tab switch: save current editor text to old tab, load new tab content."""
+        # Save current editor content to the old tab
+        if 0 <= old_idx < self._editor_tab_bar.tab_count:
+            current_text = self._editor.get_text()
+            self._editor_tab_bar.set_tab_content(old_idx, current_text)
+
+        # Load the new tab's content into the editor
+        new_content = self._editor_tab_bar.get_tab_content(new_idx)
+        self._editor.set_text(new_content)
+
+        # Clear results when switching tabs
+        self._results.clear()
+
+    def _on_tab_close(self, closed_idx: int) -> None:
+        """Handle tab close: load the new active tab's content."""
+        active = self._editor_tab_bar.active_index
+        new_content = self._editor_tab_bar.get_tab_content(active)
+        self._editor.set_text(new_content)
+        self._results.clear()
+
+    # ── Query Persistence ────────────────────────────────────────────
+
+    def _on_editor_key_release(self, event=None) -> None:
+        """Track editor changes and schedule auto-save."""
+        # Mark current tab as modified
+        active = self._editor_tab_bar.active_index
+        current_text = self._editor.get_text()
+        stored_text = self._editor_tab_bar.get_tab_content(active)
+        is_modified = current_text != stored_text
+        self._editor_tab_bar.set_modified(active, is_modified)
+
+        # Update stored content immediately (so tab switch preserves it)
+        self._editor_tab_bar.set_tab_content(active, current_text)
+
+        # Schedule auto-save if enabled
+        if settings.gui_query_autosave:
+            # Cancel any pending save
+            if self._autosave_timer_id is not None:
+                self._root.after_cancel(self._autosave_timer_id)
+            # Schedule a new save
+            delay = settings.gui_autosave_delay_ms
+            self._autosave_timer_id = self._root.after(delay, self._auto_save_queries)
+
+    def _auto_save_queries(self) -> None:
+        """Save all tab queries to config.json."""
+        self._autosave_timer_id = None
+        tabs = self._editor_tab_bar.get_all_tabs()
+        queries = [{"name": t["name"], "content": t["content"]} for t in tabs]
+        try:
+            save_config({"gui_saved_queries": json.dumps(queries)})
+            self._last_saved_text = self._editor.get_text()
+        except Exception:
+            pass  # Silent fail — don't interrupt user for save errors
+
+    def _restore_saved_queries(self) -> None:
+        """Restore saved query tabs from config.json on startup."""
+        try:
+            saved = json.loads(settings.gui_saved_queries)
+        except (json.JSONDecodeError, TypeError):
+            saved = []
+
+        if not saved:
+            return
+
+        # First entry goes into the existing tab (Script-1 already created)
+        if saved:
+            first = saved[0]
+            self._editor.set_text(first.get("content", ""))
+            self._editor_tab_bar.set_tab_content(0, first.get("content", ""))
+            # Rename the first tab if the saved name differs
+            saved_name = first.get("name", "")
+            if saved_name:
+                self._editor_tab_bar._tabs[0]["name"] = saved_name
+                self._editor_tab_bar.set_modified(0, False)
+
+        # Additional entries create new tabs
+        for entry in saved[1:]:
+            name = entry.get("name", "")
+            content = entry.get("content", "")
+            self._editor_tab_bar.add_tab(name=name, content=content)
+            # add_tab switches to the new tab, so we need to set its content
+            # in the editor too
+            self._editor.set_text(content)
+
+        # Switch back to the first tab
+        self._editor_tab_bar.switch_to(0)
+        first_content = self._editor_tab_bar.get_tab_content(0)
+        self._editor.set_text(first_content)
+
+    def _save_queries_on_exit(self) -> None:
+        """Save current queries before the app closes."""
+        # Save current editor content to active tab
+        active = self._editor_tab_bar.active_index
+        current_text = self._editor.get_text()
+        self._editor_tab_bar.set_tab_content(active, current_text)
+
+        # Save all tabs
+        if settings.gui_query_autosave:
+            self._auto_save_queries()
 
     # ── Connection ────────────────────────────────────────────────────
 
@@ -377,10 +502,18 @@ class PrismGUI:
             self._execute_query()
 
     def _new_query(self) -> None:
-        """Clear the editor for a new query."""
+        """Create a new query tab with a blank editor."""
+        # Save current editor content to the active tab before switching
+        active = self._editor_tab_bar.active_index
+        current_text = self._editor.get_text()
+        self._editor_tab_bar.set_tab_content(active, current_text)
+
+        # Add a new tab
+        self._editor_tab_bar.add_tab(content="")
+
+        # Clear the editor for the new tab
         self._editor.clear()
         self._results.clear()
-        self._editor_tab_bar.add_tab(f"Script-{len(self._editor_tab_bar._tabs) + 1}")
         self._editor.set_focus()
 
     def _clear_results(self) -> None:
@@ -446,6 +579,17 @@ class PrismGUI:
     def _select_all(self) -> None:
         self._editor._text.tag_add("sel", "1.0", "end-1c")
 
+    # ── Shutdown ─────────────────────────────────────────────────────
+
+    def _on_close(self) -> None:
+        """Save queries and shut down cleanly."""
+        self._save_queries_on_exit()
+        self._controller.stop_polling()
+        try:
+            self._root.destroy()
+        except tk.TclError:
+            pass  # Already destroyed
+
     # ── Help ─────────────────────────────────────────────────────────
 
     def _show_about(self) -> None:
@@ -469,10 +613,9 @@ def launch(initial_query: str | None = None) -> None:
     theme.apply_theme(root)
     app = PrismGUI(root, initial_query=initial_query)
 
-    # I7: Clean shutdown — stop polling before destroying window
+    # I7: Clean shutdown — save queries, stop polling, destroy window
     def _on_close() -> None:
-        app._controller.stop_polling()
-        root.destroy()
+        app._on_close()
 
     root.protocol("WM_DELETE_WINDOW", _on_close)
     root.mainloop()

@@ -29,10 +29,10 @@ def tmp_config(tmp_path, monkeypatch):
 
 
 class TestShow:
-    def test_no_args_prints_all_25_settings(self, runner, tmp_config):
+    def test_no_args_prints_all_28_settings(self, runner, tmp_config):
         result = runner.invoke(app, ["config"])
         assert result.exit_code == 0
-        # All 25 field names should appear in the output.
+        # All 28 field names should appear in the output.
         from prism.settings import Settings
 
         for name in Settings.model_fields:
@@ -164,7 +164,7 @@ class TestInteractive:
     def test_keep_all_makes_no_changes(self, runner, tmp_config):
         from prism.settings import Settings
 
-        # 25 keeps, one per field.
+        # 28 keeps, one per field.
         n_fields = len(Settings.model_fields)
         result = runner.invoke(app, ["config", "-i"], input="k\n" * n_fields)
         assert result.exit_code == 0
