@@ -5,11 +5,14 @@ via `uv`/`pip` for Linux and development setups.
 
 ## Windows (recommended)
 
-1. **Download** the latest setup:
+1. **Download** the latest installer from
+   [GitHub Releases](https://github.com/AdriaERNI/Prism/releases/latest):
 
-      - `prism-<version>-setup.exe` — Inno Setup installer. Installs
-        `prism.exe` to `C:\Program Files\prism\` and adds that folder to
-        the system `PATH`.
+   - `prism-<version>-setup.exe` — Inno Setup installer. Installs
+     `prism.exe` to `C:\Program Files\prism\` and adds that folder to
+     the system `PATH`.
+   - `prism.exe` — Standalone PyInstaller binary. Drop it anywhere on
+     your `PATH` — no install needed.
 
 2. **Run** the installer. You'll be prompted for admin rights (needed to
    modify the system `PATH` and write under `Program Files`).
@@ -74,9 +77,9 @@ prism --format toon info
 ## Standalone executable (Windows)
 
 If you'd rather not run an installer, grab the standalone
-`prism-<version>.exe`. It's a fully self-contained PyInstaller bundle with
-the Prism logo icon — drop it anywhere on your `PATH` (or invoke it with a
-full path).
+`prism.exe` from [GitHub Releases](https://github.com/AdriaERNI/Prism/releases/latest).
+It's a fully self-contained PyInstaller bundle with the Prism logo icon —
+drop it anywhere on your `PATH` (or invoke it with a full path).
 
 ```
 prism-0.2.1-beta2.exe --help

@@ -51,6 +51,43 @@ Need an IRIS instance? Start one with Docker:
 docker run -d --name iris -p 52773:52773 -p 1972:1972 intersystemsdc/iris-community:latest
 ```
 
+## Installation
+
+### Windows (recommended)
+
+Download the latest installer from
+[GitHub Releases](https://github.com/AdriaERNI/Prism/releases/latest):
+
+- **`prism-X.Y.Z-setup.exe`** — Inno Setup installer. Installs `prism.exe`
+  to `C:\Program Files\prism\` and adds it to the system `PATH`.
+- **`prism.exe`** — Standalone PyInstaller binary. Drop it anywhere on your
+  `PATH`.
+
+After installing, open a **new terminal** and verify:
+
+```powershell
+prism --help
+prism info
+```
+
+### Linux / macOS (development)
+
+```bash
+git clone https://github.com/AdriaERNI/Prism.git
+cd Prism
+uv sync
+uv run prism --help
+```
+
+Or install via pip:
+
+```bash
+pip install prism
+```
+
+See the [installation guide](https://adriaerni.github.io/Prism/getting-started/installation/)
+for more details.
+
 ## CLI Commands
 
 | Command | Description |
@@ -97,14 +134,22 @@ See the [full tool reference](https://adriaerni.github.io/Prism/mcp/tools/) for 
 
 ## MCP Client Configuration
 
+> **Tip:** Run `prism setup` to automatically register Prism MCP in Claude
+> Code, Codex CLI, OpenCode, and Hermes Agent. See
+> [setup docs](https://adriaerni.github.io/Prism/commands/setup/) for details.
+
+The manual configurations below are for clients not yet supported by
+`prism setup` (Claude Desktop, Cursor, VS Code Copilot).
+
 ### Claude Code
 
-Add to `~/.claude/settings.json` or `.claude/settings.json`:
+Add to `~/.claude.json`:
 
 ```json
 {
   "mcpServers": {
-    "iris": {
+    "prism": {
+      "type": "http",
       "url": "http://localhost:3000/mcp"
     }
   }
@@ -118,9 +163,9 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "iris": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/prism", "prism", "serve"]
+    "prism": {
+      "command": "prism",
+      "args": ["serve"]
     }
   }
 }
@@ -133,7 +178,7 @@ Add to `.vscode/mcp.json`:
 ```json
 {
   "servers": {
-    "iris": {
+    "prism": {
       "type": "http",
       "url": "http://localhost:3000/mcp"
     }
@@ -148,7 +193,7 @@ Add to `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "iris": {
+    "prism": {
       "url": "http://localhost:3000/mcp"
     }
   }
@@ -211,7 +256,7 @@ release workflow with two protected branches: `development` (active work)
 and `main` (stable releases).
 
 Download the latest Windows installer or standalone exe from
-[GitHub Releases](https://github.com/AdriaERNI/Prism/releases).
+[GitHub Releases](https://github.com/AdriaERNI/Prism/releases/latest).
 
 | Artifact | Description |
 |----------|-------------|
