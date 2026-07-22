@@ -64,6 +64,7 @@ class PrismGUI:
         # Wire tab bar callbacks
         self._editor_tab_bar.set_switch_callback(self._on_tab_switch)
         self._editor_tab_bar.set_close_callback(self._on_tab_close)
+        self._editor_tab_bar.set_rename_callback(self._on_tab_rename)
 
         # Restore saved queries or set initial query
         if initial_query:
@@ -294,6 +295,10 @@ class PrismGUI:
         new_content = self._editor_tab_bar.get_tab_content(active)
         self._editor.set_text(new_content)
         self._results.clear()
+
+    def _on_tab_rename(self, idx: int, old_name: str, new_name: str) -> None:
+        """Handle tab rename: trigger auto-save so the new name persists."""
+        self._auto_save_queries()
 
     # ── Query Persistence ────────────────────────────────────────────
 

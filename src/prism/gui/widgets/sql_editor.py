@@ -168,6 +168,7 @@ class EditorTabBar(Frame):
     - Active tab highlighting
     - Tab switching via click
     - Close button per tab
+    - Right-click context menu to rename a tab
     - Per-tab content tracking (stored as strings)
     """
 
@@ -179,6 +180,7 @@ class EditorTabBar(Frame):
         self._next_id = 1  # monotonic counter for unique tab names
         self._on_switch_callback = None
         self._on_close_callback = None
+        self._on_rename_callback = None
         self._setup_widgets()
 
     def _setup_widgets(self) -> None:
@@ -208,6 +210,13 @@ class EditorTabBar(Frame):
         Callback signature: callback(closed_index: int)
         """
         self._on_close_callback = callback
+
+    def set_rename_callback(self, callback) -> None:
+        """Set callback called when user renames a tab.
+
+        Callback signature: callback(index: int, old_name: str, new_name: str)
+        """
+        self._on_rename_callback = callback
 
     def add_tab(
         self, name: str | None = None, content: str = "", modified: bool = False
@@ -267,6 +276,10 @@ class EditorTabBar(Frame):
 
         # Bind close
         close_label.bind("<Button-1>", lambda e, i=idx: self.close_tab(i))
+
+        # Bind right-click for rename context menu
+        label.bind("<Button-3>", lambda e, i=idx: self._show_rename_menu(e, i))
+        tab_frame.bind("<Button-3>", lambda e, i=idx: self._show_rename_menu(e, i))
 
         # Switch to the new tab
         self.switch_to(idx)
@@ -352,6 +365,12 @@ class EditorTabBar(Frame):
             tab_frame.bind("<Button-1>", lambda e, idx=i: self.switch_to(idx))
             close_label.bind("<Button-1>", lambda e, idx=i: self.close_tab(idx))
 
+            # Bind right-click for rename context menu
+            label.bind("<Button-3>", lambda e, idx=i: self._show_rename_menu(e, idx))
+            tab_frame.bind(
+                "<Button-3>", lambda e, idx=i: self._show_rename_menu(e, idx)
+            )
+
     def set_modified(self, idx: int, modified: bool) -> None:
         """Update tab modified indicator."""
         if idx < 0 or idx >= len(self._tabs):
@@ -389,6 +408,93 @@ class EditorTabBar(Frame):
             }
             for t in self._tabs
         ]
+
+    # ── Rename via right-click ────────────────────────────────────────
+
+    def _show_rename_menu(self, event, idx: int) -> None:
+        """Show a context menu on right-click with a Rename option."""
+        if idx < 0 or idx >= len(self._tabs):
+            return
+        menu = Menu(self, tearoff=0)
+        menu.add_command(label="Rename Tab", command=lambda: self._prompt_rename(idx))
+        menu.add_separator()
+        menu.add_command(label="Close Tab", command=lambda: self.close_tab(idx))
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _prompt_rename(self, idx: int) -> None:
+        """Open a simple dialog to rename the tab at *idx*."""
+        if idx < 0 or idx >= len(self._tabs):
+            return
+        current_name = self._tabs[idx]["name"]
+
+        # Create a lightweight Toplevel dialog
+        dialog = tk.Toplevel(self)
+        dialog.title("Rename Tab")
+        dialog.geometry("300x100")
+        dialog.resizable(False, False)
+        dialog.transient(self.winfo_toplevel())
+        dialog.grab_set()
+
+        # Center the dialog over the parent window
+        dialog.update_idletasks()
+        parent = self.winfo_toplevel()
+        px = parent.winfo_rootx() + parent.winfo_width() // 2 - 150
+        py = parent.winfo_rooty() + parent.winfo_height() // 2 - 50
+        dialog.geometry(f"+{px}+{py}")
+
+        # Label
+        tk.Label(dialog, text="Enter new tab name:").pack(pady=(10, 5))
+
+        # Entry with current name pre-selected
+        entry = tk.Entry(dialog, width=30)
+        entry.insert(0, current_name)
+        entry.select_range(0, END)
+        entry.pack(pady=5)
+        entry.focus_set()
+
+        def do_rename() -> None:
+            new_name = entry.get().strip()
+            if new_name:
+                self.rename_tab(idx, new_name)
+            dialog.destroy()
+
+        def do_cancel() -> None:
+            dialog.destroy()
+
+        # Bind Enter to confirm, Escape to cancel
+        entry.bind("<Return>", lambda e: do_rename())
+        entry.bind("<Escape>", lambda e: do_cancel())
+
+        # Buttons
+        btn_frame = Frame(dialog)
+        btn_frame.pack(pady=5)
+        tk.Button(btn_frame, text="OK", width=8, command=do_rename).pack(
+            side=LEFT, padx=5
+        )
+        tk.Button(btn_frame, text="Cancel", width=8, command=do_cancel).pack(
+            side=LEFT, padx=5
+        )
+
+    def rename_tab(self, idx: int, new_name: str) -> None:
+        """Rename the tab at *idx* to *new_name* and fire callback."""
+        if idx < 0 or idx >= len(self._tabs):
+            return
+        new_name = new_name.strip()
+        if not new_name:
+            return
+        old_name = self._tabs[idx]["name"]
+        if new_name == old_name:
+            return
+        self._tabs[idx]["name"] = new_name
+        # Update the label text (preserve modified prefix)
+        prefix = "*" if self._tabs[idx]["modified"] else ""
+        self._tabs[idx]["label"].config(text=f" {prefix}{new_name} ")
+        # Fire callback
+        if self._on_rename_callback:
+            self._on_rename_callback(idx, old_name, new_name)
 
 
 class SQLEditor(Frame):

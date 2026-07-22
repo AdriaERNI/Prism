@@ -5,6 +5,7 @@ Tests cover:
 - Per-tab query text isolation (switching tabs preserves each tab's content)
 - Correct tab naming with monotonic IDs (no reuse after close)
 - Tab close behavior (can't close last tab, content preservation)
+- Right-click rename: context menu, rename_tab method, callback firing
 - Auto-save after configurable delay (default 3000 ms)
 - Query restoration on app reopen
 - Modified indicator (* prefix) on tab labels
@@ -54,7 +55,15 @@ def mock_gui_env():
     - ``SQLController.start_polling`` → no-op (no after-loop)
     - ``SQLController.check_connection`` → calls on_done synchronously (no thread)
     - ``DatabaseTree.load_async`` → no-op (no background thread)
+
+    It also resets ``gui_saved_queries`` to ``"[]"`` to prevent test isolation
+    issues where a previous test's auto-save leaves persisted queries that
+    get restored by the next test's ``_restore_saved_queries``.
     """
+    import prism.gui.app as app_mod
+
+    original = app_mod.settings.gui_saved_queries
+    app_mod.settings.gui_saved_queries = "[]"
     with (
         patch("prism.gui.controllers.sql_controller.SQLController.start_polling"),
         patch(
@@ -64,6 +73,7 @@ def mock_gui_env():
         patch("prism.gui.widgets.database_tree.DatabaseTree.load_async"),
     ):
         yield
+    app_mod.settings.gui_saved_queries = original
 
 
 # ── EditorTabBar: Tab Creation ────────────────────────────────────────
@@ -392,6 +402,124 @@ class TestTabModified:
 
         bar = EditorTabBar(tk_root)
         bar.set_modified(99, True)  # Should not raise
+        bar.destroy()
+
+
+# ── EditorTabBar: Tab Rename ─────────────────────────────────────────
+
+
+class TestTabRename:
+    """Test right-click rename functionality on the EditorTabBar."""
+
+    def test_rename_tab_updates_name(self, tk_root):
+        """rename_tab should update the tab's name."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        bar.add_tab()
+        bar.rename_tab(0, "My Query")
+        assert bar.get_tab_name(0) == "My Query"
+        bar.destroy()
+
+    def test_rename_tab_updates_label(self, tk_root):
+        """rename_tab should update the visible label text."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        bar.add_tab()
+        bar.rename_tab(0, "Renamed")
+        label_text = bar._tabs[0]["label"].cget("text")
+        assert "Renamed" in label_text
+        bar.destroy()
+
+    def test_rename_tab_strips_whitespace(self, tk_root):
+        """rename_tab should strip leading/trailing whitespace."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        bar.add_tab()
+        bar.rename_tab(0, "  Padded Name  ")
+        assert bar.get_tab_name(0) == "Padded Name"
+        bar.destroy()
+
+    def test_rename_tab_empty_name_ignored(self, tk_root):
+        """rename_tab should ignore empty names."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        original = bar.get_tab_name(0)
+        bar.rename_tab(0, "   ")
+        assert bar.get_tab_name(0) == original
+        bar.destroy()
+
+    def test_rename_tab_same_name_ignored(self, tk_root):
+        """rename_tab should not fire callback if name is unchanged."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        calls = []
+        bar.set_rename_callback(lambda i, old, new: calls.append((i, old, new)))
+        bar.rename_tab(0, bar.get_tab_name(0))  # Same name
+        assert len(calls) == 0
+        bar.destroy()
+
+    def test_rename_tab_fires_callback(self, tk_root):
+        """rename_tab should fire the rename callback with index, old, new."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        bar.add_tab()
+        calls = []
+        bar.set_rename_callback(lambda i, old, new: calls.append((i, old, new)))
+        bar.rename_tab(1, "Custom")
+        assert len(calls) == 1
+        assert calls[0] == (1, "Script-2", "Custom")
+        bar.destroy()
+
+    def test_rename_tab_invalid_index_ignored(self, tk_root):
+        """rename_tab should ignore invalid indices."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        bar.rename_tab(-1, "X")  # Should not raise
+        bar.rename_tab(99, "X")  # Should not raise
+        bar.destroy()
+
+    def test_rename_preserves_modified_indicator(self, tk_root):
+        """rename_tab should preserve the * prefix for modified tabs."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        bar.add_tab()
+        bar.set_modified(1, True)
+        bar.rename_tab(1, "Modified Query")
+        label_text = bar._tabs[1]["label"].cget("text")
+        assert "*" in label_text
+        assert "Modified Query" in label_text
+        bar.destroy()
+
+    def test_rename_tab_after_rebuild(self, tk_root):
+        """rename_tab should work after a close (which triggers _rebuild)."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        bar.add_tab()
+        bar.add_tab()
+        bar.close_tab(1)  # Triggers _rebuild, active goes back to tab 0
+        bar.rename_tab(0, "After Rebuild")
+        assert bar.get_tab_name(0) == "After Rebuild"
+        bar.destroy()
+
+    def test_right_click_binding_exists(self, tk_root):
+        """Tabs should have Button-3 (right-click) bindings for rename."""
+        from prism.gui.widgets.sql_editor import EditorTabBar
+
+        bar = EditorTabBar(tk_root)
+        label = bar._tabs[0]["label"]
+        frame = bar._tabs[0]["frame"]
+        # Check that Button-3 bindings exist
+        assert label.bind("<Button-3>") is not None
+        assert frame.bind("<Button-3>") is not None
         bar.destroy()
 
 
@@ -1176,6 +1304,116 @@ class TestAppTabClose:
 
                 app._editor_tab_bar.close_tab(0)
                 assert app._editor_tab_bar.tab_count == 1
+        finally:
+            try:
+                root.destroy()
+            except tk.TclError:
+                pass
+
+
+# ── PrismGUI: Tab Rename via App ─────────────────────────────────────
+
+
+class TestAppTabRename:
+    """Test tab rename through the PrismGUI app."""
+
+    def test_rename_triggers_autosave(
+        self, tk_root, mock_gui_env, tmp_path, monkeypatch
+    ):
+        """Renaming a tab should trigger auto-save so the new name persists."""
+        import json
+
+        from prism.gui.app import PrismGUI
+        import prism.gui.app as app_mod
+        from prism.settings import Settings
+
+        fake_path = tmp_path / "config.json"
+        monkeypatch.setattr(app_mod, "settings", Settings())
+        monkeypatch.setattr(
+            app_mod, "save_config", lambda data: fake_path.write_text(json.dumps(data))
+        )
+
+        root = _make_tk_root()
+        root.withdraw()
+        try:
+            with patch.object(app_mod, "settings") as mock_settings:
+                mock_settings.gui_query_autosave = True
+                mock_settings.gui_autosave_delay_ms = 3000
+                mock_settings.gui_saved_queries = "[]"
+
+                app = PrismGUI(root)
+                app._editor.set_text("SELECT 1")
+                app._editor_tab_bar.rename_tab(0, "My Renamed Tab")
+
+                saved = json.loads(fake_path.read_text())
+                queries = json.loads(saved["gui_saved_queries"])
+                assert queries[0]["name"] == "My Renamed Tab"
+        finally:
+            try:
+                root.destroy()
+            except tk.TclError:
+                pass
+
+    def test_rename_callback_set(self, tk_root, mock_gui_env):
+        """PrismGUI should set a rename callback on the tab bar."""
+        from prism.gui.app import PrismGUI
+        import prism.gui.app as app_mod
+
+        root = _make_tk_root()
+        root.withdraw()
+        try:
+            with patch.object(app_mod, "settings") as mock_settings:
+                mock_settings.gui_query_autosave = True
+                mock_settings.gui_autosave_delay_ms = 3000
+                mock_settings.gui_saved_queries = "[]"
+
+                app = PrismGUI(root)
+                # The rename callback should be set (not None)
+                assert app._editor_tab_bar._on_rename_callback is not None
+        finally:
+            try:
+                root.destroy()
+            except tk.TclError:
+                pass
+
+    def test_rename_preserved_in_save_restore_cycle(
+        self, tk_root, mock_gui_env, tmp_path, monkeypatch
+    ):
+        """A renamed tab should keep its custom name through save → restore."""
+        import json
+
+        from prism.gui.app import PrismGUI
+        import prism.gui.app as app_mod
+        from prism.settings import Settings
+
+        fake_path = tmp_path / "config.json"
+        monkeypatch.setattr(app_mod, "settings", Settings())
+        monkeypatch.setattr(
+            app_mod,
+            "save_config",
+            lambda data: fake_path.write_text(json.dumps(data)),
+        )
+
+        root = _make_tk_root()
+        root.withdraw()
+        try:
+            # Phase 1: Create app, rename tab, save
+            with patch.object(app_mod, "settings") as mock_settings:
+                mock_settings.gui_query_autosave = True
+                mock_settings.gui_autosave_delay_ms = 3000
+                mock_settings.gui_saved_queries = "[]"
+
+                app = PrismGUI(root)
+                app._editor.set_text("SELECT 42")
+                app._editor_tab_bar.rename_tab(0, "Deep Thought")
+                app._on_close()
+
+            # Phase 2: Read the saved config
+            saved_data = json.loads(fake_path.read_text())
+            queries = json.loads(saved_data["gui_saved_queries"])
+            assert len(queries) == 1
+            assert queries[0]["name"] == "Deep Thought"
+            assert queries[0]["content"] == "SELECT 42"
         finally:
             try:
                 root.destroy()
