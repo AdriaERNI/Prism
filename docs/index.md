@@ -57,7 +57,7 @@ Full instructions are on the
 - **[Commands](commands/index.md)** — one page per CLI command, with every
   option and a runnable example.
 - **[GUI](commands/gui.md)** — the tkinter SQL editor with database
-  navigator and inline-editable results grid.
+  navigator and inline-editable results grid *(work in progress)*.
 - **[Cast Plugins](commands/cast.md)** — extend Prism with custom commands
   from any Git repository. Add repos, run commands with typed arguments,
   and get shell completion for free.

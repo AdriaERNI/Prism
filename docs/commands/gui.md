@@ -1,5 +1,9 @@
 # prism gui
 
+> **Work in progress.** The GUI is under active development and not yet
+> feature-complete. Expect rough edges, missing features, and potential
+> changes before it stabilises.
+
 Launch the Prism GUI — a tkinter-based SQL editor with a DBeaver-inspired
 layout. Provides a database navigator, SQL editor with syntax highlighting,
 results grid with inline editing, and a status bar — all connected to your

@@ -25,7 +25,7 @@
 - **Testing** — Run `%UnitTest` test classes, list test methods, view historical results
 - **Code Indexing** — Build a compact, token-efficient index of all classes using `%Dictionary` metadata
 - **MCP Server** — Expose all tools to AI assistants (Claude Code, Claude Desktop, Cursor, GitHub Copilot)
-- **GUI** — tkinter SQL editor with database navigator, inline-editable results grid, and multi-tab editing
+- **GUI** — tkinter SQL editor with database navigator, inline-editable results grid, and multi-tab editing *(work in progress)*
 - **Cast Plugins** — Extend Prism with custom commands from any Git repository
 - **Cross-platform** — Windows installer, Linux/macOS via pip/uv
 
@@ -108,7 +108,7 @@ for more details.
 | `prism cast` | Run custom commands from Git repos |
 | `prism serve` | Start the MCP server |
 | `prism setup` | Register Prism MCP in external AI tools |
-| `prism gui` | Launch the tkinter SQL editor GUI |
+| `prism gui` | Launch the tkinter SQL editor GUI *(work in progress)* |
 
 Global option: `prism --format toon` for TOON output.
 

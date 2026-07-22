@@ -67,7 +67,7 @@ prism <command> --help
 
 | Command | Summary |
 |---------|---------|
-| [`prism gui`](gui.md) | Launch the tkinter SQL editor GUI with database navigator, inline-editable results grid, and multi-tab editing. |
+| [`prism gui`](gui.md) | Launch the tkinter SQL editor GUI with database navigator, inline-editable results grid, and multi-tab editing. *(Work in progress.)* |
 
 ### Plugins
 
