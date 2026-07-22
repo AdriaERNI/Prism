@@ -86,7 +86,15 @@ class TestLupaBinaryModules:
     The build must include --collect-all lupa or --hidden-import lupa.lua51.
 
     These tests reproduce the 'No module named lupa.lua51' crash.
+
+    Skipped when lupa is not installed (it's an optional dependency
+    not included in the dev dependency group).
     """
+
+    @classmethod
+    def setup_class(cls):
+        """Skip all tests in this class if lupa is not installed."""
+        pytest.importorskip("lupa", reason="lupa not installed")
 
     def test_lupa_importable(self):
         """lupa itself must be importable."""
