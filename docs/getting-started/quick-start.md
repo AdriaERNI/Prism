@@ -108,6 +108,8 @@ prism delete-doc MyApp.Hello.cls
 
 - **[Commands](../commands/index.md)** — every CLI command and its
   options.
+- **[GUI](../commands/gui.md)** — the tkinter SQL editor with database
+  navigator and inline-editable results grid *(work in progress)*.
 - **[Cast Plugins](../commands/cast.md)** — extend Prism with custom
   commands from any Git repository. Add a repo, run commands with typed
   arguments, and get Tab completion for free.

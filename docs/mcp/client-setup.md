@@ -3,6 +3,13 @@
 Start the Prism MCP server, then point your client (Claude Code, Claude
 Desktop, Cursor, VS Code Copilot, …) at it.
 
+!!! tip "Automated setup"
+    Run [`prism setup`](../commands/setup.md) to register Prism MCP in
+    Claude Code, Codex CLI, OpenCode, and Hermes Agent automatically — no
+    manual file editing needed. The sections below cover the manual approach
+    for clients not yet supported by `prism setup` (Claude Desktop, Cursor,
+    VS Code Copilot).
+
 ## Start Prism
 
 ```powershell

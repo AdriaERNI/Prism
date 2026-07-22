@@ -64,9 +64,9 @@ fails, Prism exits non-zero with a clear message:
 
 ## MCP tools exposed
 
-10 tools are always registered. With `IRIS_WORKSPACE` set, 2 workspace
-tools are added (12 total). With `IRIS_DEBUG_ENABLED=true`, 9 debugger
-tools are added (up to 21 total). See [MCP tools](../mcp/tools.md) for
+11 tools are always registered. With `IRIS_WORKSPACE` set, 2 workspace
+tools are added (13 total). With `IRIS_DEBUG_ENABLED=true`, 9 debugger
+tools are added (up to 22 total). See [MCP tools](../mcp/tools.md) for
 the full reference, and [MCP client setup](../mcp/client-setup.md) for
 how to point your IDE / AI assistant at this server.
 

@@ -23,7 +23,9 @@
 - **Terminal** — Execute ObjectScript via native (SuperServer) or WebSocket backend
 - **Debugging** — Interactive step-through debugger with breakpoints, variable inspection, and stack traces
 - **Testing** — Run `%UnitTest` test classes, list test methods, view historical results
+- **Code Indexing** — Build a compact, token-efficient index of all classes using `%Dictionary` metadata
 - **MCP Server** — Expose all tools to AI assistants (Claude Code, Claude Desktop, Cursor, GitHub Copilot)
+- **GUI** — tkinter SQL editor with database navigator, inline-editable results grid, and multi-tab editing *(work in progress)*
 - **Cast Plugins** — Extend Prism with custom commands from any Git repository
 - **Cross-platform** — Windows installer, Linux/macOS via pip/uv
 
@@ -49,6 +51,43 @@ Need an IRIS instance? Start one with Docker:
 docker run -d --name iris -p 52773:52773 -p 1972:1972 intersystemsdc/iris-community:latest
 ```
 
+## Installation
+
+### Windows (recommended)
+
+Download the latest installer from
+[GitHub Releases](https://github.com/AdriaERNI/Prism/releases/latest):
+
+- **`prism-X.Y.Z-setup.exe`** — Inno Setup installer. Installs `prism.exe`
+  to `C:\Program Files\prism\` and adds it to the system `PATH`.
+- **`prism.exe`** — Standalone PyInstaller binary. Drop it anywhere on your
+  `PATH`.
+
+After installing, open a **new terminal** and verify:
+
+```powershell
+prism --help
+prism info
+```
+
+### Linux / macOS (development)
+
+```bash
+git clone https://github.com/AdriaERNI/Prism.git
+cd Prism
+uv sync
+uv run prism --help
+```
+
+Or install via pip:
+
+```bash
+pip install prism
+```
+
+See the [installation guide](https://adriaerni.github.io/Prism/getting-started/installation/)
+for more details.
+
 ## CLI Commands
 
 | Command | Description |
@@ -64,9 +103,12 @@ docker run -d --name iris -p 52773:52773 -p 1972:1972 intersystemsdc/iris-commun
 | `prism info` | Server version and namespaces |
 | `prism test` | Run unit test classes |
 | `prism list-tests` | Discover test classes |
+| `prism index` | Build a compact class index |
 | `prism config` | View or edit settings |
 | `prism cast` | Run custom commands from Git repos |
 | `prism serve` | Start the MCP server |
+| `prism setup` | Register Prism MCP in external AI tools |
+| `prism gui` | Launch the tkinter SQL editor GUI *(work in progress)* |
 
 Global option: `prism --format toon` for TOON output.
 
@@ -85,21 +127,29 @@ See the [commands overview](https://adriaerni.github.io/Prism/commands/) for det
 
 ## MCP Tools
 
-10 tools are always available, 2 workspace-gated (`put_document`, `put_and_compile`),
-and 9 debug-gated (`debug_*`) — up to 21 total.
+11 tools are always available, 2 workspace-gated (`put_document`, `put_and_compile`),
+and 9 debug-gated (`debug_*`) — up to 22 total.
 
 See the [full tool reference](https://adriaerni.github.io/Prism/mcp/tools/) for details.
 
 ## MCP Client Configuration
 
+> **Tip:** Run `prism setup` to automatically register Prism MCP in Claude
+> Code, Codex CLI, OpenCode, and Hermes Agent. See
+> [setup docs](https://adriaerni.github.io/Prism/commands/setup/) for details.
+
+The manual configurations below are for clients not yet supported by
+`prism setup` (Claude Desktop, Cursor, VS Code Copilot).
+
 ### Claude Code
 
-Add to `~/.claude/settings.json` or `.claude/settings.json`:
+Add to `~/.claude.json`:
 
 ```json
 {
   "mcpServers": {
-    "iris": {
+    "prism": {
+      "type": "http",
       "url": "http://localhost:3000/mcp"
     }
   }
@@ -113,9 +163,9 @@ Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "iris": {
-      "command": "uv",
-      "args": ["run", "--directory", "/path/to/prism", "prism", "serve"]
+    "prism": {
+      "command": "prism",
+      "args": ["serve"]
     }
   }
 }
@@ -128,7 +178,7 @@ Add to `.vscode/mcp.json`:
 ```json
 {
   "servers": {
-    "iris": {
+    "prism": {
       "type": "http",
       "url": "http://localhost:3000/mcp"
     }
@@ -143,7 +193,7 @@ Add to `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "iris": {
+    "prism": {
       "url": "http://localhost:3000/mcp"
     }
   }
@@ -177,6 +227,11 @@ src/prism/
 │   ├── _decorator.py   # Logging + auto-discovery
 │   ├── server.py       # FastMCP server
 │   └── *.py            # One module per tool domain
+├── gui/               # tkinter SQL editor GUI
+│   ├── app.py           # Main window, menu, layout, shortcuts
+│   ├── theme.py         # Dark colour palette
+│   ├── controllers/     # SQL execution controller (async)
+│   └── widgets/         # DatabaseTree, SQLEditor, ResultsTable, StatusBar, Toolbar
 ├── cast/              # Cast plugin system (import-based Typer plugins)
 │   └── manager.py      # Clone, import, cache, run commands
 └── cli/               # Typer CLI commands (async wrappers)
@@ -185,9 +240,10 @@ src/prism/
 ## Testing
 
 ```bash
-uv run pytest tests/unit/ -v                    # No IRIS needed (276 tests)
+uv run pytest tests/unit/ -v                    # No IRIS needed (586 tests)
 IRIS_BASE_URL=http://localhost:52773 \
-  uv run pytest tests/integration/ -v            # Needs IRIS (72 tests)
+  uv run pytest tests/integration/ -v            # Needs IRIS (87 tests)
+uv run pytest tests/gui/ -v                      # GUI tests (29 tests, needs display)
 uv run ruff check . && uv run ruff format --check .  # Lint
 ```
 
@@ -200,7 +256,7 @@ release workflow with two protected branches: `development` (active work)
 and `main` (stable releases).
 
 Download the latest Windows installer or standalone exe from
-[GitHub Releases](https://github.com/AdriaERNI/Prism/releases).
+[GitHub Releases](https://github.com/AdriaERNI/Prism/releases/latest).
 
 | Artifact | Description |
 |----------|-------------|

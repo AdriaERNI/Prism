@@ -1,8 +1,8 @@
 # Testing
 
-Prism has three test layers that build on each other: unit tests (no IRIS),
-integration tests against a live IRIS instance, and Windows packaging tests
-via Vagrant.
+Prism has four test layers that build on each other: unit tests (no IRIS),
+integration tests against a live IRIS instance, GUI tests for the tkinter
+SQL editor, and Windows packaging tests via Vagrant.
 
 ## Test layers at a glance
 
@@ -10,7 +10,10 @@ via Vagrant.
 |-------|-------|---------|-------------|-----------------|
 | **Unit** | `tests/unit/` | Linux (host) | No | Logic errors, API wire-format, settings, CLI arg parsing |
 | **Integration** | `tests/integration/` | Linux (host) | Yes | End-to-end MCP tool calls against a real IRIS server |
+| **GUI** | `tests/gui/` | Linux (host) | No* | GUI widget behavior, visual regression, E2E user scenarios |
 | **Windows Vagrant** | `vagrant/scripts/` | Windows VM | Yes (in-VM) | PyInstaller bundling gaps, PATH issues, installer behavior, native lib loading |
+
+*GUI tests that need a display skip in headless environments.
 
 ## Quick start
 
@@ -18,11 +21,14 @@ via Vagrant.
 # Lint (must pass before any commit)
 uv run ruff check . && uv run ruff format --check .
 
-# Unit tests (no IRIS needed — ~250 tests, < 1s)
+# Unit tests (no IRIS needed — 586 tests, < 1s)
 uv run pytest tests/unit/ -v
 
-# Integration tests (need a running IRIS instance)
+# Integration tests (need a running IRIS instance — 87 tests)
 IRIS_BASE_URL=http://<iris-host>:52773 uv run pytest tests/integration/ -v
+
+# GUI tests (29 tests, needs a display)
+uv run pytest tests/gui/ -v
 
 # Windows packaging tests (need Vagrant VM with IRIS)
 cd vagrant && vagrant up --provider=libvirt      # first time only
@@ -46,9 +52,19 @@ uv run pytest tests/unit/ -v
 ### What they cover
 
 - `test_cli_config.py` — CLI config command (display, set, remove, reset, redaction)
+- `test_cli_cast.py` — Cast plugin CLI commands (add, list, delete, update, run)
+- `test_cli_edge_cases.py` — CLI edge cases and error handling
+- `test_cli_interactive_ws.py` — Interactive WebSocket terminal CLI
+- `test_cli_setup.py` — `prism setup` command (MCP registration in external tools)
+- `test_cast_integration.py` — Cast plugin integration (importlib, registry, cache)
+- `test_completion.py` — Shell completion generation
 - `test_debugger.py` — Debug session lifecycle, stepping, breakpoints, variable inspection
+- `test_gui_sql.py` — GUI SQL controller and query execution logic
+- `test_gui_widgets.py` — GUI widget unit tests (tree, editor, results table, toolbar)
+- `test_index.py` — Code indexing tool and CLI
 - `test_settings.py` — Settings loading precedence (env > .env > config.json > defaults)
 - `test_output.py` — Output format support (JSON, TOON)
+- `test_pyinstaller_compat.py` — PyInstaller frozen build compatibility checks
 - `test_tool_errors.py` — Tool error handling, invalid document names, path traversal protection
 - `test_tools.py` — MCP tool registration and workspace conditional loading
 - `test_workspace.py` — Workspace path resolution, validation, save/load roundtrip
@@ -131,12 +147,15 @@ IRIS_BASE_URL=http://localhost:52773 uv run pytest tests/integration/ -v
 
 - `test_sql.py` — SELECT, expressions, string/date functions, invalid SQL, namespace override
 - `test_documents.py` — Put/get/delete for .cls, .mac, .inc; overwrite, non-existent
+- `test_document_slicing.py` — Document content slicing (head, tail, from_line, to_line)
 - `test_compile.py` — Compile classes, routines, custom flags, non-existent class
 - `test_terminal.py` — ObjectScript via native and WebSocket backends (parametrized)
 - `test_terminal_native.py` — Native terminal helper auto-deploy
 - `test_testing.py` — Run unit tests, list test classes, test history, auto-deploy runner
 - `test_debugger.py` — Debug start/stop, stepping, breakpoints, variable inspection, process discovery
+- `test_debugger_extra.py` — Extended debugger scenarios (skips if XDebug unavailable)
 - `test_e2e.py` — Full create-compile-insert-select roundtrip, SQL procs, embedded objects
+- `test_index.py` — Code indexing against a live IRIS namespace
 - `test_server_info.py` — Server version, namespaces
 - `test_background.py` — Background-capable tools
 
@@ -160,7 +179,36 @@ async def test_with_iris(live, cleanup):
 
 ---
 
-## 3. Windows Vagrant tests (requires Vagrant + KVM)
+## 3. GUI tests (Linux, requires a display)
+
+GUI tests verify the tkinter SQL editor — widget behavior, visual layout
+regression, and end-to-end user scenarios (connect, execute, edit results).
+
+### Run
+
+```bash
+uv run pytest tests/gui/ -v
+```
+
+Tests that need a display skip automatically in headless environments.
+
+### What they cover
+
+- `test_gui_interactions.py` — Widget interactions (clicks, typing, tab switching)
+- `test_visual_regression.py` — Visual layout regression (geometry, colours, element positions)
+- `test_e2e_user_scenarios.py` — Full user workflows (connect → query → edit → save)
+
+### Key fixtures
+
+| Fixture | What it does |
+|---------|-------------|
+| `root` | Creates a temporary `tk.Tk()` root window |
+| `gui` | Instantiates `PrismGUI` with mocked controller |
+| `mock_controller` | Replaces `SQLController` with a mock for isolated widget tests |
+
+---
+
+## 4. Windows Vagrant tests (requires Vagrant + KVM)
 
 These tests verify the **packaged Windows build** — the PyInstaller-bundled
 `prism.exe` installed via Inno Setup. They catch issues invisible to the pytest
@@ -272,7 +320,7 @@ bash vagrant/run-integration-tests.sh --filter "1[0-3]*"
 
 | # | File | Suite | Tests | What it verifies |
 |---|------|-------|-------|------------------|
-| 01 | `01-help.ps1` | help | 14 | All subcommands appear in `--help` |
+| 01 | `01-help.ps1` | help | 17 | All subcommands appear in `--help` |
 | 02 | `02-config.ps1` | config | 9 | Config display, redaction, set/remove/reset |
 | 03 | `03-info.ps1` | info | 3 | Server info JSON, version, TOON format |
 | 04 | `04-sql.ps1` | sql | 7 | SELECT, arithmetic, system classes, errors, namespace, TOON |
@@ -287,6 +335,7 @@ bash vagrant/run-integration-tests.sh --filter "1[0-3]*"
 | 13 | `13-test.ps1` | test | 4 | Run unit tests, single method, namespace, non-existent |
 | 14 | `14-serve.ps1` | serve | 3 | **Hangs WinRM** — starts background HTTP server |
 | 15 | `15-output-format.ps1` | output-format | ~3 | Global `--format` flag |
+| — | `test_mcp_tools.py` | mcp-protocol | — | Deep MCP protocol tests (run from Windows CI) |
 
 ### Test dependencies
 

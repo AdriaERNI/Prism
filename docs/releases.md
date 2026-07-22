@@ -81,9 +81,9 @@ gh pr create --base main --head release/v0.2.0 \
 All CI checks must pass before merging:
 
 - **Lint** -- ruff check + format
-- **Unit Tests** (Linux + Windows) -- 324 tests
+- **Unit Tests** (Linux + Windows) -- 586 tests
 - **Build and Test Frozen Executable** (Windows) -- PyInstaller build + frozen binary tests + deep MCP protocol tests (32 tests)
-- **Integration Tests** (Linux) -- against a live IRIS container
+- **Integration Tests** (Linux) -- against a live IRIS container (87 tests)
 
 ### 4. Merge to main
 

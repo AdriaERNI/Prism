@@ -34,7 +34,7 @@ Prism ships a single executable that you can run in two modes:
     prism serve
     ```
 
-    The server listens on `http://localhost:3000/mcp` and exposes 10
+    The server listens on `http://localhost:3000/mcp` and exposes 11
     always-on tools covering the same operations, plus 2 workspace-gated
     tools and 9 interactive-debugger tools that have no CLI equivalent.
 
@@ -56,6 +56,8 @@ Full instructions are on the
   settings file location, and the full environment-variable reference.
 - **[Commands](commands/index.md)** — one page per CLI command, with every
   option and a runnable example.
+- **[GUI](commands/gui.md)** — the tkinter SQL editor with database
+  navigator and inline-editable results grid *(work in progress)*.
 - **[Cast Plugins](commands/cast.md)** — extend Prism with custom commands
   from any Git repository. Add repos, run commands with typed arguments,
   and get shell completion for free.
@@ -82,12 +84,19 @@ Usage: prism [OPTIONS] COMMAND [ARGS]...
 
   Prism — InterSystems IRIS CLI and MCP server.
 
+Options:
+  --format TEXT         Output format: json (default) or toon.
+  -V, --version         Show the Prism version and exit.
+  --install-completion  Install completion for the current shell.
+  --show-completion     Show completion for the current shell, to copy it or
+                        customize the installation.
+  --help                Show this message and exit.
+
 Commands:
-  config      Save IRIS connection settings to the platform user config directory.
-  cast        Manage and run custom command repositories (casts).
+  config      View or edit Prism settings.
   sql         Run an SQL query and print the IRIS response as JSON.
   terminal    Run an ObjectScript command via irisnative (SuperServer).
-  ws          Run an ObjectScript command via the Atelier WebSocket terminal.
+  ws          Run an ObjectScript command or start an interactive terminal.
   compile     Compile documents on IRIS.
   get-doc     Retrieve a document from IRIS and print the response as JSON.
   list-docs   List source documents on the IRIS server.
@@ -96,5 +105,9 @@ Commands:
   info        Print server version, installed namespaces, and feature flags.
   test        Run a unit test class via the deployed runner.
   list-tests  List %UnitTest.TestCase classes and their Test* methods.
+  index       Build a compact index of classes in an IRIS namespace.
   serve       Start the Prism MCP server (streamable-http transport).
+  setup       Set up Prism MCP server in external AI tools.
+  gui         Launch the Prism GUI SQL editor (requires a display).
+  cast        Manage and run custom command repositories (casts).
 ```
