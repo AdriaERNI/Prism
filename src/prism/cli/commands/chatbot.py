@@ -15,6 +15,7 @@ Configuration:
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 
 import typer
 
@@ -254,6 +255,7 @@ def _run_interactive(
 
     try:
         from prompt_toolkit import PromptSession
+        from prompt_toolkit.formatted_text import HTML
         from prompt_toolkit.history import FileHistory
 
         from platformdirs import user_data_path
@@ -262,17 +264,22 @@ def _run_interactive(
         data_dir.mkdir(parents=True, exist_ok=True)
         history_file = data_dir / "chatbot_history"
 
-        prompt_session: PromptSession = PromptSession(
+        prompt_session: PromptSession | None = PromptSession(
             history=FileHistory(str(history_file)),
         )
+        prompt_html: Any = HTML  # keep reference for the loop
     except ImportError:
-        prompt_session = None  # type: ignore[assignment, misc]
+        prompt_session = None
+        prompt_html = None
 
     while True:
         try:
             if prompt_session is not None:
+                # prompt_toolkit uses its own HTML-style formatting, not
+                # raw ANSI escape codes — passing ANSI codes shows them as
+                # literal ^[[1m^[[32m text instead of colours.
                 user_input = prompt_session.prompt(
-                    f"{_ANSI_BOLD}{_ANSI_GREEN}you> {_ANSI_RESET}"
+                    prompt_html("<b><ansigreen>you> </ansigreen></b>")
                 )
             else:
                 user_input = input(f"{_ANSI_BOLD}{_ANSI_GREEN}you> {_ANSI_RESET}")

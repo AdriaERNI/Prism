@@ -21,12 +21,18 @@ def runner():
 
 @pytest.fixture
 def tmp_config(tmp_path, monkeypatch):
-    """Redirect config_path() to a tmp file and clear env vars."""
+    """Redirect config_path() to a tmp file, clear env vars, and reset settings."""
     path = tmp_path / "prism" / "config.json"
     monkeypatch.setattr(settings_module, "config_path", lambda: path)
     for var in list(os.environ):
         if var.startswith(("IRIS_", "PRISM_", "CHATBOT_")):
             monkeypatch.delenv(var, raising=False)
+    # Reset the settings singleton so it picks up the empty tmp config
+    # instead of retaining values from a real config.json.  Patch both
+    # the source module and the already-imported reference in chatbot.py.
+    fresh = settings_module.Settings()
+    monkeypatch.setattr(settings_module, "settings", fresh)
+    monkeypatch.setattr("prism.cli.commands.chatbot.settings", fresh)
     return path
 
 
