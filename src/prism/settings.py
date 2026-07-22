@@ -92,6 +92,12 @@ class Settings(BaseSettings):
     iris_debug_max_depth: int = 2
     iris_debug_idle_timeout: int = 300
 
+    # Chatbot agent
+    chatbot_api_url: str = ""
+    chatbot_api_key: str = ""
+    chatbot_skills_path: str = ""
+    chatbot_model: str = "gpt-4o"
+
     @classmethod
     def settings_customise_sources(
         cls,

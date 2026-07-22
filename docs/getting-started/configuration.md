@@ -123,3 +123,16 @@ tools are hidden until `IRIS_DEBUG_ENABLED=true`.
     Debugging requires a WebSocket connection to the IRIS XDebug
     endpoint. Ensure your IRIS instance has XDebug enabled and that
     port is reachable.
+
+## Chatbot agent
+
+The `prism chatbot` command starts an AI agent that orchestrates
+Prism's MCP tools via an OpenAI-compatible LLM API. See
+[`prism chatbot`](../commands/chatbot.md) for full usage.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CHATBOT_API_URL` | *(empty)* | OpenAI-compatible API base URL (e.g. `https://api.openai.com/v1`) |
+| `CHATBOT_API_KEY` | *(empty)* | API key for the LLM provider |
+| `CHATBOT_MODEL` | `gpt-4o` | Model name to use |
+| `CHATBOT_SKILLS_PATH` | *(empty)* | Path to a folder of markdown skill files injected into the agent's system prompt |

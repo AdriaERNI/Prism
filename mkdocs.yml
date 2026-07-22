@@ -105,6 +105,7 @@ nav:
     - prism serve: commands/serve.md
     - prism setup: commands/setup.md
     - prism gui: commands/gui.md
+    - prism chatbot: commands/chatbot.md
     - prism cast: commands/cast.md
   - Testing: testing.md
   - MCP Server:

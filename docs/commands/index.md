@@ -69,6 +69,12 @@ prism <command> --help
 |---------|---------|
 | [`prism gui`](gui.md) | Launch the tkinter SQL editor GUI with database navigator, inline-editable results grid, and multi-tab editing. *(Work in progress.)* |
 
+### Chatbot
+
+| Command | Summary |
+|---------|---------|
+| [`prism chatbot`](chatbot.md) | Start an AI chatbot agent that orchestrates Prism's MCP tools using natural language. Connect to any OpenAI-compatible LLM API. |
+
 ### Plugins
 
 | Command | Summary |
