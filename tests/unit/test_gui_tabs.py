@@ -24,14 +24,20 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-@pytest.fixture(scope="module")
-def tk_root():
-    """Create a hidden Tk root for widget tests."""
+def _make_tk_root():
+    """Create a Tk root, skipping the test if Tcl/Tk is unavailable."""
     try:
         root = tk.Tk()
     except tk.TclError:
-        pytest.skip("No display available for Tk tests")
+        pytest.skip("Tcl/Tk not available on this platform")
     root.withdraw()
+    return root
+
+
+@pytest.fixture(scope="module")
+def tk_root():
+    """Create a hidden Tk root for widget tests."""
+    root = _make_tk_root()
     yield root
     root.destroy()
 
@@ -399,7 +405,7 @@ class TestAppTabCreation:
         """_new_query should add a new tab with a unique name."""
         from prism.gui.app import PrismGUI
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             app = PrismGUI(root)
@@ -420,7 +426,7 @@ class TestAppTabCreation:
         """Creating a new tab should save the current editor text to the old tab."""
         from prism.gui.app import PrismGUI
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             app = PrismGUI(root)
@@ -443,7 +449,7 @@ class TestAppTabCreation:
         """Creating multiple new queries should produce unique tab names."""
         from prism.gui.app import PrismGUI
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             app = PrismGUI(root)
@@ -474,7 +480,7 @@ class TestAppTabSwitching:
         """Switching tabs should save current editor text and load new tab text."""
         from prism.gui.app import PrismGUI
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             app = PrismGUI(root)
@@ -503,7 +509,7 @@ class TestAppTabSwitching:
         from prism.gui.app import PrismGUI
         from prism.gui.controllers.sql_controller import QueryResult
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             app = PrismGUI(root)
@@ -526,7 +532,7 @@ class TestAppTabSwitching:
         """Three tabs should each maintain independent content through switches."""
         from prism.gui.app import PrismGUI
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             app = PrismGUI(root)
@@ -582,7 +588,7 @@ class TestAutoSave:
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             # Patch settings to use a very short delay for testing
@@ -618,7 +624,7 @@ class TestAutoSave:
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -656,7 +662,7 @@ class TestAutoSave:
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -682,7 +688,7 @@ class TestAutoSave:
         from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -706,7 +712,7 @@ class TestAutoSave:
         from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -744,7 +750,7 @@ class TestQueryRestoration:
 
         saved = json.dumps([{"name": "Script-1", "content": "SELECT 42"}])
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -774,7 +780,7 @@ class TestQueryRestoration:
             ]
         )
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -807,7 +813,7 @@ class TestQueryRestoration:
         from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -829,7 +835,7 @@ class TestQueryRestoration:
         from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -858,7 +864,7 @@ class TestQueryRestoration:
             ]
         )
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -891,7 +897,7 @@ class TestSaveOnExit:
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -926,7 +932,7 @@ class TestSaveOnExit:
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -966,7 +972,7 @@ class TestInitialQuery:
         from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -990,7 +996,7 @@ class TestInitialQuery:
 
         saved = json.dumps([{"name": "Script-1", "content": "SELECT old"}])
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -1025,7 +1031,7 @@ class TestSaveRestoreCycle:
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
 
         # Phase 1: Create app, type a query, close it
-        root1 = tk.Tk()
+        root1 = _make_tk_root()
         root1.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -1044,7 +1050,7 @@ class TestSaveRestoreCycle:
                 pass
 
         # Phase 2: Create a new app and verify the query was restored
-        root2 = tk.Tk()
+        root2 = _make_tk_root()
         root2.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -1073,7 +1079,7 @@ class TestSaveRestoreCycle:
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -1124,7 +1130,7 @@ class TestAppTabClose:
         from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
@@ -1157,7 +1163,7 @@ class TestAppTabClose:
         from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
 
-        root = tk.Tk()
+        root = _make_tk_root()
         root.withdraw()
         try:
             with patch.object(app_mod, "settings") as mock_settings:
