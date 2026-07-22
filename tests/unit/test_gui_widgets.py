@@ -552,30 +552,52 @@ class TestResultsEditing:
     def test_detect_source_table_from_query(self, tk_root):
         """app._detect_source_table should parse FROM schema.table."""
         import tkinter as tk
+        from unittest.mock import patch
+
         from prism.gui.app import PrismGUI
 
         root = tk.Tk()
         root.withdraw()
         try:
-            app = PrismGUI(root)
-            app._detect_source_table("SELECT * FROM Ens.AlarmRequest")
-            assert app._results._source_table == "Ens.AlarmRequest"
+            # Mock background threads to prevent segfaults from leftover
+            # DatabaseTree._load_tables / SQLController threads accessing Tk
+            # after root.destroy() in subsequent tests.
+            with (
+                patch(
+                    "prism.gui.controllers.sql_controller.SQLController.start_polling"
+                ),
+                patch(
+                    "prism.gui.controllers.sql_controller.SQLController.check_connection",
+                    side_effect=lambda on_done=None: (
+                        on_done(False) if on_done else None
+                    ),
+                ),
+                patch("prism.gui.widgets.database_tree.DatabaseTree.load_async"),
+            ):
+                app = PrismGUI(root)
+                app._detect_source_table("SELECT * FROM Ens.AlarmRequest")
+                assert app._results._source_table == "Ens.AlarmRequest"
 
-            app._detect_source_table(
-                "SELECT TOP 5 TABLE_SCHEMA FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'"
-            )
-            # INFORMATION_SCHEMA is a system schema — should NOT be set as editable
-            assert app._results._source_table is None
+                app._detect_source_table(
+                    "SELECT TOP 5 TABLE_SCHEMA FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'"
+                )
+                # INFORMATION_SCHEMA is a system schema — should NOT be set as editable
+                assert app._results._source_table is None
 
-            # System schemas (% prefix) are also excluded
-            app._detect_source_table("SELECT * FROM %SYS.Roles")
-            assert app._results._source_table is None
+                # System schemas (% prefix) are also excluded
+                app._detect_source_table("SELECT * FROM %SYS.Roles")
+                assert app._results._source_table is None
 
-            # No schema.table pattern in this query
-            app._detect_source_table("SELECT 1")
-            assert app._results._source_table is None
+                # No schema.table pattern in this query
+                app._detect_source_table("SELECT 1")
+                assert app._results._source_table is None
+        except tk.TclError:
+            pytest.skip("Tcl/Tk not available on this platform")
         finally:
-            root.destroy()
+            try:
+                root.destroy()
+            except tk.TclError:
+                pass
 
     def test_modified_count(self, tk_root):
         """modified_count should reflect total changed cells."""

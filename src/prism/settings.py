@@ -98,6 +98,11 @@ class Settings(BaseSettings):
     chatbot_skills_path: str = ""
     chatbot_model: str = "gpt-4o"
 
+    # GUI SQL editor
+    gui_query_autosave: bool = True
+    gui_autosave_delay_ms: int = 3000
+    gui_saved_queries: str = "[]"
+
     @classmethod
     def settings_customise_sources(
         cls,

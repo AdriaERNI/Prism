@@ -179,11 +179,11 @@ class TestSettingsFields:
 
         assert "chatbot_skills_path" in Settings.model_fields
 
-    def test_settings_count_is_25(self):
-        """Original 21 + 4 chatbot fields = 25 total."""
+    def test_settings_count_is_28(self):
+        """Original 21 + 4 chatbot + 3 GUI fields = 28 total."""
         from prism.settings import Settings
 
-        assert len(Settings.model_fields) == 25
+        assert len(Settings.model_fields) == 28
 
     def test_chatbot_defaults(self):
         from prism.settings import Settings

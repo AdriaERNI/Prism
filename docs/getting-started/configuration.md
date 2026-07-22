@@ -136,3 +136,14 @@ Prism's MCP tools via an OpenAI-compatible LLM API. See
 | `CHATBOT_API_KEY` | *(empty)* | API key for the LLM provider |
 | `CHATBOT_MODEL` | `gpt-4o` | Model name to use |
 | `CHATBOT_SKILLS_PATH` | *(empty)* | Path to a folder of markdown skill files injected into the agent's system prompt |
+
+## GUI SQL editor
+
+The `prism gui` command launches a tkinter SQL editor with multi-tab
+support and automatic query persistence.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GUI_QUERY_AUTOSAVE` | `true` | When enabled, query text is automatically saved to `config.json` after the configured delay |
+| `GUI_AUTOSAVE_DELAY_MS` | `3000` | Milliseconds of typing inactivity before queries are auto-saved (default 3 seconds) |
+| `GUI_SAVED_QUERIES` | `[]` | JSON array of `{"name": "Script-1", "content": "SELECT 1"}` entries — restored as tabs on GUI startup |
