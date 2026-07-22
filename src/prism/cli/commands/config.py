@@ -13,7 +13,7 @@ from prism.settings import (
 )
 
 REDACTED = "***"
-SECRET_FIELDS = {"iris_password"}
+SECRET_FIELDS = {"iris_password", "chatbot_api_key"}
 
 # Mapping from CLI flag names to Settings field names. Keep order roughly
 # grouped: connection → mode → tunables — to read nicely in --help.
@@ -39,6 +39,10 @@ _FLAG_TO_FIELD: dict[str, str] = {
     "debug_max_children": "iris_debug_max_children",
     "debug_max_depth": "iris_debug_max_depth",
     "debug_idle_timeout": "iris_debug_idle_timeout",
+    "chatbot_api_url": "chatbot_api_url",
+    "chatbot_api_key": "chatbot_api_key",
+    "chatbot_model": "chatbot_model",
+    "chatbot_skills_path": "chatbot_skills_path",
 }
 
 
@@ -214,6 +218,23 @@ def config(
     ),
     debug_idle_timeout: int | None = typer.Option(
         None, "--debug-idle-timeout", help="Idle timeout for debug sessions (seconds)"
+    ),
+    # ── Chatbot ─────────────────────────────────────────────────────
+    chatbot_api_url: str | None = typer.Option(
+        None,
+        "--chatbot-api-url",
+        help="OpenAI-compatible API base URL for the chatbot agent",
+    ),
+    chatbot_api_key: str | None = typer.Option(
+        None, "--chatbot-api-key", help="API key for the chatbot LLM provider"
+    ),
+    chatbot_model: str | None = typer.Option(
+        None, "--chatbot-model", help="Model name for the chatbot (default: gpt-4o)"
+    ),
+    chatbot_skills_path: str | None = typer.Option(
+        None,
+        "--chatbot-skills-path",
+        help="Path to a folder of markdown skill files for the chatbot",
     ),
     # ── Mode flags ──────────────────────────────────────────────────
     interactive: bool = typer.Option(

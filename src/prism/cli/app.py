@@ -13,6 +13,7 @@ os.environ.setdefault("TYPER_USE_RICH", "false")
 import typer  # noqa: E402
 
 from prism.cli.commands.cast import cast_app  # noqa: E402
+from prism.cli.commands.chatbot import chatbot  # noqa: E402
 from prism.cli.commands.compile import compile as compile_cmd  # noqa: E402
 from prism.cli.commands.config import config  # noqa: E402
 from prism.cli.commands.documents import (  # noqa: E402
@@ -90,6 +91,7 @@ app.command(name="index")(index_cmd)
 app.command(name="serve")(serve)
 app.command(name="setup")(install)
 app.command(name="gui")(gui)
+app.command(name="chatbot")(chatbot)
 
 
 def main() -> None:

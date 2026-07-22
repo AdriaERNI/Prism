@@ -8,15 +8,15 @@ from prism.settings import Settings
 class TestSettingsFields:
     """Regression guard for the Settings class."""
 
-    def test_settings_has_21_fields(self):
-        """Settings must have exactly 21 configurable fields.
+    def test_settings_has_25_fields(self):
+        """Settings must have exactly 25 configurable fields.
 
         If this test fails, a field was added or removed — update
         docs/getting-started/configuration.md accordingly.
         """
         fields = set(Settings.model_fields.keys())
-        assert len(fields) == 21, (
-            f"Expected 21 settings fields, got {len(fields)}: {sorted(fields)}"
+        assert len(fields) == 25, (
+            f"Expected 25 settings fields, got {len(fields)}: {sorted(fields)}"
         )
 
     @pytest.mark.parametrize(
@@ -43,6 +43,10 @@ class TestSettingsFields:
             "iris_debug_max_children",
             "iris_debug_max_depth",
             "iris_debug_idle_timeout",
+            "chatbot_api_url",
+            "chatbot_api_key",
+            "chatbot_model",
+            "chatbot_skills_path",
         ],
     )
     def test_field_exists(self, field_name):

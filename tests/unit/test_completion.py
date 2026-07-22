@@ -111,10 +111,10 @@ class TestCommandCompletion:
         result = _run_completion("prism s", 1)
         assert set(result) == {"sql", "serve", "setup"}
 
-    def test_complete_c_returns_config_compile_cast(self):
+    def test_complete_c_returns_config_compile_cast_chatbot(self):
         """'prism c' + Tab should return commands starting with 'c'."""
         result = _run_completion("prism c", 1)
-        assert set(result) == {"config", "compile", "cast"}
+        assert set(result) == {"config", "compile", "cast", "chatbot"}
 
     def test_complete_exact_command(self):
         """'prism sql' + Tab should return 'sql' (exact match)."""

@@ -66,7 +66,7 @@ Dependabot is configured to target `development` (not `main`) in
 
 ```
 src/prism/
-├── settings.py         # pydantic-settings: env, .env, and config.json loader (21 fields)
+├── settings.py         # pydantic-settings: env, .env, and config.json loader (25 fields)
 ├── iris/
 │   ├── sdk/            # Shared utilities: http, logging, workspace, debug protocols
 │   └── api/            # Thin HTTP wrappers for IRIS REST API
@@ -74,6 +74,9 @@ src/prism/
 │   ├── _decorator.py   # logged_tool implementation
 │   ├── server.py       # FastMCP server with auto-discovery
 │   └── *.py            # One module per tool domain
+├── chatbot/            # AI agent that orchestrates MCP tools via LLM
+│   ├── agent.py        # LLM-powered tool-use loop (OpenAI-compatible API)
+│   └── skills.py       # Markdown skill folder reader/loader
 ├── gui/                # tkinter SQL editor GUI
 │   ├── app.py          # Main window, menu, layout, shortcuts
 │   ├── theme.py        # Dark colour palette
@@ -93,13 +96,13 @@ Tools are registered conditionally based on settings:
 | Debug-gated | 9 | `IRIS_DEBUG_ENABLED=true` (`debug_*` tools) |
 | **Maximum** | **22** | Both workspace + debug enabled |
 
-### Settings (21 fields)
+### Settings (25 fields)
 
 Import the singleton `from prism.settings import settings` and read fields like
 `settings.iris_base_url`. Sources are merged with precedence:
 env > `.env` > `<user-data>/prism/config.json` > field defaults.
 
-All 21 fields are documented in
+All 25 fields are documented in
 [docs/getting-started/configuration.md](docs/getting-started/configuration.md)
 and guarded by a regression test in `tests/unit/test_settings.py`.
 
