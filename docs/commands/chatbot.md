@@ -19,8 +19,34 @@ User message → LLM API → tool calls? → execute via MCP → results → LLM
    OpenAI function-calling format.
 3. It sends the user's message to the LLM API with the tool definitions.
 4. If the LLM responds with tool calls, the agent executes them via the
-   MCP client and feeds the results back.
+   MCP client and feeds the results back. **Multiple tool calls in a
+   single response are executed concurrently** via `asyncio.gather()`.
 5. This loop repeats until the LLM produces a final text response.
+
+### Conversation memory
+
+In interactive REPL mode, the agent maintains conversation history
+across turns — the LLM remembers previous questions and results. Use
+the `clear` command to reset the conversation context without exiting.
+
+### Error handling
+
+- **Retry with backoff**: Transient API failures (HTTP 429, 5xx, timeouts)
+  are retried up to 3 times with exponential backoff (1-30s jitter).
+- **Tool errors**: Tool execution failures are fed back to the LLM so
+  it can explain the issue and suggest a fix.
+- **Max iterations**: The tool-use loop is capped at 25 iterations to
+  prevent infinite loops.
+- **Context trimming**: When conversation history approaches the model's
+  context window, oldest messages are trimmed (system prompt preserved).
+
+### Security
+
+- Tool results are treated as **data, not instructions** — the system
+  prompt explicitly warns the LLM not to follow commands embedded in
+  tool output.
+- Tool names are validated against the discovered MCP tool list before
+  execution — unknown tools are rejected with an error message.
 
 ## Prerequisites
 
@@ -80,7 +106,7 @@ Prism 0.2.1-beta2 — Chatbot Agent
   LLM API: https://api.openai.com/v1
   Model:   gpt-4o
   Skills:  ./skills
-  Type 'help' for commands, 'exit' to quit.
+  Type 'help' for commands, 'clear' to reset context, 'exit' to quit.
 
 you> What tables exist in the USER namespace?
   thinking...
@@ -88,7 +114,21 @@ you> What tables exist in the USER namespace?
   ← execute_sql returned: 245 chars
 
 agent> The USER namespace contains 12 tables...
+
+you> Now query the first one
+  thinking...
+  (agent remembers the previous query and its results)
+
+agent> The first table is...
 ```
+
+### REPL commands
+
+| Command | Description |
+|---------|-------------|
+| `exit` / `quit` | Exit the chatbot session |
+| `help` | Show available commands |
+| `clear` | Clear conversation history (reset context) |
 
 ### One-shot mode
 
