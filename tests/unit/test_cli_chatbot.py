@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from unittest.mock import patch
 
 import pytest
@@ -35,11 +36,13 @@ class TestChatbotHelp:
     def test_help_command(self, runner):
         result = runner.invoke(app, ["chatbot", "--help"])
         assert result.exit_code == 0
-        assert "chatbot" in result.stdout.lower()
-        assert "--api-url" in result.stdout
-        assert "--api-key" in result.stdout
-        assert "--model" in result.stdout
-        assert "--skills-path" in result.stdout
+        # Strip ANSI color codes (Windows CI renders them differently).
+        clean = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+        assert "chatbot" in clean.lower()
+        assert "--api-url" in clean
+        assert "--api-key" in clean
+        assert "--model" in clean
+        assert "--skills-path" in clean
 
     def test_command_registered_in_app(self, runner):
         result = runner.invoke(app, ["--help"])

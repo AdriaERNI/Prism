@@ -51,7 +51,8 @@ def load_skills(skills_path: str | Path | None) -> str:
 
         # Derive a skill name from the relative path without extension.
         # e.g. "sql/rest-apis.md" -> "sql/rest-apis"
-        skill_name = str(md_file.relative_to(root).with_suffix(""))
+        # Use forward slashes for cross-platform consistency.
+        skill_name = md_file.relative_to(root).with_suffix("").as_posix()
         blocks.append(f"## Skill: {skill_name}\n\n{content}")
 
     if not blocks:
@@ -79,7 +80,7 @@ def list_skills(skills_path: str | Path | None) -> list[dict[str, str]]:
             size = md_file.stat().st_size
         except OSError:
             size = 0
-        skill_name = str(md_file.relative_to(root).with_suffix(""))
+        skill_name = md_file.relative_to(root).with_suffix("").as_posix()
         skills.append(
             {
                 "name": skill_name,
