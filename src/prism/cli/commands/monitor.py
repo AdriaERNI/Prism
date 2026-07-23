@@ -11,7 +11,6 @@ Usage::
 
     prism monitor              # one-shot dashboard snapshot
     prism monitor --watch 2   # live dashboard, refresh every 2s
-    prism monitor --watch 0   # single snapshot (same as no flag)
     prism monitor --json       # machine-readable JSON output (no dashboard)
     prism monitor --compare    # take two snapshots, compare (JSON)
 """
@@ -64,7 +63,7 @@ def monitor(
             else:
                 _run_json_once(raw)
         else:
-            _run_dashboard(watch)
+            asyncio.run(_run_dashboard(watch))
     except Exception as exc:
         handle_command_error(exc)
 
@@ -72,12 +71,19 @@ def monitor(
 # ── Dashboard mode (default — human-readable rich UI) ─────────────────
 
 
-def _run_dashboard(watch: float) -> None:
+async def _run_dashboard(watch: float) -> None:
     """Render the rich Live dashboard.
 
     If *watch* > 0, runs a live-updating dashboard that refreshes every
     *watch* seconds until the user presses Ctrl+C.  If *watch* is 0,
     renders a single snapshot and exits.
+
+    Runs entirely inside a single ``asyncio.run()`` — this is critical
+    because the shared ``httpx.AsyncClient`` (in ``prism.iris.sdk.http``)
+    is bound to the event loop it was created on.  Calling
+    ``asyncio.run()`` multiple times closes the loop, and the next call
+    raises ``RuntimeError: Event loop is closed`` when httpx tries to
+    clean up connections.
     """
     from rich.console import Console
     from rich.live import Live
@@ -86,7 +92,7 @@ def _run_dashboard(watch: float) -> None:
     history = HistoryBuffer()
 
     # Take the first snapshot
-    snapshot = asyncio.run(collect_snapshot())
+    snapshot = await collect_snapshot()
     history.add(snapshot)
 
     if watch > 0:
@@ -95,8 +101,8 @@ def _run_dashboard(watch: float) -> None:
         with Live(panel, console=console, refresh_per_second=1) as live:
             try:
                 while True:
-                    time.sleep(watch)
-                    snapshot = asyncio.run(collect_snapshot())
+                    await asyncio.sleep(watch)
+                    snapshot = await collect_snapshot()
                     history.add(snapshot)
                     live.update(render_dashboard(snapshot, history, console))
             except KeyboardInterrupt:
@@ -129,18 +135,23 @@ def _run_watch_json(interval: float, raw: bool) -> None:
         err=True,
     )
     try:
-        while True:
-            snapshot = asyncio.run(collect_snapshot())
-            result = snapshot.to_dict()
-            if raw:
-                result["raw_metrics"] = [
-                    {"name": s.name, "value": s.value, "labels": s.labels}
-                    for s in snapshot.raw_samples
-                ]
-            typer.echo(format_output(result, get_output_format()))
-            time.sleep(interval)
+        asyncio.run(_watch_json_loop(interval, raw))
     except KeyboardInterrupt:
         typer.echo("\nMonitoring stopped.", err=True)
+
+
+async def _watch_json_loop(interval: float, raw: bool) -> None:
+    """Async loop for JSON watch mode — runs in a single event loop."""
+    while True:
+        snapshot = await collect_snapshot()
+        result = snapshot.to_dict()
+        if raw:
+            result["raw_metrics"] = [
+                {"name": s.name, "value": s.value, "labels": s.labels}
+                for s in snapshot.raw_samples
+            ]
+        typer.echo(format_output(result, get_output_format()))
+        await asyncio.sleep(interval)
 
 
 # ── Compare mode ──────────────────────────────────────────────────────
