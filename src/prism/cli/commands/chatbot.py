@@ -265,8 +265,20 @@ def _run_interactive(
 
     Creates a single ChatbotAgent that persists across all turns,
     preserving conversation history for multi-turn interactions.
-    The MCP connection and tool discovery are performed once.
+    The MCP connection, tool discovery, and HTTP client are all
+    performed once inside a single asyncio.run() call so that
+    httpx connections share the same event loop.
     """
+    asyncio.run(_async_repl(api_url, api_key, model, skills_path))
+
+
+async def _async_repl(
+    api_url: str | None,
+    api_key: str | None,
+    model: str | None,
+    skills_path: str | None,
+) -> None:
+    """Async REPL loop — runs in a single event loop for the whole session."""
     from prism.chatbot.agent import ChatbotAgent
 
     try:
@@ -283,71 +295,63 @@ def _run_interactive(
         prompt_session: PromptSession | None = PromptSession(
             history=FileHistory(str(history_file)),
         )
-        prompt_html: Any = HTML  # keep reference for the loop
+        prompt_html: Any = HTML
     except ImportError:
         prompt_session = None
         prompt_html = None
 
-    # Create the agent once and run it in an event loop for the whole session
-    async def _repl_loop() -> None:
-        agent = ChatbotAgent(
-            api_url=api_url,
-            api_key=api_key,
-            model=model,
-            skills_path=skills_path,
+    agent = ChatbotAgent(
+        api_url=api_url,
+        api_key=api_key,
+        model=model,
+        skills_path=skills_path,
+    )
+
+    async with agent:
+        typer.echo(
+            f"{_ANSI_DIM}  Connected to MCP server, "
+            f"{len(agent._tools)} tools available.{_ANSI_RESET}\n"
         )
 
-        async with agent:
-            typer.echo(
-                f"{_ANSI_DIM}  Connected to MCP server, "
-                f"{len(agent._tools)} tools available.{_ANSI_RESET}\n"
-            )
-
-            while True:
-                try:
-                    if prompt_session is not None:
-                        user_input = prompt_session.prompt(
-                            prompt_html("<b><ansigreen>you> </ansigreen></b>")
-                        )
-                    else:
-                        user_input = input(
-                            f"{_ANSI_BOLD}{_ANSI_GREEN}you> {_ANSI_RESET}"
-                        )
-                except (EOFError, KeyboardInterrupt):
-                    typer.echo(f"\n{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
-                    return
-
-                text = user_input.strip()
-                if not text:
-                    continue
-
-                # Local commands
-                if text.lower() in _EXIT_COMMANDS:
-                    typer.echo(f"{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
-                    return
-                if text.lower() in _HELP_COMMANDS:
-                    _print_help()
-                    continue
-                if text.lower() in _CLEAR_COMMANDS:
-                    # Reset conversation history but keep system prompt
-                    agent.messages = [agent.messages[0]] if agent.messages else []
-                    typer.echo(
-                        f"{_ANSI_DIM}  Conversation history cleared.{_ANSI_RESET}\n"
+        while True:
+            try:
+                if prompt_session is not None:
+                    user_input = await prompt_session.prompt_async(
+                        prompt_html("<b><ansigreen>you> </ansigreen></b>")
                     )
-                    continue
+                else:
+                    # Fallback: input() is blocking but works outside PTY
+                    user_input = input(f"{_ANSI_BOLD}{_ANSI_GREEN}you> {_ANSI_RESET}")
+            except (EOFError, KeyboardInterrupt):
+                typer.echo(f"\n{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
+                return
 
-                # Run the agent turn (preserves conversation history)
-                typer.echo(f"{_ANSI_DIM}  thinking...{_ANSI_RESET}", nl=True)
-                try:
-                    response = await agent.run(text)
-                    typer.echo(
-                        f"\n{_ANSI_BOLD}{_ANSI_CYAN}agent> {_ANSI_RESET}{response}\n"
-                    )
-                except ValueError as exc:
-                    typer.echo(f"\n{_ANSI_RED}Error: {exc}{_ANSI_RESET}\n", err=True)
-                except KeyboardInterrupt:
-                    typer.echo(f"\n{_ANSI_DIM}Interrupted.{_ANSI_RESET}\n")
-                except Exception as exc:
-                    typer.echo(f"\n{_ANSI_RED}Error: {exc}{_ANSI_RESET}\n", err=True)
+            text = user_input.strip()
+            if not text:
+                continue
 
-    asyncio.run(_repl_loop())
+            # Local commands
+            if text.lower() in _EXIT_COMMANDS:
+                typer.echo(f"{_ANSI_DIM}Goodbye.{_ANSI_RESET}")
+                return
+            if text.lower() in _HELP_COMMANDS:
+                _print_help()
+                continue
+            if text.lower() in _CLEAR_COMMANDS:
+                agent.messages = [agent.messages[0]] if agent.messages else []
+                typer.echo(f"{_ANSI_DIM}  Conversation history cleared.{_ANSI_RESET}\n")
+                continue
+
+            # Run the agent turn (preserves conversation history)
+            typer.echo(f"{_ANSI_DIM}  thinking...{_ANSI_RESET}", nl=True)
+            try:
+                response = await agent.run(text)
+                typer.echo(
+                    f"\n{_ANSI_BOLD}{_ANSI_CYAN}agent> {_ANSI_RESET}{response}\n"
+                )
+            except ValueError as exc:
+                typer.echo(f"\n{_ANSI_RED}Error: {exc}{_ANSI_RESET}\n", err=True)
+            except KeyboardInterrupt:
+                typer.echo(f"\n{_ANSI_DIM}Interrupted.{_ANSI_RESET}\n")
+            except Exception as exc:
+                typer.echo(f"\n{_ANSI_RED}Error: {exc}{_ANSI_RESET}\n", err=True)
