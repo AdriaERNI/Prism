@@ -1,6 +1,6 @@
 # Commands
 
-Prism ships 17 CLI commands. Each one is a thin wrapper around a single
+Prism ships 18 CLI commands. Each one is a thin wrapper around a single
 IRIS operation, so the output is the raw Atelier REST response (as JSON)
 unless otherwise noted.
 
@@ -24,6 +24,7 @@ prism <command> --help
 |---------|---------|
 | [`prism config`](config.md) | Save connection settings to a persistent user-level file. |
 | [`prism info`](info.md) | Print IRIS server version, namespaces, and feature flags. |
+| [`prism monitor`](monitor.md) | Monitor IRIS instance CPU, RAM, disk I/O, and process load in real time with a live terminal dashboard. |
 
 ### SQL and ObjectScript
 

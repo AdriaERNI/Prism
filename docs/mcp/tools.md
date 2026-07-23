@@ -26,6 +26,10 @@ session the CLI can't hold open.
 | `run_tests` | [`prism test`](../commands/testing.md#test) | MCP returns `{class, status, passed, failed, skipped, methods: [{name, status, assertions}]}` (structured, richer than CLI). |
 | `get_test_results` | — | **(MCP only.)** Returns `{runs: [{run_id, run_time, duration, test_class, status}], count}`. |
 | `index_code` | [`prism index`](../commands/indexing.md) | Builds a compact index of all classes using `%Dictionary` SQL metadata. Returns `{namespace, statistics, classes, dependencies}`. Token-efficient alternative to reading every source file (93% reduction). |
+| `monitor_system` | [`prism monitor`](../commands/monitor.md) | Fetches live metrics from IRIS `/api/monitor`, computes a 0–100 load score with per-category sub-scores (CPU, memory, disk, process), and returns a snapshot with grade, key metrics, and alert count. Use two snapshots to compare instances — lower score wins. |
+| `list_files` | — | **(MCP only.)** Lists files in the `IRIS_WORKSPACE` directory. Returns `{files: [{name, size, modified}], count}`. |
+| `read_file` | — | **(MCP only.)** Reads a file from the `IRIS_WORKSPACE` directory. Returns `{name, content, found}`. |
+| `run_shell` | — | **(MCP only.)** Runs a shell command in the `IRIS_WORKSPACE` directory. Returns `{stdout, stderr, exit_code}`. |
 | `debug_list_processes` | — | **(MCP only.)** See [Interactive debugger](debugging.md). |
 | `debug_start` | — | **(MCP only.)** |
 | `debug_attach` | — | **(MCP only.)** Not supported on Windows IRIS. |
@@ -36,17 +40,18 @@ session the CLI can't hold open.
 | `debug_breakpoints` | — | **(MCP only.)** |
 | `debug_stop` | — | **(MCP only.)** |
 
-11 tools are always registered (including `index_code`). 2 workspace-gated
-tools (`put_document`, `put_and_compile`) are added when `IRIS_WORKSPACE`
-is set — 13 total. 9 debug-gated tools are added when
-`IRIS_DEBUG_ENABLED=true` — up to 22 total with both workspace and debug
-enabled.
+12 tools are always registered (including `index_code` and `monitor_system`).
+5 workspace-gated tools (`put_document`, `put_and_compile`, `list_files`,
+`read_file`, `run_shell`) are added when `IRIS_WORKSPACE` is set — 17 total.
+9 debug-gated tools are added when `IRIS_DEBUG_ENABLED=true` — up to 26 total
+with both workspace and debug enabled.
 
 ## Workspace-gated tools
 
 When `IRIS_WORKSPACE` is empty (the default), Prism skips the
-`workspace` module entirely and **does not register** `put_document` or
-`put_and_compile`. Set `IRIS_WORKSPACE` to a local directory path to
+`workspace`, `files`, and `shell` modules entirely and **does not
+register** `put_document`, `put_and_compile`, `list_files`, `read_file`,
+or `run_shell`. Set `IRIS_WORKSPACE` to a local directory path to
 enable them.
 
 The CLI `prism put-doc <name> <file>` ignores `IRIS_WORKSPACE` and
