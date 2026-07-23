@@ -6,9 +6,11 @@ from prism.iris.monitor.dashboard import (
     _color_for_score,
     _grade_color,
     _format_score_bar,
+    render_dashboard,
 )
 from prism.iris.monitor import MonitorSnapshot
 from prism.iris.monitor.scorer import LoadScore
+from rich.console import Console
 
 
 def _snap(overall=25.0, cpu=20.0, mem=30.0, disk=25.0, proc=25.0):
@@ -209,10 +211,6 @@ class TestFormatScoreBar:
 
 
 # ── Dashboard rendering tests ──────────────────────────────────────────
-
-
-from prism.iris.monitor.dashboard import render_dashboard  # noqa: E402
-from rich.console import Console  # noqa: E402
 
 
 def _full_snap(

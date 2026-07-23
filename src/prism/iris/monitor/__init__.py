@@ -15,6 +15,7 @@ Usage::
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 
@@ -30,7 +31,7 @@ from prism.iris.monitor.scorer import (
 # Curated key metrics to surface in the snapshot for quick human inspection.
 # Not exhaustive — the full parsed metrics list is available via `raw_samples`.
 KEY_METRICS: list[str] = [
-    # ── Core resource metrics (single-value, already shown in dashboard) ──
+    # ── Core resource metrics (single-value) ──
     "iris_cpu_usage",
     "iris_phys_mem_percent_used",
     "iris_page_space_percent_used",
@@ -50,15 +51,12 @@ KEY_METRICS: list[str] = [
     "iris_system_alerts",
     "iris_system_state",
     # ── Database storage (labeled — aggregation needed) ──
-    "iris_db_size_mb",  # DB size in MB, labeled {id="dbname", dir="path"}
-    "iris_db_free_space",  # Free space in MB, labeled {id="dbname"}
-    "iris_db_max_size_mb",  # Max size in MB, labeled {id="dbname"}
-    "iris_db_latency",  # Random read latency in ms, labeled {id="dbname"}
-    "iris_db_expansion_size_mb",  # Expansion size in MB, labeled {id="dbname"}
-    # ── License ──
-    "iris_license_consumed",
-    "iris_license_available",
-    "iris_license_percent_used",
+    "iris_db_size_mb",
+    "iris_db_free_space",
+    "iris_db_max_size_mb",
+    "iris_db_latency",
+    "iris_db_expansion_size_mb",
+    # ── License (additional) ──
     "iris_license_days_remaining",
     # ── CSP / Web Gateway (some labeled by {id="IP:port"}) ──
     "iris_csp_sessions",
@@ -67,21 +65,15 @@ KEY_METRICS: list[str] = [
     "iris_csp_gateway_latency",
     "iris_csp_activity",
     # ── SQL (labeled by {id="namespace"}) ──
-    "iris_sql_active_queries",
     "iris_sql_queries_per_second",
     "iris_sql_queries_avg_runtime",
-    # ── Transactions ──
-    "iris_trans_open_count",
+    # ── Transactions (additional) ──
     "iris_trans_open_secs",
     "iris_trans_open_secs_max",
     # ── Shared Memory Heap ──
     "iris_smh_total",  # in KB
-    "iris_smh_total_percent_full",
-    # ── Global activity rates ──
-    "iris_glo_ref_per_sec",
+    # ── Global activity rates (additional) ──
     "iris_glo_update_per_sec",
-    # ── Cache ──
-    "iris_cache_efficiency",
     # ── ECP connections ──
     "iris_ecp_conn",
     "iris_ecp_conn_max",
@@ -178,11 +170,35 @@ async def collect_snapshot() -> MonitorSnapshot:
                 metrics[key] = labeled[0].value
 
     # ── Compute aggregations from labeled metrics ──────────────────────
-    # Database totals — sum across all databases
-    db_sizes = [s.value for s in samples if s.name == "iris_db_size_mb"]
-    db_free = [s.value for s in samples if s.name == "iris_db_free_space"]
-    db_max = [s.value for s in samples if s.name == "iris_db_max_size_mb"]
-    db_latencies = [s.value for s in samples if s.name == "iris_db_latency"]
+    # Database totals — sum across all databases (filter NaN/Inf)
+    db_sizes = [
+        s.value
+        for s in samples
+        if s.name == "iris_db_size_mb"
+        and not math.isnan(s.value)
+        and not math.isinf(s.value)
+    ]
+    db_free = [
+        s.value
+        for s in samples
+        if s.name == "iris_db_free_space"
+        and not math.isnan(s.value)
+        and not math.isinf(s.value)
+    ]
+    db_max = [
+        s.value
+        for s in samples
+        if s.name == "iris_db_max_size_mb"
+        and not math.isnan(s.value)
+        and not math.isinf(s.value)
+    ]
+    db_latencies = [
+        s.value
+        for s in samples
+        if s.name == "iris_db_latency"
+        and not math.isnan(s.value)
+        and not math.isinf(s.value)
+    ]
 
     aggregated: dict[str, float | list | dict] = {
         "db_total_size_gb": sum(db_sizes) / 1024 if db_sizes else 0.0,
@@ -202,16 +218,17 @@ async def collect_snapshot() -> MonitorSnapshot:
     aggregated["cpu_by_type"] = cpu_by_type
 
     # Top-5 processes by commands executed
+    # Build PID → labels lookup once (O(n)) to avoid O(n²) inner loop
+    proc_labels: dict[str, dict[str, str]] = {}
+    for s in samples:
+        if s.name == "iris_process" and s.labels.get("id"):
+            proc_labels[s.labels["id"]] = s.labels
+
     process_list: list[dict] = []
     for s in samples:
         if s.name == "iris_process_commands" and s.labels.get("id"):
             pid = s.labels["id"]
-            # Find matching process info
-            proc_info = None
-            for p in samples:
-                if p.name == "iris_process" and p.labels.get("id") == pid:
-                    proc_info = p.labels
-                    break
+            proc_info = proc_labels.get(pid)
             process_list.append(
                 {
                     "pid": int(pid),
@@ -224,18 +241,32 @@ async def collect_snapshot() -> MonitorSnapshot:
     process_list.sort(key=lambda x: x["commands"], reverse=True)
     aggregated["top_processes"] = process_list[:5]
 
-    # CSP connection totals — sum across all IP:port labels
+    # CSP connection totals — sum across all IP:port labels (filter NaN/Inf)
     csp_actual = sum(
-        s.value for s in samples if s.name == "iris_csp_actual_connections"
+        s.value
+        for s in samples
+        if s.name == "iris_csp_actual_connections"
+        and not math.isnan(s.value)
+        and not math.isinf(s.value)
     )
     csp_in_use = sum(
-        s.value for s in samples if s.name == "iris_csp_in_use_connections"
+        s.value
+        for s in samples
+        if s.name == "iris_csp_in_use_connections"
+        and not math.isnan(s.value)
+        and not math.isinf(s.value)
     )
     aggregated["csp_total_connections"] = csp_actual
     aggregated["csp_in_use_connections"] = csp_in_use
 
-    # SMH in GB (metric is in KB)
-    smh_total_samples = [s.value for s in samples if s.name == "iris_smh_total"]
+    # SMH in GB (metric is in KB — filter NaN/Inf)
+    smh_total_samples = [
+        s.value
+        for s in samples
+        if s.name == "iris_smh_total"
+        and not math.isnan(s.value)
+        and not math.isinf(s.value)
+    ]
     aggregated["smh_total_gb"] = (
         smh_total_samples[0] / 1024 / 1024 if smh_total_samples else 0.0
     )

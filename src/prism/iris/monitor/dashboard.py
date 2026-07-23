@@ -362,13 +362,15 @@ def render_dashboard(
         "SMH Total": (float(aggregated.get("smh_total_gb", 0.0)), "GB"),
     }
 
-    # ── Disk/Storage panel — use aggregations ──
+    # ── Disk/Storage panel — DB aggregations + physical I/O ──
     disk_sub = {
         "DB Total": (float(aggregated.get("db_total_size_gb", 0.0)), "GB"),
         "DB Free": (float(aggregated.get("db_total_free_mb", 0.0)), "MB"),
         "DB Max": (float(aggregated.get("db_total_max_gb", 0.0)), "GB"),
         "DB Latency": (float(aggregated.get("db_avg_latency_ms", 0.0)), "ms"),
         "DBs": (float(aggregated.get("db_count", 0)), "#"),
+        "Reads": (m.get("iris_phys_reads_per_sec", 0.0), "ops/s"),
+        "Writes": (m.get("iris_phys_writes_per_sec", 0.0), "ops/s"),
     }
 
     # ── Process panel — add top processes and global activity ──
@@ -376,6 +378,8 @@ def render_dashboard(
         "Processes": (m.get("iris_process_count", 0.0), "#"),
         "Glo Refs": (m.get("iris_glo_ref_per_sec", 0.0), "/s"),
         "Glo Upd": (m.get("iris_glo_update_per_sec", 0.0), "/s"),
+        "Glo Seize": (m.get("iris_glo_seize_per_sec", 0.0), "events/s"),
+        "WD Cycle": (m.get("iris_wd_cycle_time", 0.0), "ms"),
         "Cache Eff": (m.get("iris_cache_efficiency", 0.0), "%"),
     }
     # Add top-3 processes as sub-rows (compact format)
