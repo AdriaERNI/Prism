@@ -96,6 +96,7 @@ nav:
     - Overview: commands/index.md
     - prism config: commands/config.md
     - prism info: commands/info.md
+    - prism monitor: commands/monitor.md
     - prism sql: commands/sql.md
     - Documents: commands/documents.md
     - prism compile: commands/compile.md

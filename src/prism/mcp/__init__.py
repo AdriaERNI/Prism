@@ -29,6 +29,7 @@ _ALL_TOOL_MODULES = [
     "documents",
     "files",
     "index",
+    "monitor",
     "server_info",
     "shell",
     "sql",

@@ -27,6 +27,7 @@ from prism.cli.commands.install import install  # noqa: E402
 from prism.cli.commands.serve import serve  # noqa: E402
 from prism.cli.commands.server_info import info  # noqa: E402
 from prism.cli.commands.index import index as index_cmd  # noqa: E402
+from prism.cli.commands.monitor import monitor  # noqa: E402
 from prism.cli.commands.sql import sql  # noqa: E402
 from prism.cli.commands.terminal import terminal, ws  # noqa: E402
 from prism.cli.commands.testing import list_tests, test  # noqa: E402
@@ -92,6 +93,7 @@ app.command(name="serve")(serve)
 app.command(name="setup")(install)
 app.command(name="gui")(gui)
 app.command(name="chatbot")(chatbot)
+app.command(name="monitor")(monitor)
 
 
 def main() -> None:

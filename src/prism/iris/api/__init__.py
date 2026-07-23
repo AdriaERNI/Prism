@@ -11,6 +11,7 @@ from prism.iris.api.documents import (
 )
 from prism.iris.api.compile import compile_documents
 from prism.iris.api.terminal import execute_command, TerminalError
+from prism.iris.api.monitor import get_metrics, get_alerts
 from prism.iris.api.testing import (
     ensure_runner_deployed,
     run_tests,
@@ -37,4 +38,6 @@ __all__ = [
     "get_assertions",
     "get_test_history",
     "list_test_classes",
+    "get_metrics",
+    "get_alerts",
 ]
