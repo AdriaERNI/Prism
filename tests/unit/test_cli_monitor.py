@@ -119,6 +119,35 @@ class TestMonitorDashboard:
         assert "Disk 25.0" in result.output
         assert "Proc 25.0" in result.output
 
+    def test_load_score_panel_no_redundant_sparklines(self):
+        """Load Score panel should NOT have sparklines — they're in the top panels.
+
+        The top 4 resource panels (CPU, Memory, Disk/IO, Process) each
+        have their own sparkline graph.  The Load Score panel is a
+        numeric summary only — no duplicate graphs.
+        """
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot(overall=42.5)
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        output = result.output
+        # Find the Load Score section
+        ls_idx = output.index("Load Score")
+        load_score_section = output[ls_idx:]
+        # Find the end (next outer border or end)
+        # Sparkline blocks are ▁▂▃▄▅▆▇ — but █ is also a progress bar char
+        # so we check for the non-bar sparkline chars only
+        sparkline_chars = set("▁▂▃▄▅▆▇")
+        # The Load Score section should only contain █ (bar) not ▁-▇ (sparklines)
+        sparkline_found = any(c in load_score_section for c in sparkline_chars)
+        assert not sparkline_found, (
+            "Load Score panel should not contain sparkline characters "
+            "(▁▂▃▄▅▆▇) — those graphs are already shown in the top panels"
+        )
+
 
 class TestMonitorJson:
     def test_monitor_json_outputs_json(self):

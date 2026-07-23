@@ -298,6 +298,8 @@ def render_dashboard(
     bar, score_str = _format_score_bar(score.overall)
 
     # Per-category score numbers (compact, one line)
+    # No sparklines here — the top 4 panels already show per-category
+    # sparklines.  The Load Score panel is a numeric summary only.
     score_numbers = Text.assemble(
         ("CPU ", "dim"),
         (f"{score.cpu:.1f}", cpu_color),
@@ -312,22 +314,6 @@ def render_dashboard(
         (f"{score.process:.1f}", proc_color),
     )
 
-    # Sub-score sparklines — fixed width to prevent wrapping
-    _spark_w = 10
-    score_sparks = Text.assemble(
-        ("CPU ", "dim"),
-        (_sparkline(history.cpu_history(), width=_spark_w), cpu_color),
-        ("  ", "dim"),
-        ("Mem ", "dim"),
-        (_sparkline(history.memory_history(), width=_spark_w), mem_color),
-        ("  ", "dim"),
-        ("Disk ", "dim"),
-        (_sparkline(history.disk_history(), width=_spark_w), disk_color),
-        ("  ", "dim"),
-        ("Proc ", "dim"),
-        (_sparkline(history.process_history(), width=_spark_w), proc_color),
-    )
-
     summary = Panel(
         Group(
             Text(
@@ -335,7 +321,6 @@ def render_dashboard(
                 style=grade_col,
             ),
             score_numbers,
-            score_sparks,
         ),
         title="Load Score",
         border_style=grade_col,
