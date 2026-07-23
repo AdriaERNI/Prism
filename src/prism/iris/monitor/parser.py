@@ -55,14 +55,18 @@ class MetricSample:
 def _parse_labels(label_str: str) -> dict[str, str]:
     """Parse the content inside ``{...}`` into a dict.
 
-    Handles escaped quotes (``\\"``) and backslashes (``\\\\``).
+    Handles escaped quotes (``\\"``), backslashes (``\\\\``), and
+    newlines (``\\n``) per the Prometheus exposition format spec.
     """
     labels: dict[str, str] = {}
     for match in _LABEL_RE.finditer(label_str):
         key = match.group(1)
-        # Unescape Prometheus label value escapes: \" → ", \\ → \
+        # Unescape Prometheus label value escapes:
+        #   \\  → \   (must be first to avoid double-processing)
+        #   \"  → "
+        #   \n  → newline
         raw = match.group(2)
-        value = raw.replace('\\"', '"').replace("\\\\", "\\")
+        value = raw.replace("\\\\", "\\").replace('\\"', '"').replace("\\n", "\n")
         labels[key] = value
     return labels
 

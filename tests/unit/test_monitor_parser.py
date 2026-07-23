@@ -96,6 +96,19 @@ class TestParseLabels:
         assert len(metrics) == 1
         assert metrics[0].labels == {"id": 'pid"1'}
 
+    def test_label_with_escaped_backslash(self):
+        text = 'iris_process{id="C:\\\\iris"} 1.0\n'
+        metrics = parse_prometheus_text(text)
+        assert len(metrics) == 1
+        assert metrics[0].labels["id"] == "C:\\iris"
+
+    def test_label_with_escaped_newline(self):
+        """Prometheus spec: \\n in label values → literal newline."""
+        text = 'iris_process{id="line1\\nline2"} 1.0\n'
+        metrics = parse_prometheus_text(text)
+        assert len(metrics) == 1
+        assert metrics[0].labels["id"] == "line1\nline2"
+
 
 class TestParseSpecialValues:
     """Edge-case values: NaN, +Inf, -Inf, scientific notation, negatives."""
