@@ -315,16 +315,21 @@ def render_dashboard(
     console = console or Console()
 
     score = snapshot.score
+    aggregated = snapshot.aggregated
+    m = snapshot.metrics
 
     # ── Header ──────────────────────────────────────────────────────
     from datetime import datetime
 
     ts = datetime.fromtimestamp(snapshot.timestamp).strftime("%H:%M:%S")
+    # Show active users in header (license consumed or CSP sessions)
+    users = int(m.get("iris_csp_sessions", m.get("iris_license_consumed", 0)))
     header = Text.assemble(
         ("IRIS Monitor  ", "bold cyan"),
         (f"  {ts}", "dim"),
         (f"  │  {snapshot.metric_count} metrics", "dim"),
         (f"  │  {snapshot.alerts_count} alerts", "dim"),
+        (f"  │  {users} users", "dim"),
     )
 
     # ── Resource panels ─────────────────────────────────────────────
@@ -332,26 +337,73 @@ def render_dashboard(
     mem_color = _color_for_score(score.memory)
     disk_color = _color_for_score(score.disk)
     proc_color = _color_for_score(score.process)
+    # SQL/Tx and License panels are informational (not scored) — use dim/white
+    sql_color = "cyan"
+    lic_color = "cyan"
 
-    # Extract sub-metrics from snapshot — (value, unit) tuples
-    m = snapshot.metrics
-    cpu_sub = {
+    # ── CPU panel — add per-process-type CPU breakdown ──
+    cpu_sub: dict[str, tuple[float, str]] = {
         "CPU Usage": (m.get("iris_cpu_usage", 0.0), "%"),
     }
+    # Add top-3 process types by CPU %
+    cpu_types = aggregated.get("cpu_by_type", {})
+    if isinstance(cpu_types, dict):
+        for ptype, pct in sorted(cpu_types.items(), key=lambda x: x[1], reverse=True)[
+            :3
+        ]:
+            if pct > 0:
+                cpu_sub[f"  {ptype}"] = (float(pct), "%")
+
+    # ── Memory panel — add SMH in GB ──
     mem_sub = {
         "Memory Used": (m.get("iris_phys_mem_percent_used", 0.0), "%"),
         "Page Space": (m.get("iris_page_space_percent_used", 0.0), "%"),
-        "SMH Full": (m.get("iris_smh_total_percent_full", 0.0), "%"),
+        "SMH Used": (m.get("iris_smh_total_percent_full", 0.0), "%"),
+        "SMH Total": (float(aggregated.get("smh_total_gb", 0.0)), "GB"),
     }
+
+    # ── Disk/Storage panel — use aggregations ──
     disk_sub = {
-        "Reads": (m.get("iris_phys_reads_per_sec", 0.0), "ops/s"),
-        "Writes": (m.get("iris_phys_writes_per_sec", 0.0), "ops/s"),
-        "Disk Full": (m.get("iris_disk_percent_full", 0.0), "%"),
+        "DB Total": (float(aggregated.get("db_total_size_gb", 0.0)), "GB"),
+        "DB Free": (float(aggregated.get("db_total_free_mb", 0.0)), "MB"),
+        "DB Max": (float(aggregated.get("db_total_max_gb", 0.0)), "GB"),
+        "DB Latency": (float(aggregated.get("db_avg_latency_ms", 0.0)), "ms"),
+        "DBs": (float(aggregated.get("db_count", 0)), "#"),
     }
-    proc_sub = {
+
+    # ── Process panel — add top processes and global activity ──
+    proc_sub: dict[str, tuple[float, str]] = {
         "Processes": (m.get("iris_process_count", 0.0), "#"),
-        "Glo Seize": (m.get("iris_glo_seize_per_sec", 0.0), "events/s"),
-        "WD Cycle": (m.get("iris_wd_cycle_time", 0.0), "ms"),
+        "Glo Refs": (m.get("iris_glo_ref_per_sec", 0.0), "/s"),
+        "Glo Upd": (m.get("iris_glo_update_per_sec", 0.0), "/s"),
+        "Cache Eff": (m.get("iris_cache_efficiency", 0.0), "%"),
+    }
+    # Add top-3 processes as sub-rows (compact format)
+    top_procs = aggregated.get("top_processes", [])
+    if isinstance(top_procs, list):
+        for p in top_procs[:3]:
+            if isinstance(p, dict):
+                pid = p.get("pid", "?")
+                routine = str(p.get("routine", "?"))[:8]
+                proc_sub[f"  {pid} {routine}"] = (float(p.get("commands", 0)), "cmd")
+
+    # ── NEW SQL/Tx panel — informational, not scored ──
+    sql_sub = {
+        "Active Q": (m.get("iris_sql_active_queries", 0.0), "#"),
+        "Queries/s": (m.get("iris_sql_queries_per_second", 0.0), "/s"),
+        "Avg Runtime": (m.get("iris_sql_queries_avg_runtime", 0.0), "s"),
+        "Open Tx": (m.get("iris_trans_open_count", 0.0), "#"),
+        "Tx Avg Sec": (m.get("iris_trans_open_secs", 0.0), "s"),
+    }
+
+    # ── NEW License & Users panel — informational, not scored ──
+    lic_sub = {
+        "Lic Used": (m.get("iris_license_consumed", 0.0), "#"),
+        "Lic Avail": (m.get("iris_license_available", 0.0), "#"),
+        "Lic Days": (m.get("iris_license_days_remaining", 0.0), "d"),
+        "Sessions": (m.get("iris_csp_sessions", 0.0), "#"),
+        "CSP Conn": (float(aggregated.get("csp_total_connections", 0.0)), "#"),
+        "CSP In-Use": (float(aggregated.get("csp_in_use_connections", 0.0)), "#"),
     }
 
     cpu_panel = _metric_table(
@@ -366,13 +418,16 @@ def render_dashboard(
     proc_panel = _metric_table(
         "Process", score.process, history.process_history(), proc_sub, proc_color
     )
+    # SQL/Tx and License panels: use a neutral score (0) since they're informational
+    sql_panel = _metric_table("SQL/Tx", 0.0, [], sql_sub, sql_color)
+    lic_panel = _metric_table("License", 0.0, [], lic_sub, lic_color)
 
     # ── Score summary (bottom) ──────────────────────────────────────
     grade_col = _grade_color(snapshot.grade)
     bar, score_str = _format_score_bar(score.overall)
 
     # Per-category score numbers (compact, one line)
-    # No sparklines here — the top 4 panels already show per-category
+    # No sparklines here — the top panels already show per-category
     # sparklines.  The Load Score panel is a numeric summary only.
     score_numbers = Text.assemble(
         ("CPU ", "dim"),
@@ -448,13 +503,15 @@ def render_dashboard(
         border_style=grade_col,
     )
 
-    # ── Layout: header → 2×2 grid → summary ─────────────────────────
-    # rich Table can be used as a grid layout
+    # ── Layout: header → 3-column grid → summary ─────────────────────
+    # 3 columns: CPU | Memory | Disk/IO  (row 1)
+    #            Process | SQL/Tx | License  (row 2)
     grid = Table.grid(expand=True)
     grid.add_column()
     grid.add_column()
-    grid.add_row(cpu_panel, mem_panel)
-    grid.add_row(disk_panel, proc_panel)
+    grid.add_column()
+    grid.add_row(cpu_panel, mem_panel, disk_panel)
+    grid.add_row(proc_panel, sql_panel, lic_panel)
 
     full = Group(
         Align.center(header),

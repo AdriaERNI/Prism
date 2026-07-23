@@ -206,3 +206,239 @@ class TestFormatScoreBar:
     def test_clamps_below_0(self):
         _, score_str = _format_score_bar(-10.0)
         assert "0.0/100" in score_str
+
+
+# ── Dashboard rendering tests ──────────────────────────────────────────
+
+
+from prism.iris.monitor.dashboard import render_dashboard  # noqa: E402
+from rich.console import Console  # noqa: E402
+
+
+def _full_snap(
+    overall: float = 25.0,
+    cpu: float = 20.0,
+    mem: float = 30.0,
+    disk: float = 25.0,
+    proc: float = 25.0,
+    aggregated: dict | None = None,
+) -> MonitorSnapshot:
+    """Build a snapshot with extended metrics and aggregated data."""
+    return MonitorSnapshot(
+        timestamp=1234567890.0,
+        score=LoadScore(
+            overall=overall,
+            cpu=cpu,
+            memory=mem,
+            disk=disk,
+            process=proc,
+            details={},
+        ),
+        grade="healthy",
+        metrics={
+            "iris_cpu_usage": 12.5,
+            "iris_phys_mem_percent_used": 45.2,
+            "iris_page_space_percent_used": 5.0,
+            "iris_smh_total_percent_full": 1.2,
+            "iris_process_count": 42,
+            "iris_glo_ref_per_sec": 150.0,
+            "iris_glo_update_per_sec": 30.0,
+            "iris_cache_efficiency": 95.0,
+            "iris_sql_active_queries": 5.0,
+            "iris_sql_queries_per_second": 120.0,
+            "iris_sql_queries_avg_runtime": 0.05,
+            "iris_trans_open_count": 3.0,
+            "iris_trans_open_secs": 0.5,
+            "iris_license_consumed": 10.0,
+            "iris_license_available": 15.0,
+            "iris_license_days_remaining": 30.0,
+            "iris_csp_sessions": 8.0,
+        },
+        metric_count=571,
+        alerts_count=0,
+        aggregated=aggregated or {},
+    )
+
+
+class TestRenderDashboard:
+    """Test the render_dashboard function with the new 3-column layout."""
+
+    def test_render_returns_panel(self):
+        """render_dashboard should return a Panel object."""
+        from rich.panel import Panel
+
+        snap = _full_snap()
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        result = render_dashboard(snap, buf, console)
+        assert isinstance(result, Panel)
+
+    def test_render_contains_all_panel_titles(self):
+        """Dashboard should contain all 6 panel titles: CPU, Memory, Disk, Process, SQL/Tx, License."""
+        snap = _full_snap()
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "CPU" in output
+        assert "Memory" in output
+        assert "Disk" in output
+        assert "Process" in output
+        assert "SQL/Tx" in output or "SQL" in output
+        assert "License" in output
+
+    def test_render_contains_sql_metrics(self):
+        """Dashboard SQL/Tx panel should show SQL and transaction metrics."""
+        snap = _full_snap()
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "Active Q" in output
+        assert "Open Tx" in output
+
+    def test_render_contains_license_metrics(self):
+        """Dashboard License panel should show license and CSP metrics."""
+        snap = _full_snap()
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "Lic Used" in output or "Lic" in output
+        assert "Sessions" in output
+
+    def test_render_contains_db_aggregations(self):
+        """Dashboard Disk panel should show DB aggregation labels."""
+        agg = {
+            "db_total_size_gb": 15.5,
+            "db_total_free_mb": 2000.0,
+            "db_total_max_gb": 50.0,
+            "db_avg_latency_ms": 3.2,
+            "db_count": 3,
+        }
+        snap = _full_snap(aggregated=agg)
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "DB Total" in output
+        assert "15.5 GB" in output
+        assert "DB Latency" in output
+
+    def test_render_contains_cpu_by_type(self):
+        """CPU panel should show per-process-type CPU breakdown."""
+        agg = {
+            "cpu_by_type": {"WRTDMN": 3.2, "GARCOL": 1.1, "ECPLAT": 0.5},
+        }
+        snap = _full_snap(aggregated=agg)
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "WRTDMN" in output
+        assert "3.2" in output
+
+    def test_render_contains_top_processes(self):
+        """Process panel should show top processes with command counts."""
+        agg = {
+            "top_processes": [
+                {"pid": 1234, "commands": 5000, "routine": "rundown"},
+                {"pid": 5678, "commands": 3000, "routine": "loop"},
+            ],
+        }
+        snap = _full_snap(aggregated=agg)
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "1234" in output
+        assert "5000" in output
+
+    def test_render_contains_smh_total_gb(self):
+        """Memory panel should show SMH Total in GB."""
+        agg = {"smh_total_gb": 2.0}
+        snap = _full_snap(aggregated=agg)
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "SMH Total" in output
+        assert "2.0 GB" in output
+
+    def test_render_contains_global_activity(self):
+        """Process panel should show global refs/updates and cache efficiency."""
+        snap = _full_snap()
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "Glo Refs" in output
+        assert "Cache Eff" in output
+
+    def test_render_contains_users_in_header(self):
+        """Header should show user count from iris_csp_sessions."""
+        snap = _full_snap()
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "users" in output
+        assert "8" in output  # iris_csp_sessions = 8.0
+
+    def test_render_fits_80_columns(self):
+        """Dashboard should render without errors at 80-column width."""
+        snap = _full_snap()
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=80, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+        # Should not error and should contain key elements
+        assert "Prism Monitor" in output
+        assert "CPU" in output
+
+    def test_render_csp_aggregations(self):
+        """License panel should show CSP connection totals from aggregations."""
+        agg = {
+            "csp_total_connections": 15.0,
+            "csp_in_use_connections": 5.0,
+        }
+        snap = _full_snap(aggregated=agg)
+        buf = HistoryBuffer(max_samples=10)
+        buf.add(snap)
+        console = Console(width=120, record=True)
+        panel = render_dashboard(snap, buf, console)
+        console.print(panel)
+        output = console.export_text()
+
+        assert "CSP Conn" in output
+        assert "15" in output  # csp_total_connections

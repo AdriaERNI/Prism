@@ -120,7 +120,7 @@ class TestMonitorDashboard:
         assert "Proc 25.0" in result.output
 
     def test_monitor_dashboard_shows_units(self):
-        """Sub-metrics must display their unit type (%, ops/s, ms, etc.)."""
+        """Sub-metrics must display their unit type (%, /s, ms, etc.)."""
         with patch(
             "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
         ) as mock:
@@ -132,14 +132,13 @@ class TestMonitorDashboard:
         # Percentage metrics (CPU Usage = 12.5, Memory Used = 45.2)
         assert "12.5 %" in out or "12.5%" in out  # CPU Usage
         assert "45.2 %" in out or "45.2%" in out  # Memory Used
-        # Operations per second (Reads = 120.5)
-        assert "120.5 ops/s" in out  # Reads
-        # Milliseconds (WD Cycle = 0.0 in _make_snapshot)
-        assert "ms" in out  # WD Cycle
-        # Events per second (Glo Seize = 0.0 in _make_snapshot)
-        assert "events/s" in out  # Glo Seize
+        # DB Latency aggregation (ms unit)
+        assert "ms" in out  # DB Latency
         # Process count (integer, no decimal, no unit suffix)
         assert "42" in out  # Processes (42 from _make_snapshot, shown as int)
+        # New panels should show labels
+        assert "SQL/Tx" in out or "SQL" in out
+        assert "License" in out
 
     def test_load_score_panel_no_redundant_sparklines(self):
         """Load Score panel should NOT have sparklines — they're in the top panels.
@@ -206,6 +205,82 @@ class TestMonitorDashboard:
         assert "↓ improving" in output
         assert "→ stable" in output
         assert "↑ worsening" in output
+
+    def test_monitor_dashboard_shows_new_panels(self):
+        """Dashboard should render the new SQL/Tx and License panels."""
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot(overall=42.5)
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        out = result.output
+        # New panel titles
+        assert "SQL/Tx" in out or "SQL" in out
+        assert "License" in out
+        # New metric labels from SQL/Tx panel
+        assert "Active Q" in out or "Queries" in out
+        assert "Open Tx" in out
+        # New metric labels from License panel
+        assert "Lic Used" in out or "Lic" in out
+        assert "Sessions" in out
+
+    def test_monitor_dashboard_shows_db_aggregation(self):
+        """Dashboard Disk panel should show DB aggregation labels."""
+        snap = _make_snapshot(overall=42.5)
+        # Add aggregated DB data
+        snap = MonitorSnapshot(
+            timestamp=snap.timestamp,
+            score=snap.score,
+            grade=snap.grade,
+            metrics=snap.metrics,
+            metric_count=snap.metric_count,
+            alerts_count=snap.alerts_count,
+            aggregated={
+                "db_total_size_gb": 15.5,
+                "db_total_free_mb": 2000.0,
+                "db_total_max_gb": 50.0,
+                "db_avg_latency_ms": 3.2,
+                "db_count": 3,
+            },
+        )
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = snap
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        out = result.output
+        assert "DB Total" in out
+        assert "15.5 GB" in out
+        # "DB Latency" may wrap at narrow terminal widths — check for the parts
+        assert "Latency" in out or "3.2 ms" in out
+
+    def test_monitor_dashboard_shows_users_in_header(self):
+        """Dashboard header should show active user count."""
+        snap = _make_snapshot(overall=42.5)
+        # Add CSP sessions to metrics
+        metrics = dict(snap.metrics)
+        metrics["iris_csp_sessions"] = 15.0
+        snap = MonitorSnapshot(
+            timestamp=snap.timestamp,
+            score=snap.score,
+            grade=snap.grade,
+            metrics=metrics,
+            metric_count=snap.metric_count,
+            alerts_count=snap.alerts_count,
+        )
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = snap
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        assert "users" in result.output
+        assert "15" in result.output
 
 
 class TestMonitorJson:

@@ -15,7 +15,8 @@ Scoring is built from four equally-weighted categories (25% each):
 │ Disk/IO    │ iris_phys_reads_per_sec, iris_phys_writes_per_sec,        │
 │ (25%)      │ iris_db_latency, iris_disk_percent_full                   │
 │ Process    │ iris_process_count, iris_glo_seize_per_sec,               │
-│ (25%)      │ iris_wd_cycle_time, iris_sql_active_queries               │
+│ (25%)      │ iris_wd_cycle_time, iris_sql_active_queries,              │
+│            │ iris_trans_open_count                                      │
 └────────────┴───────────────────────────────────────────────────────────┘
 
 Within each category, each metric is **normalised** to 0–100 using a
@@ -62,6 +63,7 @@ _PROCESS_THRESHOLDS: dict[str, float] = {
     "iris_glo_seize_per_sec": 50.0,  # 50 global seizes/s = contention
     "iris_wd_cycle_time": 2000.0,  # 2s write-daemon cycle = slow
     "iris_sql_active_queries": 100.0,  # 100 concurrent SQL = busy
+    "iris_trans_open_count": 50.0,  # 50 open transactions = high
 }
 
 # CPU per-process-type metrics (iris_cpu_pct{id=...}) — sum all and
