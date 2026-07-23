@@ -25,11 +25,12 @@ from dataclasses import dataclass, field
 #   labels       → optional {...} block
 #   value        → float, NaN, +Inf, -Inf, or scientific notation
 _SAMPLE_RE = re.compile(
-    r"^([a-zA-Z_:][a-zA-Z0-9_:]*)"  # metric name
-    r"(?:\{([^}]*)\})?"  # optional labels block
-    r"\s+"  # whitespace separator
-    r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|NaN|\+Inf|-Inf)"  # value
-    r"\s*$"  # optional trailing whitespace
+    r"^([a-zA-Z_:][a-zA-Z0-9_:]*)"
+    r"(?:\{([^}]*)\})?"
+    r"\s+"
+    r"([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|[Nn]a[Nn]|[+-]?[Ii]nf)"
+    r"(?:\s+\d+)?"  # optional trailing timestamp (Unix epoch ms)
+    r"\s*$"
 )
 
 # Regex for parsing label key="value" pairs inside the {} block
@@ -69,13 +70,15 @@ def _parse_labels(label_str: str) -> dict[str, str]:
 def _parse_value(value_str: str) -> float:
     """Convert a Prometheus text value to float.
 
-    Handles ``NaN``, ``+Inf``, ``-Inf``, and standard float notation.
+    Handles ``NaN``, ``+Inf``, ``-Inf`` (case-insensitive), and standard
+    float notation.
     """
-    if value_str == "NaN":
+    lower = value_str.lower()
+    if lower == "nan":
         return float("nan")
-    if value_str == "+Inf":
+    if lower in ("+inf", "inf"):
         return float("inf")
-    if value_str == "-Inf":
+    if lower == "-inf":
         return float("-inf")
     return float(value_str)
 

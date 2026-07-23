@@ -222,8 +222,6 @@ def _trend_arrow(current: float, baseline: float, threshold: float = 2.0) -> str
 
 def _color_for_score(score: float) -> str:
     """Return a rich color name based on the load score."""
-    if score < 10:
-        return "green"
     if score < 30:
         return "green"
     if score < 60:
@@ -249,19 +247,6 @@ def _grade_color(grade: str) -> str:
 
 
 _BAR_WIDTH = 20
-
-
-def _format_bar(value: float, width: int = _BAR_WIDTH) -> tuple[str, str]:
-    """Render a textual progress bar for *value* (0–100 percentage).
-
-    Returns (bar_string, percentage_string).
-    The bar uses ``█`` for filled and ``░`` for empty.
-    """
-    clamped = max(0.0, min(100.0, value))
-    filled = int(round(clamped / 100.0 * width))
-    bar = "█" * filled + "░" * (width - filled)
-    pct_str = f"{clamped:.1f}%"
-    return bar, pct_str
 
 
 def _format_score_bar(value: float, width: int = _BAR_WIDTH) -> tuple[str, str]:
@@ -404,13 +389,17 @@ def render_dashboard(
     )
 
     # Averages line: SMA + EWMA (1m/5m/15m) + trend arrow
-    # Uses default 1s interval; if --watch uses a different interval the
-    # values are still meaningful as relative trend indicators.
+    # Derive the interval from timestamps if available, else default to 1s.
+    _ts = history.timestamps()
+    if len(_ts) >= 2:
+        _interval = max(0.1, _ts[-1] - _ts[-2])
+    else:
+        _interval = 1.0
     avg = history.sma()
-    e1 = history.ewma_1m()
-    e5 = history.ewma_5m()
-    e15 = history.ewma_15m()
-    arrow = history.trend()
+    e1 = history.ewma_1m(interval_s=_interval)
+    e5 = history.ewma_5m(interval_s=_interval)
+    e15 = history.ewma_15m(interval_s=_interval)
+    arrow = history.trend(interval_s=_interval)
 
     # Color the trend arrow
     if arrow == "↑":

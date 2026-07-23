@@ -5,7 +5,6 @@ from prism.iris.monitor.dashboard import (
     _sparkline,
     _color_for_score,
     _grade_color,
-    _format_bar,
     _format_score_bar,
 )
 from prism.iris.monitor import MonitorSnapshot
@@ -174,31 +173,6 @@ class TestGradeColor:
 
     def test_critical_is_bold_red(self):
         assert "red" in _grade_color("critical")
-
-
-class TestFormatBar:
-    def test_zero_percent_returns_empty_bar(self):
-        bar, pct_str = _format_bar(0.0)
-        assert "█" not in bar
-        assert "0.0%" in pct_str
-
-    def test_full_bar(self):
-        bar, pct_str = _format_bar(100.0)
-        assert "█" in bar
-        assert "100.0%" in pct_str
-
-    def test_half_bar(self):
-        bar, pct_str = _format_bar(50.0)
-        assert "█" in bar
-        assert "50.0%" in pct_str
-
-    def test_clamps_above_100(self):
-        bar, pct_str = _format_bar(150.0)
-        assert "100.0%" in pct_str
-
-    def test_clamps_below_0(self):
-        bar, pct_str = _format_bar(-10.0)
-        assert "0.0%" in pct_str
 
 
 class TestFormatScoreBar:

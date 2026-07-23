@@ -81,6 +81,27 @@ class TestComputeLoadScore:
         assert score.disk == 0
         assert score.process == 0
 
+    def test_nan_values_treated_as_missing(self):
+        """NaN metric values should be treated as 0 (missing), not 100 (max load).
+
+        Bug: Python's min(100, float('nan')) returns 100.0, so NaN was
+        silently treated as the worst possible value.  The fix filters
+        NaN/Inf before normalisation.
+        """
+        import math
+
+        samples = _make_samples(
+            {
+                "iris_cpu_usage": float("nan"),
+                "iris_phys_mem_percent_used": float("inf"),
+            }
+        )
+        score = compute_load_score(samples)
+        # NaN/Inf should not contribute — score stays 0
+        assert score.cpu == 0
+        assert score.memory == 0
+        assert not math.isnan(score.overall)
+
     def test_partial_metrics_only_cpu(self):
         """Only CPU metrics present → CPU sub-score non-zero, others zero."""
         samples = _make_samples(

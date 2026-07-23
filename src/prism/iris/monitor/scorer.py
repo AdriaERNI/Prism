@@ -26,6 +26,8 @@ treated as zero (not penalised).
 
 from __future__ import annotations
 
+import math
+
 from dataclasses import dataclass, field
 
 from prism.iris.monitor.parser import MetricSample
@@ -100,7 +102,12 @@ def _normalise(value: float, threshold: float) -> float:
     """Normalise *value* to a 0–100 scale against *threshold*.
 
     Returns 0 for value ≤ 0, 100 for value ≥ threshold, linear in between.
+    ``NaN`` and ``±Inf`` are treated as 0 (missing/unavailable metric),
+    not penalised.
     """
+    # NaN and Inf are treated as missing — don't penalise the score
+    if math.isnan(value) or math.isinf(value):
+        return 0.0
     if threshold <= 0:
         return 100.0 if value > 0 else 0.0
     return max(0.0, min(100.0, (value / threshold) * 100.0))
@@ -135,9 +142,13 @@ def _score_category(
     for name, threshold in thresholds.items():
         matching = [s.value for s in samples if s.name == name]
         if matching:
+            # Filter out NaN/Inf values — they're treated as missing
+            valid = [v for v in matching if not math.isnan(v) and not math.isinf(v)]
+            if not valid:
+                continue
             # If multiple samples (e.g. multiple databases), take the max
             # — the most stressed resource is what matters for load.
-            max_value = max(matching)
+            max_value = max(valid)
             normalised = _normalise(max_value, threshold)
             details[name] = normalised
             component_scores.append(normalised)

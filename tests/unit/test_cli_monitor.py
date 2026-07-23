@@ -272,11 +272,17 @@ class TestMonitorCompare:
         snapshot_a = _make_snapshot(overall=20.0)
         snapshot_b = _make_snapshot(overall=60.0)
 
+        async def fast_sleep(*args, **kwargs):
+            pass
+
         with (
             patch(
                 "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
             ) as mock,
-            patch("prism.cli.commands.monitor.time.sleep"),
+            patch(
+                "prism.cli.commands.monitor.asyncio.sleep",
+                side_effect=fast_sleep,
+            ),
         ):
             mock.side_effect = [snapshot_a, snapshot_b]
             result = runner.invoke(app, ["monitor", "--compare"])

@@ -20,7 +20,12 @@ from dataclasses import dataclass, field
 
 from prism.iris.api.monitor import get_metrics, get_alerts
 from prism.iris.monitor.parser import MetricSample, parse_prometheus_text
-from prism.iris.monitor.scorer import LoadScore, compute_load_score, get_health_grade
+from prism.iris.monitor.scorer import (
+    LoadScore,
+    compare_snapshots,
+    compute_load_score,
+    get_health_grade,
+)
 
 # Curated key metrics to surface in the snapshot for quick human inspection.
 # Not exhaustive — the full parsed metrics list is available via `raw_samples`.
@@ -105,7 +110,10 @@ async def collect_snapshot() -> MonitorSnapshot:
     try:
         alerts_text = await get_alerts()
         alerts_samples = parse_prometheus_text(alerts_text)
-        alerts_count = sum(1 for s in alerts_samples if s.name == "iris_system_alerts")
+        # Sum the values of alert metrics (each alert may have a value of 1)
+        alerts_count = int(
+            sum(s.value for s in alerts_samples if s.name == "iris_system_alerts")
+        )
     except Exception:
         alerts_count = 0
 
@@ -113,12 +121,20 @@ async def collect_snapshot() -> MonitorSnapshot:
     score = compute_load_score(samples)
     grade = get_health_grade(score.overall)
 
-    # Extract key single-value metrics for the snapshot
+    # Extract key metrics for the snapshot
+    # For single-value metrics: take the first sample with no labels
+    # For labeled metrics: take the first sample with labels (e.g.
+    # iris_disk_percent_full{id="USER"} → use the USER value)
     metrics: dict[str, float] = {}
     for key in KEY_METRICS:
+        # Prefer unlabeled (single-value) samples, fall back to labeled
         matching = [s for s in samples if s.name == key and not s.labels]
         if matching:
             metrics[key] = matching[0].value
+        else:
+            labeled = [s for s in samples if s.name == key and s.labels]
+            if labeled:
+                metrics[key] = labeled[0].value
 
     return MonitorSnapshot(
         timestamp=time.time(),
@@ -141,7 +157,3 @@ __all__ = [
     "MetricSample",
     "LoadScore",
 ]
-
-
-# Re-export compare_snapshots from scorer for convenience
-from prism.iris.monitor.scorer import compare_snapshots  # noqa: E402

@@ -165,6 +165,36 @@ class TestParseEdgeCases:
         assert len(metrics) == 1
         assert metrics[0].value == 10.0
 
+    def test_line_with_timestamp(self):
+        """Prometheus format supports optional trailing timestamps (Unix ms).
+
+        The parser must not silently drop these lines.
+        """
+        text = "iris_cpu_usage 10.0 1234567890\n"
+        metrics = parse_prometheus_text(text)
+        assert len(metrics) == 1
+        assert metrics[0].name == "iris_cpu_usage"
+        assert metrics[0].value == 10.0
+
+    def test_line_with_labels_and_timestamp(self):
+        """Lines with both labels and timestamps must be parsed."""
+        text = 'iris_cpu_pct{id="USER"} 42.5 1234567890\n'
+        metrics = parse_prometheus_text(text)
+        assert len(metrics) == 1
+        assert metrics[0].value == 42.5
+        assert metrics[0].labels == {"id": "USER"}
+
+    def test_lowercase_nan_inf(self):
+        """Parser should handle lowercase nan/inf (Prometheus spec allows both)."""
+        text = "iris_cache_efficiency nan\niris_db_latency +inf\niris_temp -inf\n"
+        metrics = parse_prometheus_text(text)
+        import math
+
+        assert len(metrics) == 3
+        assert math.isnan(metrics[0].value)
+        assert metrics[1].value == float("inf")
+        assert metrics[2].value == float("-inf")
+
 
 class TestMetricSampleDataclass:
     """Verify MetricSample dataclass fields."""

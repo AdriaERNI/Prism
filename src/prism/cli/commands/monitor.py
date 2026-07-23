@@ -18,7 +18,6 @@ Usage::
 from __future__ import annotations
 
 import asyncio
-import time
 
 import typer
 
@@ -102,9 +101,22 @@ async def _run_dashboard(watch: float) -> None:
             try:
                 while True:
                     await asyncio.sleep(watch)
-                    snapshot = await collect_snapshot()
-                    history.add(snapshot)
-                    live.update(render_dashboard(snapshot, history, console))
+                    try:
+                        snapshot = await collect_snapshot()
+                        history.add(snapshot)
+                        live.update(render_dashboard(snapshot, history, console))
+                    except Exception as exc:
+                        # Transient errors (network, API) don't kill the
+                        # session — show the error and keep monitoring.
+                        from rich.text import Text as _Text
+
+                        live.update(
+                            _Text(
+                                f"[red]Error fetching metrics: {exc}[/red]\n"
+                                "[dim]Retrying next cycle...[/dim]",
+                                style="red",
+                            )
+                        )
             except KeyboardInterrupt:
                 console.print("\n[dim]Monitoring stopped.[/dim]")
     else:
@@ -143,14 +155,20 @@ def _run_watch_json(interval: float, raw: bool) -> None:
 async def _watch_json_loop(interval: float, raw: bool) -> None:
     """Async loop for JSON watch mode — runs in a single event loop."""
     while True:
-        snapshot = await collect_snapshot()
-        result = snapshot.to_dict()
-        if raw:
-            result["raw_metrics"] = [
-                {"name": s.name, "value": s.value, "labels": s.labels}
-                for s in snapshot.raw_samples
-            ]
-        typer.echo(format_output(result, get_output_format()))
+        try:
+            snapshot = await collect_snapshot()
+            result = snapshot.to_dict()
+            if raw:
+                result["raw_metrics"] = [
+                    {"name": s.name, "value": s.value, "labels": s.labels}
+                    for s in snapshot.raw_samples
+                ]
+            typer.echo(format_output(result, get_output_format()))
+        except Exception as exc:
+            typer.echo(
+                format_output({"error": str(exc)}, get_output_format()),
+                err=True,
+            )
         await asyncio.sleep(interval)
 
 
@@ -158,16 +176,25 @@ async def _watch_json_loop(interval: float, raw: bool) -> None:
 
 
 def _run_compare() -> None:
-    """Take two snapshots (5s apart) and compare their load scores."""
+    """Take two snapshots (5s apart) and compare their load scores.
+
+    Runs both snapshot fetches inside a single ``asyncio.run()`` to avoid
+    the ``Event loop is closed`` error with the shared httpx client.
+    """
+    asyncio.run(_run_compare_async())
+
+
+async def _run_compare_async() -> None:
+    """Async implementation of compare mode."""
     typer.echo("Taking snapshot A...", err=True)
-    snapshot_a = asyncio.run(collect_snapshot())
+    snapshot_a = await collect_snapshot()
     typer.echo(f"  Score: {snapshot_a.score.overall} ({snapshot_a.grade})", err=True)
 
     typer.echo("Waiting 5 seconds for second snapshot...", err=True)
-    time.sleep(5)
+    await asyncio.sleep(5)
 
     typer.echo("Taking snapshot B...", err=True)
-    snapshot_b = asyncio.run(collect_snapshot())
+    snapshot_b = await collect_snapshot()
     typer.echo(f"  Score: {snapshot_b.score.overall} ({snapshot_b.grade})", err=True)
 
     comparison = compare_snapshots(snapshot_a.score, snapshot_b.score)
