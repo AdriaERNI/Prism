@@ -36,6 +36,7 @@ class TestToolsWithWorkspace:
                     assert "run_tests" in names
                     assert "list_tests" in names
                     assert "get_test_results" in names
+                    assert "monitor_system" in names
             finally:
                 tools_pkg._SKIP_MODULES = orig_skip
 
@@ -68,5 +69,6 @@ class TestToolsWithoutWorkspace:
                     assert "run_tests" in names
                     assert "list_tests" in names
                     assert "get_test_results" in names
+                    assert "monitor_system" in names
             finally:
                 tools_pkg._SKIP_MODULES = orig_skip
