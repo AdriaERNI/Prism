@@ -431,6 +431,15 @@ def render_dashboard(
         (arrow, arrow_col),
     )
 
+    # Helper text so users know how to read the numbers
+    # Keep under ~70 chars to fit in the Load Score panel at 80-col terminals
+    helpers = Text.assemble(
+        (
+            "Score: lower=better (0-100)  |  Trend: ↓ improving → stable ↑ worsening",
+            "dim",
+        ),
+    )
+
     summary = Panel(
         Group(
             Text(
@@ -439,6 +448,7 @@ def render_dashboard(
             ),
             score_numbers,
             averages,
+            helpers,
         ),
         title="Load Score",
         border_style=grade_col,

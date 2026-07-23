@@ -166,6 +166,25 @@ class TestMonitorDashboard:
         # Trend arrow should be one of ↑ ↓ →
         assert any(arrow in output for arrow in ["↑", "↓", "→"])
 
+    def test_load_score_panel_shows_helpers(self):
+        """Load Score panel must show helper text explaining how to read it."""
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot(overall=42.5)
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        output = result.output
+        # Helper: "lower=better"
+        assert "lower=better" in output
+        # Helper: explains the range (0-100)
+        assert "0-100" in output
+        # Helper: explains the trend arrow
+        assert "↓ improving" in output
+        assert "→ stable" in output
+        assert "↑ worsening" in output
+
 
 class TestMonitorJson:
     def test_monitor_json_outputs_json(self):
