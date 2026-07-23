@@ -297,16 +297,35 @@ def render_dashboard(
     grade_col = _grade_color(snapshot.grade)
     bar, score_str = _format_score_bar(score.overall)
 
-    # Sub-score sparklines on one line
+    # Per-category score numbers (compact, one line)
+    score_numbers = Text.assemble(
+        ("CPU ", "dim"),
+        (f"{score.cpu:.1f}", cpu_color),
+        ("   ", "dim"),
+        ("Mem ", "dim"),
+        (f"{score.memory:.1f}", mem_color),
+        ("   ", "dim"),
+        ("Disk ", "dim"),
+        (f"{score.disk:.1f}", disk_color),
+        ("   ", "dim"),
+        ("Proc ", "dim"),
+        (f"{score.process:.1f}", proc_color),
+    )
+
+    # Sub-score sparklines — fixed width to prevent wrapping
+    _spark_w = 10
     score_sparks = Text.assemble(
         ("CPU ", "dim"),
-        (_sparkline(history.cpu_history()), cpu_color),
-        ("  Mem ", "dim"),
-        (_sparkline(history.memory_history()), mem_color),
-        ("  Disk ", "dim"),
-        (_sparkline(history.disk_history()), disk_color),
-        ("  Proc ", "dim"),
-        (_sparkline(history.process_history()), proc_color),
+        (_sparkline(history.cpu_history(), width=_spark_w), cpu_color),
+        ("  ", "dim"),
+        ("Mem ", "dim"),
+        (_sparkline(history.memory_history(), width=_spark_w), mem_color),
+        ("  ", "dim"),
+        ("Disk ", "dim"),
+        (_sparkline(history.disk_history(), width=_spark_w), disk_color),
+        ("  ", "dim"),
+        ("Proc ", "dim"),
+        (_sparkline(history.process_history(), width=_spark_w), proc_color),
     )
 
     summary = Panel(
@@ -315,6 +334,7 @@ def render_dashboard(
                 f"{bar} {score_str}  │  Grade: {snapshot.grade.upper()}",
                 style=grade_col,
             ),
+            score_numbers,
             score_sparks,
         ),
         title="Load Score",

@@ -104,6 +104,21 @@ class TestMonitorDashboard:
         # (sub-metrics like "CPU Usage (OS %)" can still have %)
         assert "42.5%" not in result.output
 
+    def test_monitor_dashboard_shows_per_category_numbers(self):
+        """Load Score panel must show numeric scores for each category."""
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot(overall=42.5)
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        # Per-category numbers should appear in the Load Score panel
+        assert "CPU 20.0" in result.output
+        assert "Mem 30.0" in result.output
+        assert "Disk 25.0" in result.output
+        assert "Proc 25.0" in result.output
+
 
 class TestMonitorJson:
     def test_monitor_json_outputs_json(self):
