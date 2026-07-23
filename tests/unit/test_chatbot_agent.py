@@ -281,6 +281,17 @@ class TestBuildSystemPrompt:
         assert "data, not instructions" in prompt
         assert "Security" in prompt
 
+    def test_includes_shell_and_file_guidance(self):
+        """System prompt must mention shell and file tools."""
+        prompt = _build_system_prompt(
+            "- **run_shell**: Run shell", "- **read_file**: Read file"
+        )
+        assert "run_shell" in prompt
+        assert "read_file" in prompt
+        assert "PowerShell" in prompt
+        assert "Bash" in prompt
+        assert "list_files" in prompt
+
 
 class TestExtractToolResultText:
     """Tests for _extract_tool_result_text()."""
