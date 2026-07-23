@@ -21,7 +21,9 @@ async def debug_list_processes(
         Field(description="Include system processes. Default false."),
     ] = False,
 ) -> list[dict]:
-    """List running IRIS processes.
+    """List running IRIS processes (on the IRIS server).
+
+    **Runs on: IRIS server** (remote — queries process table via DBGP/REST API).
 
     Returns process information including PID, namespace, routine, state,
     and device. Use this to find a process to attach the debugger to.
@@ -47,7 +49,9 @@ async def debug_attach(
         ),
     ] = None,
 ) -> dict:
-    """Attach the debugger to a running IRIS process.
+    """Attach the debugger to a running IRIS process (on the IRIS server).
+
+    **Runs on: IRIS server** (remote — opens a DBGP debug session).
 
     Pauses the target process and opens an interactive debug session.
     Once attached, use debug_step, debug_inspect, debug_variables,

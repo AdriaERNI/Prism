@@ -42,7 +42,9 @@ async def compile_documents(
         ),
     ] = None,
 ) -> dict:
-    """Compile one or more IRIS source code documents.
+    """Compile one or more IRIS source code documents on the IRIS server.
+
+    **Runs on: IRIS server** (remote — compiles classes via IRIS compiler).
 
     Compilation is required after creating or modifying a class with
     put_document — it registers the class with IRIS so it becomes usable as a

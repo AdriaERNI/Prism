@@ -37,7 +37,9 @@ async def run_tests(
         ),
     ] = None,
 ) -> dict:
-    """Run ObjectScript unit tests for a class and return structured results.
+    """Run ObjectScript unit tests on the IRIS server and return structured results.
+
+    **Runs on: IRIS server** (remote — executes tests via IRIS %UnitTest framework).
 
     Executes one or all Test* methods in a %UnitTest.TestCase subclass using
     DebugRunTestCase (no file system access needed — the class must already be
@@ -158,7 +160,9 @@ async def list_tests(
         ),
     ] = None,
 ) -> dict:
-    """Discover %UnitTest.TestCase classes and their Test* methods.
+    """Discover %UnitTest.TestCase classes and their Test* methods on the IRIS server.
+
+    **Runs on: IRIS server** (remote — queries IRIS %Dictionary tables).
 
     Queries the %Dictionary tables to find all compiled classes extending
     %UnitTest.TestCase, with their test method names. Use this before
@@ -213,7 +217,9 @@ async def get_test_results(
         ),
     ] = None,
 ) -> dict:
-    """Retrieve historical unit test results from %UnitTest_Result tables.
+    """Retrieve historical unit test results from the IRIS server.
+
+    **Runs on: IRIS server** (remote — queries %UnitTest_Result tables).
 
     Returns recent test runs with pass/fail status and timing. Use this to
     check past test results without re-running the tests.

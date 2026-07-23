@@ -49,11 +49,14 @@ async def get_document(
         ),
     ] = None,
 ) -> dict:
-    """Fetch a document from IRIS and return its content inline.
+    """Fetch a document from the IRIS server and return its content inline.
+
+    **Runs on: IRIS server** (remote — reads source code stored in IRIS).
 
     Returns the source code lines directly in the response — no files are
-    written. Use the slicing parameters (from_line/to_line, head, tail) to
-    navigate large documents without retrieving everything.
+    written to the local workspace. Use the slicing parameters
+    (from_line/to_line, head, tail) to navigate large documents without
+    retrieving everything.
 
     If the document does not exist, returns ``found=false``.
     """
@@ -150,7 +153,9 @@ async def list_documents(
         ),
     ] = None,
 ) -> dict:
-    """List source code documents stored in the IRIS namespace.
+    """List source code documents stored on the IRIS server.
+
+    **Runs on: IRIS server** (remote — queries IRIS database metadata).
 
     Use this to discover existing classes, routines, and other source
     artifacts before reading or modifying them. Results can be filtered by
@@ -193,7 +198,9 @@ async def delete_document(
         ),
     ] = None,
 ) -> dict:
-    """Delete an IRIS source code document.
+    """Delete a source code document from the IRIS server.
+
+    **Runs on: IRIS server** (remote — deletes from the IRIS database).
 
     WARNING: Deleting a compiled class also removes its SQL table and all data
     stored in it. This cannot be undone. If the document does not exist, returns

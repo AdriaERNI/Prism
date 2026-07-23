@@ -8,6 +8,8 @@ from prism.mcp._decorator import logged_tool
 async def get_server_info() -> dict:
     """Get IRIS server information including version and available namespaces.
 
+    **Runs on: IRIS server** (remote — queries server metadata).
+
     Returns ``{"version": "...", "api": N, "namespaces": [...]}`` — use
     this to verify connectivity, check the server version, or discover
     available namespaces before targeting one with other tools.

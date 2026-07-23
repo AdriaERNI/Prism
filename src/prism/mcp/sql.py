@@ -23,7 +23,9 @@ async def execute_sql(
         ),
     ] = None,
 ) -> dict:
-    """Execute an InterSystems SQL query and return the results.
+    """Execute an InterSystems SQL query on the IRIS server and return the results.
+
+    **Runs on: IRIS server** (remote, via REST API).
 
     Returns ``{"rows": [...], "count": N}`` for SELECT queries where each
     row is a dict of column names to values. For INSERT/UPDATE/DELETE returns

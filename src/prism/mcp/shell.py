@@ -85,7 +85,10 @@ async def run_shell(
         ),
     ] = None,
 ) -> dict:
-    """Execute a shell command on the host system.
+    """Execute a shell command on the local host system (NOT on the IRIS server).
+
+    **Runs on: local host** (NOT the IRIS server — this runs on the machine
+    where Prism is installed).
 
     The command runs in the platform's native shell:
     - **Windows**: PowerShell (``powershell.exe -NoProfile -Command``)
@@ -96,15 +99,15 @@ async def run_shell(
 
     Use this tool to:
     - Run ``git`` commands (status, log, diff, add, commit)
-    - List and inspect files (``ls``, ``dir``, ``Get-ChildItem``)
-    - Run build scripts or tests
-    - Check system information (``uname``, ``$PSVersionTable``)
-    - Any general shell task the IRIS-specific tools don't cover
+    - List and inspect local files (``ls``, ``dir``, ``Get-ChildItem``)
+    - Run build scripts or local tests
+    - Check local system information (``uname``, ``$PSVersionTable``)
+    - Any general shell task that does NOT need the IRIS server
 
     Security notes:
     - The tool refuses to run as root on POSIX systems.
-    - Commands are sandboxed to the timeout — long-running processes
-      are killed.
+    - Commands have a timeout (default 30s, max 120s) — long-running
+      processes are killed.
     - Output is truncated to prevent context window overflow.
     """
     # Refuse to run as root on POSIX

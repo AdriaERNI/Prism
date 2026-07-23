@@ -292,6 +292,18 @@ class TestBuildSystemPrompt:
         assert "Bash" in prompt
         assert "list_files" in prompt
 
+    def test_includes_iris_vs_local_separation(self):
+        """System prompt must clearly separate IRIS server tools from local tools."""
+        prompt = _build_system_prompt("", "")
+        assert "IRIS server" in prompt
+        assert "local host" in prompt
+        assert "execute_sql" in prompt
+        assert "execute_terminal" in prompt
+        assert "get_document" in prompt
+        assert "run_shell" in prompt
+        assert "read_file" in prompt
+        assert "Do not confuse" in prompt
+
 
 class TestExtractToolResultText:
     """Tests for _extract_tool_result_text()."""

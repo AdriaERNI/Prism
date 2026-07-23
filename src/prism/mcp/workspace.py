@@ -35,9 +35,11 @@ async def put_document(
         ),
     ] = None,
 ) -> dict:
-    """Read a file from the workspace and push it to IRIS.
+    """Read a file from the local workspace and push it to the IRIS server.
 
-    The file must already exist in the workspace — write it first, then call
+    **Runs on: local → IRIS** (reads a local file, writes to the remote IRIS server).
+
+    The file must already exist in the local workspace — write it first, then call
     this tool to upload it. This creates or overwrites the document on the IRIS
     server. After pushing a .cls file, you must compile it with
     compile_documents before it becomes usable (as a SQL table, method target,
@@ -77,11 +79,13 @@ async def put_and_compile(
         ),
     ] = None,
 ) -> dict:
-    """Read a file from the workspace, push it to IRIS, and compile it in one step.
+    """Read a file from the local workspace, push it to IRIS, and compile it in one step.
+
+    **Runs on: local → IRIS** (reads a local file, writes and compiles on the remote IRIS server).
 
     This is the recommended tool for creating or updating classes. It combines
     put_document + compile_documents into a single call. The file must already
-    exist in the workspace. The result includes both the put status and any
+    exist in the local workspace. The result includes both the put status and any
     compilation errors or warnings.
     """
     validate_doc_name(name)

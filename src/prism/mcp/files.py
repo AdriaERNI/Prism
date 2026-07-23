@@ -80,21 +80,25 @@ async def read_file(
         ),
     ] = "utf-8",
 ) -> dict:
-    """Read a file from the workspace and return its contents.
+    """Read a text file from the local workspace directory (NOT from the IRIS server).
 
-    The file must be inside the configured workspace directory
+    **Runs on: local host** (reads files from the local filesystem, NOT from IRIS).
+
+    The file must be inside the configured local workspace directory
     (``IRIS_WORKSPACE``). Path traversal is blocked — relative paths
     like ``../etc/passwd`` are rejected.
+
+    To read source code from the IRIS server, use ``get_document`` instead.
 
     The tool detects binary files (images, executables, archives) and
     returns a message instead of garbled content. Text files are read
     with the specified encoding (default UTF-8).
 
     Use this tool to:
-    - Read source code files for review or debugging
-    - Inspect configuration files (JSON, YAML, .env, TOML)
-    - Read documentation (Markdown, README, docs)
-    - View log files or text output
+    - Read local source code files for review or debugging
+    - Inspect local configuration files (JSON, YAML, .env, TOML)
+    - Read local documentation (Markdown, README, docs)
+    - View local log files or text output
     - Check file contents before pushing to IRIS
 
     The content is truncated at 100,000 characters for large files.
@@ -212,17 +216,21 @@ async def list_files(
         ),
     ] = 200,
 ) -> dict:
-    """List files and directories in the workspace.
+    """List files and directories in the local workspace (NOT on the IRIS server).
+
+    **Runs on: local host** (reads the local filesystem, NOT the IRIS server).
 
     Returns a structured listing of files and subdirectories within the
     specified path. Use glob patterns to filter results (e.g. ``*.py``,
     ``**/*.cls``).
 
+    To list source code on the IRIS server, use ``list_documents`` instead.
+
     Use this tool to:
-    - Discover what files exist in the project
-    - Find source files for a specific task
-    - Browse directory structure before reading specific files
-    - Check if a file exists before writing or compiling it
+    - Discover what files exist in the local project
+    - Find local source files for a specific task
+    - Browse local directory structure before reading specific files
+    - Check if a local file exists before writing or compiling it
     """
     from prism.iris.sdk.workspace import resolve_safe, workspace_root
 
