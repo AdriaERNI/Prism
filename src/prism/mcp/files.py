@@ -176,7 +176,7 @@ async def read_file(
     truncated = _truncate_content(content)
     return {
         "content": truncated,
-        "path": str(file_path.relative_to(root)),
+        "path": str(file_path.relative_to(root)).replace("\\", "/"),
         "absolute_path": str(file_path),
         "size": len(content),
         "lines": content.count("\n") + 1,
