@@ -119,6 +119,28 @@ class TestMonitorDashboard:
         assert "Disk 25.0" in result.output
         assert "Proc 25.0" in result.output
 
+    def test_monitor_dashboard_shows_units(self):
+        """Sub-metrics must display their unit type (%, ops/s, ms, etc.)."""
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot(overall=42.5)
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        out = result.output
+        # Percentage metrics (CPU Usage = 12.5, Memory Used = 45.2)
+        assert "12.5 %" in out or "12.5%" in out  # CPU Usage
+        assert "45.2 %" in out or "45.2%" in out  # Memory Used
+        # Operations per second (Reads = 120.5)
+        assert "120.5 ops/s" in out  # Reads
+        # Milliseconds (WD Cycle = 0.0 in _make_snapshot)
+        assert "ms" in out  # WD Cycle
+        # Events per second (Glo Seize = 0.0 in _make_snapshot)
+        assert "events/s" in out  # Glo Seize
+        # Process count (integer, no decimal, no unit suffix)
+        assert "42" in out  # Processes (42 from _make_snapshot, shown as int)
+
     def test_load_score_panel_no_redundant_sparklines(self):
         """Load Score panel should NOT have sparklines — they're in the top panels.
 

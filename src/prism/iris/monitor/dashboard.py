@@ -283,13 +283,16 @@ def _metric_table(
     title: str,
     score_value: float,
     history: list[float],
-    sub_metrics: dict[str, float],
+    sub_metrics: dict[str, tuple[float, str]],
     color: str,
 ) -> Panel:
     """Build a resource panel with bar, sparkline, and sub-metric table.
 
     The *score_value* is a 0–100 load index (not a percentage), so the
     bar uses :func:`_format_score_bar` to show ``N.N/100``.
+
+    *sub_metrics* maps a label to a ``(value, unit)`` tuple, e.g.
+    ``{"CPU Usage": (55.0, "%")}`` renders as ``CPU Usage    55.0%``.
     """
     bar, score_str = _format_score_bar(score_value)
     spark = _sparkline(history)
@@ -298,9 +301,13 @@ def _metric_table(
     table.add_column(style="dim")
     table.add_column(style=color, justify="right")
 
-    # Sub-metrics
-    for name, val in sub_metrics.items():
-        table.add_row(name, f"{val:.1f}")
+    # Sub-metrics — format value with its unit
+    for name, (val, unit) in sub_metrics.items():
+        # Integers (process count) show without decimal
+        if unit == "#":
+            table.add_row(name, f"{int(val)}")
+        else:
+            table.add_row(name, f"{val:.1f} {unit}" if unit else f"{val:.1f}")
 
     content = Group(
         Text(f"{bar} {score_str}", style=color),
@@ -341,27 +348,25 @@ def render_dashboard(
     disk_color = _color_for_score(score.disk)
     proc_color = _color_for_score(score.process)
 
-    # Extract sub-metrics from snapshot
+    # Extract sub-metrics from snapshot — (value, unit) tuples
     m = snapshot.metrics
     cpu_sub = {
-        "CPU Usage (OS %)": m.get("iris_cpu_usage", 0.0),
+        "CPU Usage": (m.get("iris_cpu_usage", 0.0), "%"),
     }
     mem_sub = {
-        "Memory Used %": m.get("iris_phys_mem_percent_used", 0.0),
-        "Page Space %": m.get("iris_page_space_percent_used", 0.0),
-        "SMH Full %": m.get("iris_smh_total_percent_full", 0.0),
+        "Memory Used": (m.get("iris_phys_mem_percent_used", 0.0), "%"),
+        "Page Space": (m.get("iris_page_space_percent_used", 0.0), "%"),
+        "SMH Full": (m.get("iris_smh_total_percent_full", 0.0), "%"),
     }
     disk_sub = {
-        "Reads/s": m.get("iris_phys_reads_per_sec", 0.0),
-        "Writes/s": m.get("iris_phys_writes_per_sec", 0.0),
-        "Disk Full %": m.get("iris_disk_percent_full", 0.0)
-        if hasattr(m, "get")
-        else 0.0,
+        "Reads": (m.get("iris_phys_reads_per_sec", 0.0), "ops/s"),
+        "Writes": (m.get("iris_phys_writes_per_sec", 0.0), "ops/s"),
+        "Disk Full": (m.get("iris_disk_percent_full", 0.0), "%"),
     }
     proc_sub = {
-        "Processes": m.get("iris_process_count", 0.0),
-        "Glo Seize/s": m.get("iris_glo_seize_per_sec", 0.0),
-        "WD Cycle ms": m.get("iris_wd_cycle_time", 0.0),
+        "Processes": (m.get("iris_process_count", 0.0), "#"),
+        "Glo Seize": (m.get("iris_glo_seize_per_sec", 0.0), "events/s"),
+        "WD Cycle": (m.get("iris_wd_cycle_time", 0.0), "ms"),
     }
 
     cpu_panel = _metric_table(
