@@ -12,7 +12,7 @@ from prism.iris.monitor.scorer import LoadScore
 runner = CliRunner()
 
 
-def _make_snapshot(overall=25.0):
+def _make_snapshot(overall: float = 25.0) -> MonitorSnapshot:
     return MonitorSnapshot(
         timestamp=1234567890.0,
         score=LoadScore(
@@ -35,14 +35,69 @@ def _make_snapshot(overall=25.0):
     )
 
 
-class TestMonitorCommand:
-    def test_monitor_outputs_json(self):
-        """`prism monitor` outputs JSON with score and metrics."""
+class TestMonitorDashboard:
+    """Tests for the default human-readable dashboard output."""
+
+    def test_monitor_default_renders_dashboard(self):
+        """`prism monitor` (no flags) renders a human-readable dashboard."""
         with patch(
             "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
         ) as mock:
             mock.return_value = _make_snapshot()
             result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        # The dashboard should contain resource labels
+        assert "CPU" in result.output
+        assert "Memory" in result.output
+        assert "Disk" in result.output
+        assert "Process" in result.output
+        assert "Load Score" in result.output
+        # Should NOT be raw JSON
+        assert not result.output.strip().startswith("{")
+
+    def test_monitor_dashboard_shows_grade(self):
+        """Dashboard output includes the health grade."""
+        snap = _make_snapshot(overall=5.0)
+        # Override grade to match the score
+        snap = MonitorSnapshot(
+            timestamp=snap.timestamp,
+            score=snap.score,
+            grade="idle",
+            metrics=snap.metrics,
+            metric_count=snap.metric_count,
+            alerts_count=snap.alerts_count,
+        )
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = snap
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        assert "IDLE" in result.output.upper()
+
+    def test_monitor_dashboard_shows_score_bar(self):
+        """Dashboard shows a progress bar for the overall score."""
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot(overall=50.0)
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        # Progress bar uses block characters
+        assert "█" in result.output or "░" in result.output
+
+
+class TestMonitorJson:
+    def test_monitor_json_outputs_json(self):
+        """`prism monitor --json` outputs JSON with score and metrics."""
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot()
+            result = runner.invoke(app, ["monitor", "--json"])
 
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -52,10 +107,9 @@ class TestMonitorCommand:
         assert data["grade"] == "healthy"
         assert "metrics" in data
 
-    def test_monitor_with_raw_flag(self):
-        """`prism monitor --raw` includes raw_metrics in output."""
+    def test_monitor_json_with_raw_flag(self):
+        """`prism monitor --json --raw` includes raw_metrics in output."""
         snapshot = _make_snapshot()
-        # Add raw samples for the test
         from prism.iris.monitor.parser import MetricSample
 
         snapshot = MonitorSnapshot(
@@ -71,13 +125,15 @@ class TestMonitorCommand:
             "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
         ) as mock:
             mock.return_value = snapshot
-            result = runner.invoke(app, ["monitor", "--raw"])
+            result = runner.invoke(app, ["monitor", "--json", "--raw"])
 
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "raw_metrics" in data
         assert len(data["raw_metrics"]) == 1
 
+
+class TestMonitorErrorHandling:
     def test_monitor_error_handling(self):
         """`prism monitor` handles connection errors gracefully."""
         import httpx
@@ -91,6 +147,8 @@ class TestMonitorCommand:
         assert result.exit_code == 1
         assert "Cannot connect" in result.output or "Error" in result.output
 
+
+class TestMonitorCompare:
     def test_monitor_compare_with_two_snapshots(self):
         """`prism monitor --compare` takes two snapshots and compares them."""
         snapshot_a = _make_snapshot(overall=20.0)

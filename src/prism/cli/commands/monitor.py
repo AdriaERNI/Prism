@@ -1,16 +1,19 @@
-"""`prism monitor` — live IRIS instance resource monitoring.
+"""`prism monitor` — live IRIS instance resource monitoring dashboard.
 
-Fetches metrics from the IRIS /api/monitor REST endpoint, computes a
-weighted load score (CPU, memory, disk/IO, process load), and reports a
-health grade. Supports ``--compare`` to take two snapshots and determine
-which is less loaded.
+Displays a rich terminal dashboard with:
+
+* Real-time CPU, Memory, Disk/IO, and Process load panels
+* ASCII sparkline graphs showing the last hour of history
+* Colored progress bars for current load
+* Summary score + health grade at the bottom
 
 Usage::
 
-    prism monitor              # one-shot snapshot
-    prism monitor --raw        # include all raw metrics
-    prism monitor --compare    # take two snapshots, compare them
-    prism monitor --watch 2    # continuous monitoring, refresh every 2s
+    prism monitor              # one-shot dashboard snapshot
+    prism monitor --watch 2   # live dashboard, refresh every 2s
+    prism monitor --watch 0   # single snapshot (same as no flag)
+    prism monitor --json       # machine-readable JSON output (no dashboard)
+    prism monitor --compare    # take two snapshots, compare (JSON)
 """
 
 from __future__ import annotations
@@ -22,36 +25,111 @@ import typer
 
 from prism.cli.errors import handle_command_error
 from prism.iris.monitor import collect_snapshot
+from prism.iris.monitor.dashboard import HistoryBuffer, render_dashboard
 from prism.iris.monitor.scorer import compare_snapshots
 from prism.output import format_output, get_output_format
 
 
 def monitor(
-    raw: bool = typer.Option(
-        False,
-        "--raw",
-        help="Include all raw metric samples in the output.",
-    ),
-    compare: bool = typer.Option(
-        False,
-        "--compare",
-        help="Take two snapshots with a 5-second interval and compare them.",
-    ),
     watch: float = typer.Option(
         0,
         "--watch",
         "-w",
-        help="Continuous monitoring mode: refresh every N seconds. "
+        help="Live monitoring mode: refresh every N seconds. "
         "Use 0 (default) for a single snapshot.",
+    ),
+    json_output: bool = typer.Option(
+        False,
+        "--json",
+        help="Output machine-readable JSON instead of the dashboard UI.",
+    ),
+    raw: bool = typer.Option(
+        False,
+        "--raw",
+        help="Include all raw metric samples in JSON output (use with --json).",
+    ),
+    compare: bool = typer.Option(
+        False,
+        "--compare",
+        help="Take two snapshots (5s apart) and compare their load scores (JSON).",
     ),
 ) -> None:
     """Monitor IRIS instance CPU, RAM, disk I/O, and process load in real time."""
     try:
         if compare:
             _run_compare()
-        elif watch > 0:
-            _run_watch(watch, raw)
+        elif json_output:
+            if watch > 0:
+                _run_watch_json(watch, raw)
+            else:
+                _run_json_once(raw)
         else:
+            _run_dashboard(watch)
+    except Exception as exc:
+        handle_command_error(exc)
+
+
+# ── Dashboard mode (default — human-readable rich UI) ─────────────────
+
+
+def _run_dashboard(watch: float) -> None:
+    """Render the rich Live dashboard.
+
+    If *watch* > 0, runs a live-updating dashboard that refreshes every
+    *watch* seconds until the user presses Ctrl+C.  If *watch* is 0,
+    renders a single snapshot and exits.
+    """
+    from rich.console import Console
+    from rich.live import Live
+
+    console = Console()
+    history = HistoryBuffer()
+
+    # Take the first snapshot
+    snapshot = asyncio.run(collect_snapshot())
+    history.add(snapshot)
+
+    if watch > 0:
+        # Live mode — continuously refresh
+        panel = render_dashboard(snapshot, history, console)
+        with Live(panel, console=console, refresh_per_second=1) as live:
+            try:
+                while True:
+                    time.sleep(watch)
+                    snapshot = asyncio.run(collect_snapshot())
+                    history.add(snapshot)
+                    live.update(render_dashboard(snapshot, history, console))
+            except KeyboardInterrupt:
+                console.print("\n[dim]Monitoring stopped.[/dim]")
+    else:
+        # Single snapshot — just print once
+        panel = render_dashboard(snapshot, history, console)
+        console.print(panel)
+
+
+# ── JSON mode (machine-readable) ──────────────────────────────────────
+
+
+def _run_json_once(raw: bool) -> None:
+    """Single snapshot in JSON format."""
+    snapshot = asyncio.run(collect_snapshot())
+    result = snapshot.to_dict()
+    if raw:
+        result["raw_metrics"] = [
+            {"name": s.name, "value": s.value, "labels": s.labels}
+            for s in snapshot.raw_samples
+        ]
+    typer.echo(format_output(result, get_output_format()))
+
+
+def _run_watch_json(interval: float, raw: bool) -> None:
+    """Continuously output JSON snapshots at the given interval."""
+    typer.echo(
+        f"Monitoring IRIS (JSON, refresh every {interval}s). Press Ctrl+C to stop.",
+        err=True,
+    )
+    try:
+        while True:
             snapshot = asyncio.run(collect_snapshot())
             result = snapshot.to_dict()
             if raw:
@@ -60,8 +138,12 @@ def monitor(
                     for s in snapshot.raw_samples
                 ]
             typer.echo(format_output(result, get_output_format()))
-    except Exception as exc:
-        handle_command_error(exc)
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        typer.echo("\nMonitoring stopped.", err=True)
+
+
+# ── Compare mode ──────────────────────────────────────────────────────
 
 
 def _run_compare() -> None:
@@ -84,26 +166,3 @@ def _run_compare() -> None:
         "comparison": comparison,
     }
     typer.echo(format_output(result, get_output_format()))
-
-
-def _run_watch(interval: float, raw: bool) -> None:
-    """Continuously monitor and print snapshots at the given interval."""
-    typer.echo(
-        f"Monitoring IRIS (refresh every {interval}s). Press Ctrl+C to stop.",
-        err=True,
-    )
-    try:
-        while True:
-            snapshot = asyncio.run(collect_snapshot())
-            result = snapshot.to_dict()
-            if raw:
-                result["raw_metrics"] = [
-                    {"name": s.name, "value": s.value, "labels": s.labels}
-                    for s in snapshot.raw_samples
-                ]
-            # Clear screen for live status (ANSI escape)
-            typer.echo("\033[2J\033[H", nl=False)
-            typer.echo(format_output(result, get_output_format()))
-            time.sleep(interval)
-    except KeyboardInterrupt:
-        typer.echo("\nMonitoring stopped.", err=True)
