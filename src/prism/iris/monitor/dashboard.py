@@ -282,9 +282,11 @@ def _metric_table(
     bar, score_str = _format_score_bar(score_value)
     spark = _sparkline(history)
 
-    table = Table(show_header=False, box=None, padding=(0, 1))
-    table.add_column(style="dim")
-    table.add_column(style=color, justify="right")
+    # Use a table with no_wrap=True to prevent label/value wrapping
+    # and overflow="ellipsis" to truncate long values instead of wrapping
+    table = Table(show_header=False, box=None, padding=(0, 1), expand=False)
+    table.add_column(style="dim", no_wrap=True, overflow="ellipsis", ratio=1)
+    table.add_column(style=color, justify="right", no_wrap=True, overflow="ellipsis")
 
     # Sub-metrics — format value with its unit
     for name, (val, unit) in sub_metrics.items():
