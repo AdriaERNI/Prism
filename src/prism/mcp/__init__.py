@@ -17,6 +17,7 @@ from prism.settings import settings
 _SKIP_MODULES: set[str] = set()
 if not settings.iris_workspace:
     _SKIP_MODULES.add("workspace")
+    _SKIP_MODULES.add("files")
 if not settings.iris_debug_enabled:
     _SKIP_MODULES.add("debugger")
 
@@ -26,8 +27,10 @@ _ALL_TOOL_MODULES = [
     "compile",
     "debugger",
     "documents",
+    "files",
     "index",
     "server_info",
+    "shell",
     "sql",
     "terminal",
     "testing",

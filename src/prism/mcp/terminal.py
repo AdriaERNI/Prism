@@ -38,7 +38,9 @@ async def execute_terminal(
         ),
     ] = 30.0,
 ) -> dict:
-    """Execute an ObjectScript command in the IRIS terminal via WebSocket.
+    """Execute an ObjectScript command in the IRIS terminal (on the IRIS server).
+
+    **Runs on: IRIS server** (remote, via WebSocket terminal session).
 
     Use this tool for ObjectScript that cannot be expressed as SQL — method
     calls, global operations, system commands ($system utilities), variable
