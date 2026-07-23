@@ -89,6 +89,21 @@ class TestMonitorDashboard:
         # Progress bar uses block characters
         assert "█" in result.output or "░" in result.output
 
+    def test_monitor_dashboard_score_shown_as_number_not_percentage(self):
+        """Load score must be displayed as a number (N.N/100), not a percentage."""
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot(overall=42.5)
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        # Score should show as "42.5/100" not "42.5%"
+        assert "42.5/100" in result.output
+        # The Load Score panel should NOT have a % sign on the score value
+        # (sub-metrics like "CPU Usage (OS %)" can still have %)
+        assert "42.5%" not in result.output
+
 
 class TestMonitorJson:
     def test_monitor_json_outputs_json(self):

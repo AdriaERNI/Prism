@@ -6,6 +6,7 @@ from prism.iris.monitor.dashboard import (
     _color_for_score,
     _grade_color,
     _format_bar,
+    _format_score_bar,
 )
 from prism.iris.monitor import MonitorSnapshot
 from prism.iris.monitor.scorer import LoadScore
@@ -198,3 +199,36 @@ class TestFormatBar:
     def test_clamps_below_0(self):
         bar, pct_str = _format_bar(-10.0)
         assert "0.0%" in pct_str
+
+
+class TestFormatScoreBar:
+    """Score bar shows N.N/100 (a number), not N.N% (a percentage)."""
+
+    def test_zero_score(self):
+        bar, score_str = _format_score_bar(0.0)
+        assert "█" not in bar
+        assert "0.0/100" in score_str
+
+    def test_full_score(self):
+        bar, score_str = _format_score_bar(100.0)
+        assert "█" in bar
+        assert "100.0/100" in score_str
+
+    def test_half_score(self):
+        bar, score_str = _format_score_bar(50.0)
+        assert "█" in bar
+        assert "50.0/100" in score_str
+
+    def test_score_not_percentage(self):
+        """Score string must NOT contain a % sign."""
+        _, score_str = _format_score_bar(42.5)
+        assert "%" not in score_str
+        assert "42.5/100" == score_str
+
+    def test_clamps_above_100(self):
+        _, score_str = _format_score_bar(150.0)
+        assert "100.0/100" in score_str
+
+    def test_clamps_below_0(self):
+        _, score_str = _format_score_bar(-10.0)
+        assert "0.0/100" in score_str

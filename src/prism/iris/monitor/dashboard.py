@@ -168,7 +168,7 @@ _BAR_WIDTH = 20
 
 
 def _format_bar(value: float, width: int = _BAR_WIDTH) -> tuple[str, str]:
-    """Render a textual progress bar for *value* (0–100 scale).
+    """Render a textual progress bar for *value* (0–100 percentage).
 
     Returns (bar_string, percentage_string).
     The bar uses ``█`` for filled and ``░`` for empty.
@@ -178,6 +178,18 @@ def _format_bar(value: float, width: int = _BAR_WIDTH) -> tuple[str, str]:
     bar = "█" * filled + "░" * (width - filled)
     pct_str = f"{clamped:.1f}%"
     return bar, pct_str
+
+
+def _format_score_bar(value: float, width: int = _BAR_WIDTH) -> tuple[str, str]:
+    """Render a progress bar for a 0–100 load score index (not a percentage).
+
+    Returns (bar_string, score_string) where score_string is ``N.N/100``.
+    """
+    clamped = max(0.0, min(100.0, value))
+    filled = int(round(clamped / 100.0 * width))
+    bar = "█" * filled + "░" * (width - filled)
+    score_str = f"{clamped:.1f}/100"
+    return bar, score_str
 
 
 # ── Dashboard renderer ────────────────────────────────────────────────
@@ -190,8 +202,12 @@ def _metric_table(
     sub_metrics: dict[str, float],
     color: str,
 ) -> Panel:
-    """Build a resource panel with bar, sparkline, and sub-metric table."""
-    bar, pct = _format_bar(score_value)
+    """Build a resource panel with bar, sparkline, and sub-metric table.
+
+    The *score_value* is a 0–100 load index (not a percentage), so the
+    bar uses :func:`_format_score_bar` to show ``N.N/100``.
+    """
+    bar, score_str = _format_score_bar(score_value)
     spark = _sparkline(history)
 
     table = Table(show_header=False, box=None, padding=(0, 1))
@@ -203,7 +219,7 @@ def _metric_table(
         table.add_row(name, f"{val:.1f}")
 
     content = Group(
-        Text(f"{bar} {pct}", style=color),
+        Text(f"{bar} {score_str}", style=color),
         Text(f"  {spark}", style="dim"),
         table,
     )
@@ -279,7 +295,7 @@ def render_dashboard(
 
     # ── Score summary (bottom) ──────────────────────────────────────
     grade_col = _grade_color(snapshot.grade)
-    bar, pct = _format_bar(score.overall)
+    bar, score_str = _format_score_bar(score.overall)
 
     # Sub-score sparklines on one line
     score_sparks = Text.assemble(
@@ -295,7 +311,10 @@ def render_dashboard(
 
     summary = Panel(
         Group(
-            Text(f"{bar} {pct}  │  Grade: {snapshot.grade.upper()}", style=grade_col),
+            Text(
+                f"{bar} {score_str}  │  Grade: {snapshot.grade.upper()}",
+                style=grade_col,
+            ),
             score_sparks,
         ),
         title="Load Score",
