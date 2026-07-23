@@ -148,6 +148,24 @@ class TestMonitorDashboard:
             "(▁▂▃▄▅▆▇) — those graphs are already shown in the top panels"
         )
 
+    def test_load_score_panel_shows_averages(self):
+        """Load Score panel must show SMA + EWMA (1m/5m/15m) + trend arrow."""
+        with patch(
+            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
+        ) as mock:
+            mock.return_value = _make_snapshot(overall=42.5)
+            result = runner.invoke(app, ["monitor"])
+
+        assert result.exit_code == 0
+        output = result.output
+        # The averages line should contain "Avg", "1m", "5m", "15m"
+        assert "Avg" in output
+        assert "1m" in output
+        assert "5m" in output
+        assert "15m" in output
+        # Trend arrow should be one of ↑ ↓ →
+        assert any(arrow in output for arrow in ["↑", "↓", "→"])
+
 
 class TestMonitorJson:
     def test_monitor_json_outputs_json(self):

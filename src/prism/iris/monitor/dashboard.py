@@ -18,6 +18,7 @@ History is kept in a ring buffer (default: 360 samples = 1 hour at
 
 from __future__ import annotations
 
+import math
 from collections import deque
 from dataclasses import dataclass
 
@@ -96,6 +97,31 @@ class HistoryBuffer:
     def timestamps(self) -> list[float]:
         return [e.timestamp for e in self._entries]
 
+    # ── Averages ──────────────────────────────────────────────────
+
+    def sma(self) -> float:
+        """Simple moving average of overall scores."""
+        return _sma(self.score_history())
+
+    def ewma_1m(self, interval_s: float = 1.0) -> float:
+        """1-minute exponentially weighted moving average."""
+        return _ewma(self.score_history(), window_s=60.0, interval_s=interval_s)
+
+    def ewma_5m(self, interval_s: float = 1.0) -> float:
+        """5-minute exponentially weighted moving average."""
+        return _ewma(self.score_history(), window_s=300.0, interval_s=interval_s)
+
+    def ewma_15m(self, interval_s: float = 1.0) -> float:
+        """15-minute exponentially weighted moving average."""
+        return _ewma(self.score_history(), window_s=900.0, interval_s=interval_s)
+
+    def trend(self, interval_s: float = 1.0) -> str:
+        """Trend arrow comparing 1m EWMA vs 5m EWMA.
+
+        Returns ``↑`` (rising), ``→`` (stable), or ``↓`` (falling).
+        """
+        return _trend_arrow(self.ewma_1m(interval_s), self.ewma_5m(interval_s))
+
 
 # ── Sparkline renderer ────────────────────────────────────────────────
 
@@ -131,6 +157,64 @@ def _sparkline(data: list[float], width: int = 40) -> str:
         chars.append(_SPARK_BLOCKS[idx])
 
     return "".join(chars)
+
+
+# ── Averages: SMA + EWMA ──────────────────────────────────────────────
+
+
+def _sma(data: list[float]) -> float:
+    """Simple moving average — arithmetic mean of all values.
+
+    Returns 0.0 for empty data.
+    """
+    if not data:
+        return 0.0
+    return sum(data) / len(data)
+
+
+def _ewma(
+    data: list[float],
+    window_s: float,
+    interval_s: float,
+) -> float:
+    """Exponentially weighted moving average (EWMA).
+
+    Follows the Linux load-average model: recent samples weigh more
+    than old ones, decaying exponentially with a time constant of
+    *window_s* seconds.
+
+    Args:
+        data:        Time-series of values (oldest first).
+        window_s:    EWMA window in seconds (e.g. 60 for 1-min avg).
+        interval_s:  Time between samples in seconds.
+
+    Returns 0.0 for empty data.
+    """
+    if not data:
+        return 0.0
+
+    # Decay factor per sample: α = 1 - e^(-Δt / window)
+    alpha = 1.0 - math.exp(-interval_s / window_s)
+
+    result = data[0]
+    for value in data[1:]:
+        result = alpha * value + (1.0 - alpha) * result
+    return result
+
+
+def _trend_arrow(current: float, baseline: float, threshold: float = 2.0) -> str:
+    """Compare current (1m EWMA) vs baseline (5m EWMA) and return an arrow.
+
+    ↑  current > baseline + threshold  → load rising
+    →  |current - baseline| ≤ threshold → load stable
+    ↓  current < baseline - threshold  → load falling
+    """
+    diff = current - baseline
+    if diff > threshold:
+        return "↑"
+    if diff < -threshold:
+        return "↓"
+    return "→"
 
 
 # ── Color helpers ─────────────────────────────────────────────────────
@@ -314,6 +398,39 @@ def render_dashboard(
         (f"{score.process:.1f}", proc_color),
     )
 
+    # Averages line: SMA + EWMA (1m/5m/15m) + trend arrow
+    # Uses default 1s interval; if --watch uses a different interval the
+    # values are still meaningful as relative trend indicators.
+    avg = history.sma()
+    e1 = history.ewma_1m()
+    e5 = history.ewma_5m()
+    e15 = history.ewma_15m()
+    arrow = history.trend()
+
+    # Color the trend arrow
+    if arrow == "↑":
+        arrow_col = "red"
+    elif arrow == "↓":
+        arrow_col = "green"
+    else:
+        arrow_col = "dim"
+
+    averages = Text.assemble(
+        ("Avg ", "dim"),
+        (f"{avg:.1f}", "white"),
+        ("  │  ", "dim"),
+        ("1m ", "dim"),
+        (f"{e1:.1f}", "white"),
+        ("  ", "dim"),
+        ("5m ", "dim"),
+        (f"{e5:.1f}", "white"),
+        ("  ", "dim"),
+        ("15m ", "dim"),
+        (f"{e15:.1f}", "white"),
+        ("  ", "dim"),
+        (arrow, arrow_col),
+    )
+
     summary = Panel(
         Group(
             Text(
@@ -321,6 +438,7 @@ def render_dashboard(
                 style=grade_col,
             ),
             score_numbers,
+            averages,
         ),
         title="Load Score",
         border_style=grade_col,
