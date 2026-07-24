@@ -164,6 +164,33 @@ class TestComputeLoadScore:
         assert "cpu" in score.details
         assert "iris_cpu_usage" in score.details["cpu"]
 
+    def test_trans_open_count_scored(self):
+        """iris_trans_open_count should contribute to the process category score."""
+        # With 50 open transactions (threshold), it should normalise to 100
+        samples = _make_samples(
+            {
+                "iris_trans_open_count": 50.0,
+            }
+        )
+        score = compute_load_score(samples)
+        # Process score should be non-zero (trans_open_count at threshold = 100)
+        assert score.process > 0
+        assert "iris_trans_open_count" in score.details["process"]
+
+    def test_trans_open_count_high_increases_process_score(self):
+        """More open transactions should increase the process score."""
+        low_samples = _make_samples({"iris_trans_open_count": 5.0})
+        high_samples = _make_samples({"iris_trans_open_count": 45.0})
+        low_score = compute_load_score(low_samples)
+        high_score = compute_load_score(high_samples)
+        assert high_score.process > low_score.process
+
+    def test_trans_open_count_at_threshold(self):
+        """At the threshold (50), iris_trans_open_count should normalise to 100."""
+        samples = _make_samples({"iris_trans_open_count": 50.0})
+        score = compute_load_score(samples)
+        assert score.details["process"]["iris_trans_open_count"] == 100.0
+
 
 # ── get_health_grade ──────────────────────────────────────────────────
 
