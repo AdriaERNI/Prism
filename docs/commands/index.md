@@ -1,6 +1,6 @@
 # Commands
 
-Prism ships 18 CLI commands. Each one is a thin wrapper around a single
+Prism ships 19 CLI commands. Each one is a thin wrapper around a single
 IRIS operation, so the output is the raw Atelier REST response (as JSON)
 unless otherwise noted.
 
