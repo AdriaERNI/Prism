@@ -244,10 +244,10 @@ def chatbot(
             typer.echo(response)
         except ValueError as exc:
             typer.echo(f"Error: {exc}", err=True)
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
         except Exception as exc:
             typer.echo(f"Error: {exc}", err=True)
-            raise typer.Exit(code=1)
+            raise typer.Exit(code=1) from exc
         return
 
     # Interactive REPL mode

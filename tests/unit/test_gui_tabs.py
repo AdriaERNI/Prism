@@ -183,7 +183,7 @@ class TestTabNaming:
         from prism.gui.widgets.sql_editor import EditorTabBar
 
         bar = EditorTabBar(tk_root)
-        for i in range(5):
+        for _ in range(5):
             bar.add_tab()
 
         for i in range(6):

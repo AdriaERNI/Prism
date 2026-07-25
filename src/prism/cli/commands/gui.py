@@ -22,12 +22,12 @@ def gui(
             "(Linux) or ensure Tk is installed (macOS/Windows).",
             err=True,
         )
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     try:
         from prism.gui.app import launch
     except ImportError as exc:
         typer.echo(f"Error: cannot import GUI module: {exc}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     launch(initial_query=query)

@@ -88,7 +88,9 @@ async def run_tests(
 
     query = (
         f"SELECT {runner_sql_name}_{method_sql_name}"
-        f"('{test_class}', '{test_method}', '{manager}') AS Result"
+        f"('{test_class.replace(chr(39), chr(39) * 2)}', "
+        f"'{test_method.replace(chr(39), chr(39) * 2)}', "
+        f"'{manager.replace(chr(39), chr(39) * 2)}') AS Result"
     )
     return await execute_query(query, namespace)
 
@@ -195,7 +197,8 @@ async def get_test_history(
     """Query historical test runs, optionally filtered by class."""
     where_clause = ""
     if test_class:
-        where_clause = f"WHERE tc.Name = '{test_class}'"
+        safe_class = test_class.replace("'", "''")
+        where_clause = f"WHERE tc.Name = '{safe_class}'"
     query = _HISTORY_QUERY.format(limit=limit, where_clause=where_clause)
     return await execute_query(query, namespace)
 
@@ -207,6 +210,7 @@ async def list_test_classes(
     """Discover test classes and their Test* methods via %Dictionary."""
     filter_clause = ""
     if filter_prefix:
-        filter_clause = f"AND cd.Name %STARTSWITH '{filter_prefix}'"
+        safe_prefix = filter_prefix.replace("'", "''")
+        filter_clause = f"AND cd.Name %STARTSWITH '{safe_prefix}'"
     query = _LIST_TESTS_QUERY.format(filter_clause=filter_clause)
     return await execute_query(query, namespace)

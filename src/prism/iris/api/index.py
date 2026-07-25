@@ -144,7 +144,10 @@ async def build_index(
             "AND Name NOT LIKE '%Library.%' AND Name NOT LIKE '%Api.%'"
         )
     if filter_prefix:
-        prefix_filter = f"Name LIKE '{filter_prefix}%'"
+        # Escape single quotes to prevent SQL injection via filter_prefix.
+        # IRIS SQL uses '' for escaped single quotes (same as standard SQL).
+        safe_prefix = filter_prefix.replace("'", "''")
+        prefix_filter = f"Name LIKE '{safe_prefix}%'"
         if class_filter:
             class_filter += f" AND {prefix_filter}"
         else:

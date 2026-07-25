@@ -274,7 +274,9 @@ async def list_files(
     files: list[dict] = []
     if pattern:
         # Use glob pattern
-        for p in sorted(target.glob(pattern))[:max_results]:
+        all_matches = sorted(target.glob(pattern))
+        truncated = len(all_matches) > max_results
+        for p in all_matches[:max_results]:
             rel = p.relative_to(root)
             files.append(
                 {
@@ -286,7 +288,9 @@ async def list_files(
             )
     else:
         # List directory contents
-        for p in sorted(target.iterdir())[:max_results]:
+        all_entries = sorted(target.iterdir())
+        truncated = len(all_entries) > max_results
+        for p in all_entries[:max_results]:
             rel = p.relative_to(root)
             files.append(
                 {
@@ -301,5 +305,5 @@ async def list_files(
         "files": files,
         "path": path or ".",
         "count": len(files),
-        "truncated": len(files) >= max_results,
+        "truncated": truncated,
     }

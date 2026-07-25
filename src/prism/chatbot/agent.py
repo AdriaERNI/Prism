@@ -29,7 +29,7 @@ import asyncio
 import json
 import logging
 import random
-from typing import Any, AsyncGenerator
+from typing import Any
 
 import httpx
 
@@ -383,7 +383,7 @@ class ChatbotAgent:
         self._trim_if_needed()
 
         try:
-            for iteration in range(_MAX_ITERATIONS):
+            for _iteration in range(_MAX_ITERATIONS):
                 response = await self._call_llm_with_retry(
                     self._http_client,
                     self.messages,
@@ -668,101 +668,3 @@ class ChatbotAgent:
         response = await http_client.post(endpoint, json=payload, headers=headers)
         response.raise_for_status()
         return response.json()
-
-    # -- Streaming support --------------------------------------------------
-
-    async def _call_llm_streaming(
-        self,
-        http_client: httpx.AsyncClient,
-        messages: list[dict[str, Any]],
-        tools: list[dict[str, Any]] | None,
-    ) -> tuple[dict[str, Any], AsyncGenerator[str, None]]:
-        """Stream LLM response via SSE, yielding text deltas.
-
-        Returns (final_message_dict, content_generator).  The generator
-        yields text content as it arrives.  Tool calls are accumulated
-        from delta fragments and returned in the final message dict.
-        """
-        endpoint = f"{self.api_url}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-        payload: dict[str, Any] = {
-            "model": self.model,
-            "messages": messages,
-            "stream": True,
-            "max_tokens": self.max_tokens,
-        }
-        if tools:
-            payload["tools"] = tools
-            payload["tool_choice"] = "auto"
-
-        async def content_generator() -> AsyncGenerator[str, None]:
-            accumulated_content = ""
-            accumulated_tool_calls: dict[int, dict[str, Any]] = {}
-
-            async with http_client.stream(
-                "POST", endpoint, json=payload, headers=headers
-            ) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:]
-                    if data == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(data)
-                    except json.JSONDecodeError:
-                        continue
-
-                    choices = chunk.get("choices", [])
-                    if not choices:
-                        continue
-                    delta = choices[0].get("delta", {})
-
-                    # Content delta
-                    content = delta.get("content")
-                    if content:
-                        accumulated_content += content
-                        yield content
-
-                    # Tool call delta
-                    for tc_delta in delta.get("tool_calls", []):
-                        idx = tc_delta.get("index", 0)
-                        if idx not in accumulated_tool_calls:
-                            accumulated_tool_calls[idx] = {
-                                "id": tc_delta.get("id", ""),
-                                "type": "function",
-                                "function": {"name": "", "arguments": ""},
-                            }
-                        func = tc_delta.get("function", {})
-                        if name := func.get("name"):
-                            accumulated_tool_calls[idx]["function"]["name"] = name
-                        if args := func.get("arguments"):
-                            accumulated_tool_calls[idx]["function"]["arguments"] += args
-
-            # Store final state for retrieval after generator completes
-            nonlocal_content[0] = accumulated_content
-            nonlocal_tool_calls[0] = (
-                list(accumulated_tool_calls[i] for i in sorted(accumulated_tool_calls))
-                or None
-            )
-
-        nonlocal_content: list[str] = [""]
-        nonlocal_tool_calls: list[list[dict] | None] = [None]
-
-        gen = content_generator()
-
-        # We need to return the generator AND the final message dict.
-        # The caller must exhaust the generator first, then read the dict.
-        # We return a tuple (final_message, generator) where final_message
-        # is populated after the generator is exhausted.
-        # For simplicity in the current agent loop, streaming is only used
-        # for the final text response (no tool calls), so we can return
-        # the generator and let the caller accumulate.
-        return (
-            {"role": "assistant", "content": "", "tool_calls": None},
-            gen,
-        )
