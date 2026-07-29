@@ -66,14 +66,19 @@ Dependabot is configured to target `development` (not `main`) in
 
 ```
 src/prism/
-├── settings.py         # pydantic-settings: env, .env, and config.json loader (25 fields)
+├── settings.py         # pydantic-settings: env, .env, and config.json loader (28 fields)
 ├── iris/
 │   ├── sdk/            # Shared utilities: http, logging, workspace, debug protocols
-│   └── api/            # Thin HTTP wrappers for IRIS REST API
+│   └── api/            # Thin HTTP wrappers for IRIS REST API (incl. monitor)
+├── monitor/            # IRIS monitoring: Prometheus parser, scorer, dashboard
+│   ├── parser.py       # Parse Prometheus exposition format
+│   ├── scorer.py       # Compute 0-100 load score from metrics
+│   ├── dashboard.py    # Rich terminal dashboard (sparklines, bars, history)
+│   └── __init__.py     # collect_snapshot() — API → parse → score → aggregate
 ├── mcp/                # MCP tools with @logged_tool decorator
 │   ├── _decorator.py   # logged_tool implementation
 │   ├── server.py       # FastMCP server with auto-discovery
-│   └── *.py            # One module per tool domain
+│   └── *.py            # One module per tool domain (12 always + 5 gated + 9 debug)
 ├── chatbot/            # AI agent that orchestrates MCP tools via LLM
 │   ├── agent.py        # LLM-powered tool-use loop (OpenAI-compatible API)
 │   └── skills.py       # Markdown skill folder reader/loader
@@ -83,6 +88,7 @@ src/prism/
 │   ├── controllers/    # SQL execution controller (async)
 │   └── widgets/        # DatabaseTree, SQLEditor, ResultsTable, StatusBar, Toolbar
 └── cli/                # Typer commands (sync wrappers around async API)
+    └── commands/       # One module per command (19 commands)
 ```
 
 ### MCP Tool Registration
@@ -91,18 +97,18 @@ Tools are registered conditionally based on settings:
 
 | Category | Count | Condition |
 |----------|-------|-----------|
-| Always-on | 11 | Always registered (including `index_code`) |
-| Workspace-gated | 2 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`) |
+| Always-on | 12 | Always registered (including `index_code` and `monitor_system`) |
+| Workspace-gated | 5 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`, `list_files`, `read_file`, `run_shell`) |
 | Debug-gated | 9 | `IRIS_DEBUG_ENABLED=true` (`debug_*` tools) |
-| **Maximum** | **22** | Both workspace + debug enabled |
+| **Maximum** | **26** | Both workspace + debug enabled |
 
-### Settings (25 fields)
+### Settings (28 fields)
 
 Import the singleton `from prism.settings import settings` and read fields like
 `settings.iris_base_url`. Sources are merged with precedence:
 env > `.env` > `<user-data>/prism/config.json` > field defaults.
 
-All 25 fields are documented in
+All 28 fields are documented in
 [docs/getting-started/configuration.md](docs/getting-started/configuration.md)
 and guarded by a regression test in `tests/unit/test_settings.py`.
 
@@ -180,7 +186,7 @@ async def test_with_iris(live, cleanup):
 **Key fixtures**: `client` (MCP client), `live` (connected client), `workspace`
 (tmp_path), `cleanup` (auto-delete docs), `debug_session` (skip if XDebug unavailable).
 
-**Test counts**: 773 unit tests, 87 integration tests, 29 GUI tests (7 integration
+**Test counts**: 966 unit tests, 87 integration tests, 29 GUI tests (7 integration
 tests skip on CI due to IRIS Community license limits).
 
 ## Conventions
@@ -198,7 +204,7 @@ tests skip on CI due to IRIS Community license limits).
 - [mkdocs.yml](mkdocs.yml) — Theme config (indigo palette, JetBrains Mono, sticky tabs)
 - [docs/mcp/tools.md](docs/mcp/tools.md) — Full MCP tool reference with return shapes
 - [docs/commands/gui.md](docs/commands/gui.md) — GUI SQL editor documentation
-- [docs/getting-started/configuration.md](docs/getting-started/configuration.md) — All 21 environment variables
+- [docs/getting-started/configuration.md](docs/getting-started/configuration.md) — All 28 environment variables
 - [docs/testing.md](docs/testing.md) — CI section, test layers, troubleshooting
 
 ## Known Issues
