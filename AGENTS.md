@@ -36,15 +36,35 @@ via PR):
 
 | Workflow | File | What it runs |
 |----------|------|--------------|
-| Test Linux | `.github/workflows/test-linux.yml` | Lint, Unit tests, Integration tests (Docker IRIS) |
-| Test Windows | `.github/workflows/test-windows.yml` | Unit tests, PyInstaller build verification |
+| Test Linux | `.github/workflows/test-linux.yml` | Lint, Unit tests (884), Integration tests (82, Docker IRIS) |
+| Test Windows | `.github/workflows/test-windows.yml` | Unit tests (884), PyInstaller frozen binary tests |
 | Build and Release | `.github/workflows/build-release.yml` | Full pipeline + GitHub Release (triggered by `v*` tags) |
+| Changelog | `.github/workflows/changelog.yml` | Regenerates `CHANGELOG.md` + `docs/changelog.md` via git-cliff (on `v*` tags) |
 | GitHub Pages | `.github/workflows/pages.yml` | MkDocs build + deploy (on push to `main`) |
 
-Branch protection is enabled on `main` and `development`. Required status checks:
-Lint, Unit Tests. PRs must pass CI before merge. Linear history enforced
-(squash merges only). See [docs/releases.md](docs/releases.md) for the full
-release workflow.
+Branch protection is enabled on `main` and `development`. Required status
+checks: `lint`, `test-linux`. PRs must pass CI before merge. Linear history
+enforced (squash merges only). `enforce_admins: true` — no bypasses, even
+for admins. See [docs/releases.md](docs/releases.md) for the full release
+workflow.
+
+### Release quick reference
+
+| Action | Steps |
+|--------|-------|
+| **Pre-release** | Tag on development: `git tag vX.Y.Z-beta.N && git push origin vX.Y.Z-beta.N`. CI auto-builds + creates GitHub Pre-release. No branch, no PR. |
+| **Stable release** | Cut `release/vX.Y.Z` from development → PR to `main` → squash-merge via **web UI** → tag `vX.Y.Z` on main → push tag → sync main back to development → delete release branch. |
+| **Hotfix** | Cut `hotfix/vX.Y.Z` from main → fix → PR to `main` → squash-merge via **web UI** → tag → sync back to development → delete hotfix branch. |
+
+**Critical release rules:**
+
+- **Merge via GitHub web UI** — `gh pr merge` is blocked by a shell wrapper at `~/.local/bin/gh`
+- **NEVER run `gh release create`** — CI auto-creates releases from tag pushes
+- **NEVER create `release/vX.Y.Z-beta.N` branches** — pre-releases are tags only, not branches
+- **NEVER create `release/x` branches without the `v` prefix** — use `release/vX.Y.Z`
+- **Use rebase, not merge** on `development` (linear history enforced); if diverged significantly, use a sync branch with `git merge main` + PR
+- **Check `git diff --stat origin/main development` before rebasing** — squash merges create duplicate SHAs that look like "ahead" commits but have no actual file changes
+- **CI syncs version from the tag** — never manually edit `pyproject.toml` or `__init__.py` version for a release
 
 ### Branch model (Git Flow)
 
@@ -66,14 +86,19 @@ Dependabot is configured to target `development` (not `main`) in
 
 ```
 src/prism/
-├── settings.py         # pydantic-settings: env, .env, and config.json loader (25 fields)
+├── settings.py         # pydantic-settings: env, .env, and config.json loader (28 fields)
 ├── iris/
 │   ├── sdk/            # Shared utilities: http, logging, workspace, debug protocols
-│   └── api/            # Thin HTTP wrappers for IRIS REST API
+│   └── api/            # Thin HTTP wrappers for IRIS REST API (incl. monitor)
+├── monitor/            # IRIS monitoring: Prometheus parser, scorer, dashboard
+│   ├── parser.py       # Parse Prometheus exposition format
+│   ├── scorer.py       # Compute 0-100 load score from metrics
+│   ├── dashboard.py    # Rich terminal dashboard (sparklines, bars, history)
+│   └── __init__.py     # collect_snapshot() — API → parse → score → aggregate
 ├── mcp/                # MCP tools with @logged_tool decorator
 │   ├── _decorator.py   # logged_tool implementation
 │   ├── server.py       # FastMCP server with auto-discovery
-│   └── *.py            # One module per tool domain
+│   └── *.py            # One module per tool domain (12 always + 5 gated + 9 debug)
 ├── chatbot/            # AI agent that orchestrates MCP tools via LLM
 │   ├── agent.py        # LLM-powered tool-use loop (OpenAI-compatible API)
 │   └── skills.py       # Markdown skill folder reader/loader
@@ -83,6 +108,7 @@ src/prism/
 │   ├── controllers/    # SQL execution controller (async)
 │   └── widgets/        # DatabaseTree, SQLEditor, ResultsTable, StatusBar, Toolbar
 └── cli/                # Typer commands (sync wrappers around async API)
+    └── commands/       # One module per command (19 commands)
 ```
 
 ### MCP Tool Registration
@@ -91,18 +117,18 @@ Tools are registered conditionally based on settings:
 
 | Category | Count | Condition |
 |----------|-------|-----------|
-| Always-on | 11 | Always registered (including `index_code`) |
-| Workspace-gated | 2 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`) |
+| Always-on | 12 | Always registered (including `index_code` and `monitor_system`) |
+| Workspace-gated | 5 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`, `list_files`, `read_file`, `run_shell`) |
 | Debug-gated | 9 | `IRIS_DEBUG_ENABLED=true` (`debug_*` tools) |
-| **Maximum** | **22** | Both workspace + debug enabled |
+| **Maximum** | **26** | Both workspace + debug enabled |
 
-### Settings (25 fields)
+### Settings (28 fields)
 
 Import the singleton `from prism.settings import settings` and read fields like
 `settings.iris_base_url`. Sources are merged with precedence:
 env > `.env` > `<user-data>/prism/config.json` > field defaults.
 
-All 25 fields are documented in
+All 28 fields are documented in
 [docs/getting-started/configuration.md](docs/getting-started/configuration.md)
 and guarded by a regression test in `tests/unit/test_settings.py`.
 
@@ -180,7 +206,7 @@ async def test_with_iris(live, cleanup):
 **Key fixtures**: `client` (MCP client), `live` (connected client), `workspace`
 (tmp_path), `cleanup` (auto-delete docs), `debug_session` (skip if XDebug unavailable).
 
-**Test counts**: 773 unit tests, 87 integration tests, 29 GUI tests (7 integration
+**Test counts**: 884 unit tests, 82 integration tests, 29 GUI tests (7 integration
 tests skip on CI due to IRIS Community license limits).
 
 ## Conventions
@@ -198,7 +224,7 @@ tests skip on CI due to IRIS Community license limits).
 - [mkdocs.yml](mkdocs.yml) — Theme config (indigo palette, JetBrains Mono, sticky tabs)
 - [docs/mcp/tools.md](docs/mcp/tools.md) — Full MCP tool reference with return shapes
 - [docs/commands/gui.md](docs/commands/gui.md) — GUI SQL editor documentation
-- [docs/getting-started/configuration.md](docs/getting-started/configuration.md) — All 21 environment variables
+- [docs/getting-started/configuration.md](docs/getting-started/configuration.md) — All 28 environment variables
 - [docs/testing.md](docs/testing.md) — CI section, test layers, troubleshooting
 
 ## Known Issues

@@ -410,14 +410,14 @@ def run_command(alias: str, args: list[str]) -> int:
         raise
 
     try:
-        import click
+        from typer._click.exceptions import UsageError
 
         app(args, standalone_mode=False)
         return 0
     except SystemExit as e:
         return e.code if isinstance(e.code, int) else 1
-    except click.exceptions.UsageError as exc:
-        # Click raises UsageError for bad args — print and exit non-zero
+    except UsageError as exc:
+        # Typer raises UsageError for bad args — print and exit non-zero
         import typer
 
         typer.echo(f"Error: {exc.message}", err=True)
