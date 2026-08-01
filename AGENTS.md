@@ -36,15 +36,35 @@ via PR):
 
 | Workflow | File | What it runs |
 |----------|------|--------------|
-| Test Linux | `.github/workflows/test-linux.yml` | Lint, Unit tests, Integration tests (Docker IRIS) |
-| Test Windows | `.github/workflows/test-windows.yml` | Unit tests, PyInstaller build verification |
+| Test Linux | `.github/workflows/test-linux.yml` | Lint, Unit tests (884), Integration tests (82, Docker IRIS) |
+| Test Windows | `.github/workflows/test-windows.yml` | Unit tests (884), PyInstaller frozen binary tests |
 | Build and Release | `.github/workflows/build-release.yml` | Full pipeline + GitHub Release (triggered by `v*` tags) |
+| Changelog | `.github/workflows/changelog.yml` | Regenerates `CHANGELOG.md` + `docs/changelog.md` via git-cliff (on `v*` tags) |
 | GitHub Pages | `.github/workflows/pages.yml` | MkDocs build + deploy (on push to `main`) |
 
-Branch protection is enabled on `main` and `development`. Required status checks:
-Lint, Unit Tests. PRs must pass CI before merge. Linear history enforced
-(squash merges only). See [docs/releases.md](docs/releases.md) for the full
-release workflow.
+Branch protection is enabled on `main` and `development`. Required status
+checks: `lint`, `test-linux`. PRs must pass CI before merge. Linear history
+enforced (squash merges only). `enforce_admins: true` — no bypasses, even
+for admins. See [docs/releases.md](docs/releases.md) for the full release
+workflow.
+
+### Release quick reference
+
+| Action | Steps |
+|--------|-------|
+| **Pre-release** | Tag on development: `git tag vX.Y.Z-beta.N && git push origin vX.Y.Z-beta.N`. CI auto-builds + creates GitHub Pre-release. No branch, no PR. |
+| **Stable release** | Cut `release/vX.Y.Z` from development → PR to `main` → squash-merge via **web UI** → tag `vX.Y.Z` on main → push tag → sync main back to development → delete release branch. |
+| **Hotfix** | Cut `hotfix/vX.Y.Z` from main → fix → PR to `main` → squash-merge via **web UI** → tag → sync back to development → delete hotfix branch. |
+
+**Critical release rules:**
+
+- **Merge via GitHub web UI** — `gh pr merge` is blocked by a shell wrapper at `~/.local/bin/gh`
+- **NEVER run `gh release create`** — CI auto-creates releases from tag pushes
+- **NEVER create `release/vX.Y.Z-beta.N` branches** — pre-releases are tags only, not branches
+- **NEVER create `release/x` branches without the `v` prefix** — use `release/vX.Y.Z`
+- **Use rebase, not merge** on `development` (linear history enforced); if diverged significantly, use a sync branch with `git merge main` + PR
+- **Check `git diff --stat origin/main development` before rebasing** — squash merges create duplicate SHAs that look like "ahead" commits but have no actual file changes
+- **CI syncs version from the tag** — never manually edit `pyproject.toml` or `__init__.py` version for a release
 
 ### Branch model (Git Flow)
 
@@ -186,7 +206,7 @@ async def test_with_iris(live, cleanup):
 **Key fixtures**: `client` (MCP client), `live` (connected client), `workspace`
 (tmp_path), `cleanup` (auto-delete docs), `debug_session` (skip if XDebug unavailable).
 
-**Test counts**: 966 unit tests, 87 integration tests, 29 GUI tests (7 integration
+**Test counts**: 884 unit tests, 82 integration tests, 29 GUI tests (7 integration
 tests skip on CI due to IRIS Community license limits).
 
 ## Conventions
