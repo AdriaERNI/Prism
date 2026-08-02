@@ -29,6 +29,11 @@ site/
 .vscode/
 *.swp
 
+# Hermes agent artifacts (plans, reports — not project deliverables)
+# In-repo skills live in .skills/, not .hermes/
+.hermes/
+HARDENING-REPORT.md
+
 # Agent local settings
 .claude/settings.local.json
 .worktrees/
