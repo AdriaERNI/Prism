@@ -15,8 +15,6 @@ import math
 import time
 
 # Patch BEFORE importing the CLI
-
-
 from prism.iris.monitor import MonitorSnapshot
 from prism.iris.monitor.scorer import LoadScore
 
@@ -127,12 +125,8 @@ def _make_snapshot(t: float) -> MonitorSnapshot:
             "iris_cache_efficiency": round(95 + 3 * math.sin(phase * 0.5), 1),
             # SQL / Transactions
             "iris_sql_active_queries": round(5 + 3 * abs(math.sin(phase * 1.2)), 1),
-            "iris_sql_queries_per_second": round(
-                120 + 40 * abs(math.sin(phase * 1.5)), 1
-            ),
-            "iris_sql_queries_avg_runtime": round(
-                0.05 + 0.02 * abs(math.sin(phase * 0.9)), 3
-            ),
+            "iris_sql_queries_per_second": round(120 + 40 * abs(math.sin(phase * 1.5)), 1),
+            "iris_sql_queries_avg_runtime": round(0.05 + 0.02 * abs(math.sin(phase * 0.9)), 3),
             "iris_trans_open_count": round(3 + 2 * abs(math.sin(phase * 0.7)), 1),
             "iris_trans_open_secs": round(0.5 + 0.3 * abs(math.sin(phase * 1.1)), 2),
             # License
@@ -144,9 +138,7 @@ def _make_snapshot(t: float) -> MonitorSnapshot:
             "iris_csp_sessions": 8.0,
             # Disk/IO (still in metrics for scoring)
             "iris_phys_reads_per_sec": round(120 + 80 * abs(math.sin(phase * 2)), 1),
-            "iris_phys_writes_per_sec": round(
-                45 + 30 * abs(math.sin(phase * 1.8 + 1)), 1
-            ),
+            "iris_phys_writes_per_sec": round(45 + 30 * abs(math.sin(phase * 1.8 + 1)), 1),
             "iris_disk_percent_full": 12.0,
         },
         metric_count=571,

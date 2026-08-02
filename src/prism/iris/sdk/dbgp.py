@@ -15,7 +15,8 @@ import asyncio
 import base64
 import itertools
 import ssl
-from xml.etree.ElementTree import Element, fromstring as parse_xml
+from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import fromstring as parse_xml
 
 import websockets
 import websockets.asyncio.client
@@ -41,9 +42,7 @@ class DbgpConnection:
             resp = await conn.send_command("step_into")
     """
 
-    def __init__(
-        self, ws: websockets.asyncio.client.ClientConnection, init_elem: Element
-    ):
+    def __init__(self, ws: websockets.asyncio.client.ClientConnection, init_elem: Element):
         self._ws = ws
         self._tx_id = itertools.count(1)
         self.init = init_elem
@@ -91,9 +90,7 @@ class DbgpConnection:
                 pass
             raise
 
-    async def send_command(
-        self, command: str, data: str | None = None, **args: str
-    ) -> Element:
+    async def send_command(self, command: str, data: str | None = None, **args: str) -> Element:
         """Send a DBGP command and return the parsed XML response.
 
         Args:
@@ -134,11 +131,7 @@ class DbgpConnection:
 
     @property
     def closed(self) -> bool:
-        return (
-            self._ws.protocol.state.name == "CLOSED"
-            if hasattr(self._ws, "protocol")
-            else True
-        )
+        return self._ws.protocol.state.name == "CLOSED" if hasattr(self._ws, "protocol") else True
 
 
 def _parse_dbgp_response(raw: str) -> Element:
@@ -167,7 +160,5 @@ def _check_error(elem: Element) -> None:
         msg_elem = err.find("{urn:debugger_protocol_v1}message")
         if msg_elem is None:
             msg_elem = err.find("message")
-        message = (
-            msg_elem.text if msg_elem is not None and msg_elem.text else "Unknown error"
-        )
+        message = msg_elem.text if msg_elem is not None and msg_elem.text else "Unknown error"
         raise DbgpError(code, message)

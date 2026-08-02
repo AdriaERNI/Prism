@@ -245,8 +245,8 @@ class TestResultsTable:
 
     def test_show_results_populates_columns(self, tk_root):
         """show_results should create the right columns."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
 
@@ -266,8 +266,8 @@ class TestResultsTable:
 
     def test_show_results_uses_zebra_striping_tags(self, tk_root):
         """Rows should alternate between 'even' and 'odd' tags."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
 
@@ -288,8 +288,8 @@ class TestResultsTable:
 
     def test_error_display(self, tk_root):
         """Error results should show the error message, not a table."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
 
@@ -302,14 +302,12 @@ class TestResultsTable:
         )
         table.show_results(result)
 
-        assert "Error" in table._status.cget(
-            "text"
-        ) or "syntax error" in table._status.cget("text")
+        assert "Error" in table._status.cget("text") or "syntax error" in table._status.cget("text")
 
     def test_sort_by_column(self, tk_root):
         """Clicking a column header should sort the rows."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
 
@@ -437,8 +435,8 @@ class TestResultsEditing:
 
     def test_cell_edit_modifies_value(self, tk_root):
         """Editing a cell should update the display and track the change."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
         result = QueryResult(
@@ -469,8 +467,8 @@ class TestResultsEditing:
 
     def test_revert_restores_original(self, tk_root):
         """Revert should restore original cell values."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
         result = QueryResult(
@@ -512,8 +510,8 @@ class TestResultsEditing:
 
     def test_save_without_table_shows_error(self, tk_root):
         """Save with no source table should show an error status."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
         result = QueryResult(
@@ -533,8 +531,8 @@ class TestResultsEditing:
 
     def test_save_without_changes_shows_message(self, tk_root):
         """Save with no modifications should show 'No changes'."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
         result = QueryResult(
@@ -563,14 +561,10 @@ class TestResultsEditing:
             # DatabaseTree._load_tables / SQLController threads accessing Tk
             # after root.destroy() in subsequent tests.
             with (
-                patch(
-                    "prism.gui.controllers.sql_controller.SQLController.start_polling"
-                ),
+                patch("prism.gui.controllers.sql_controller.SQLController.start_polling"),
                 patch(
                     "prism.gui.controllers.sql_controller.SQLController.check_connection",
-                    side_effect=lambda on_done=None: (
-                        on_done(False) if on_done else None
-                    ),
+                    side_effect=lambda on_done=None: on_done(False) if on_done else None,
                 ),
                 patch("prism.gui.widgets.database_tree.DatabaseTree.load_async"),
             ):
@@ -601,8 +595,8 @@ class TestResultsEditing:
 
     def test_modified_count(self, tk_root):
         """modified_count should reflect total changed cells."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
         result = QueryResult(
@@ -622,8 +616,8 @@ class TestResultsEditing:
 
     def test_clear_resets_modifications(self, tk_root):
         """clear() should reset all modification state."""
-        from prism.gui.widgets.results_table import ResultsTable
         from prism.gui.controllers.sql_controller import QueryResult
+        from prism.gui.widgets.results_table import ResultsTable
 
         table = ResultsTable(tk_root)
         result = QueryResult(

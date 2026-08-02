@@ -201,9 +201,7 @@ class InteractiveWSSession:
                 if on_read is not None:
                     # Ask the user for input and send it back
                     user_input = await on_read(msg.get("text", ""))
-                    await self._ws.send(
-                        json.dumps({"type": "read", "input": user_input})
-                    )
+                    await self._ws.send(json.dumps({"type": "read", "input": user_input}))
                 # If no on_read callback, the loop continues and will
                 # eventually time out waiting for the next message.
             else:

@@ -22,7 +22,7 @@ from typing import Any
 
 import typer
 
-from prism.settings import settings, save_config
+from prism.settings import save_config, settings
 
 _ANSI_RESET = "\x1b[0m"
 _ANSI_BOLD = "\x1b[1m"
@@ -238,9 +238,7 @@ def chatbot(
     # One-shot mode: send a single message and print the response
     if message:
         try:
-            response = asyncio.run(
-                _run_agent_once(message, api_url, api_key, model, skills_path)
-            )
+            response = asyncio.run(_run_agent_once(message, api_url, api_key, model, skills_path))
             typer.echo(response)
         except ValueError as exc:
             typer.echo(f"Error: {exc}", err=True)
@@ -282,11 +280,10 @@ async def _async_repl(
     from prism.chatbot.agent import ChatbotAgent
 
     try:
+        from platformdirs import user_data_path
         from prompt_toolkit import PromptSession
         from prompt_toolkit.formatted_text import HTML
         from prompt_toolkit.history import FileHistory
-
-        from platformdirs import user_data_path
 
         data_dir = user_data_path("prism", appauthor=False)
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -346,9 +343,7 @@ async def _async_repl(
             typer.echo(f"{_ANSI_DIM}  thinking...{_ANSI_RESET}", nl=True)
             try:
                 response = await agent.run(text)
-                typer.echo(
-                    f"\n{_ANSI_BOLD}{_ANSI_CYAN}agent> {_ANSI_RESET}{response}\n"
-                )
+                typer.echo(f"\n{_ANSI_BOLD}{_ANSI_CYAN}agent> {_ANSI_RESET}{response}\n")
             except ValueError as exc:
                 typer.echo(f"\n{_ANSI_RED}Error: {exc}{_ANSI_RESET}\n", err=True)
             except KeyboardInterrupt:

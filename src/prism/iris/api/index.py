@@ -10,9 +10,32 @@ read every document.
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass, field
 
 from prism.iris.sdk.http import api_url, client, parse_json
+
+# ── Input validation ─────────────────────────────────────────────────────────
+#
+# The Atelier /action/query endpoint accepts a single SQL string and does NOT
+# support bind parameters, so user-supplied values interpolated into queries
+# must be validated against a strict allowlist of safe identifier characters.
+
+# IRIS class-name prefix: alphanumerics, dots, underscores.  A leading % is
+# allowed for system packages (e.g. %SYS).  Wildcards (%, _) in LIKE context
+# are rejected by requiring the first char to be a letter or %.
+_FILTER_PREFIX_RE = re.compile(r"^[A-Za-z%][A-Za-z0-9._]*$")
+
+
+def _validate_filter_prefix(prefix: str) -> str:
+    """Validate that *prefix* is a safe IRIS class-name prefix for LIKE clauses.
+
+    Raises ``ValueError`` if *prefix* contains characters outside the
+    allowlist (e.g. quotes, semicolons, SQL wildcards used as first char).
+    """
+    if not isinstance(prefix, str) or not prefix or not _FILTER_PREFIX_RE.match(prefix):
+        raise ValueError(f"invalid filter prefix: {prefix!r}")
+    return prefix
 
 
 # ── Data structures ──────────────────────────────────────────────────────
@@ -46,13 +69,9 @@ class ClassInfo:
         if self.properties:
             result["properties"] = {p["name"]: p["type"] for p in self.properties}
         if self.methods:
-            result["methods"] = {
-                m["name"]: m.get("return_type", "") or "" for m in self.methods
-            }
+            result["methods"] = {m["name"]: m.get("return_type", "") or "" for m in self.methods}
         if self.parameters:
-            result["parameters"] = {
-                p["name"]: p.get("default", "") for p in self.parameters
-            }
+            result["parameters"] = {p["name"]: p.get("default", "") for p in self.parameters}
         if self.sql_procedures:
             result["sql_procs"] = [p["name"] for p in self.sql_procedures]
         if self.imports:
@@ -144,6 +163,7 @@ async def build_index(
             "AND Name NOT LIKE '%Library.%' AND Name NOT LIKE '%Api.%'"
         )
     if filter_prefix:
+        _validate_filter_prefix(filter_prefix)
         prefix_filter = f"Name LIKE '{filter_prefix}%'"
         if class_filter:
             class_filter += f" AND {prefix_filter}"
@@ -228,15 +248,11 @@ async def build_index(
             class_map[parent].imports.append(row.get("Name", ""))
 
     # Build compact index
-    classes = [
-        ci.to_compact() for ci in sorted(class_map.values(), key=lambda x: x.name)
-    ]
+    classes = [ci.to_compact() for ci in sorted(class_map.values(), key=lambda x: x.name)]
 
     # Build statistics
     total_classes = len(classes)
-    persistent_classes = sum(
-        1 for ci in class_map.values() if "%Persistent" in ci.super
-    )
+    persistent_classes = sum(1 for ci in class_map.values() if "%Persistent" in ci.super)
     total_methods = sum(len(ci.methods) for ci in class_map.values())
     total_properties = sum(len(ci.properties) for ci in class_map.values())
     total_sql_procs = sum(len(ci.sql_procedures) for ci in class_map.values())

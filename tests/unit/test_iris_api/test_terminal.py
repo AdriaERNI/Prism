@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from prism.settings import settings
 from prism.iris.api.terminal import (
     TerminalError,
     _ws_url,
     execute_command,
 )
+from prism.settings import settings
 
 
 @pytest.fixture(autouse=True)
@@ -64,16 +64,12 @@ def _patch_cookies(cookies: dict | None = None):
 
 class TestWsUrl:
     def test_http_to_ws(self):
-        with patch(
-            "prism.iris.api.terminal.base_url", return_value="http://localhost:52773"
-        ):
+        with patch("prism.iris.api.terminal.base_url", return_value="http://localhost:52773"):
             assert _ws_url().startswith("ws://")
             assert "/api/atelier/v8/%25SYS/terminal" in _ws_url()
 
     def test_https_to_wss(self):
-        with patch(
-            "prism.iris.api.terminal.base_url", return_value="https://iris.example.com"
-        ):
+        with patch("prism.iris.api.terminal.base_url", return_value="https://iris.example.com"):
             assert _ws_url().startswith("wss://")
             assert "/api/atelier/v8/%25SYS/terminal" in _ws_url()
 

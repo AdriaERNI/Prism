@@ -53,9 +53,7 @@ class TestBasicExecution:
         assert "x=42" in result["output"]
 
     async def test_namespace_override(self, _probe_iris):
-        result = await native_terminal.execute_command(
-            "Write $namespace", namespace="USER"
-        )
+        result = await native_terminal.execute_command("Write $namespace", namespace="USER")
         assert result["namespace"] == "USER"
         assert "USER" in result["output"]
 
@@ -91,9 +89,7 @@ class TestHelperAutoDeploy:
         allow 3 concurrent SuperServer connections.
         """
         if os.environ.get("CI") == "true":
-            pytest.skip(
-                "IRIS Community license limited — parallel native connections fail on CI"
-            )
+            pytest.skip("IRIS Community license limited — parallel native connections fail on CI")
         try:
             await delete_document(native_terminal.HELPER_DOC)
         except DocumentNotFound:
@@ -120,9 +116,7 @@ class TestParallelExecution:
         allow 3 concurrent SuperServer connections.
         """
         if os.environ.get("CI") == "true":
-            pytest.skip(
-                "IRIS Community license limited — parallel native connections fail on CI"
-            )
+            pytest.skip("IRIS Community license limited — parallel native connections fail on CI")
         # Ensure the helper is already deployed so we're not measuring that.
         await native_terminal.execute_command('Write "warmup"')
 
@@ -136,6 +130,4 @@ class TestParallelExecution:
 
         outputs = sorted(r["output"] for r in results)
         assert outputs == ["one", "three", "two"]
-        assert elapsed < 5.0, (
-            f"Three 2s hangs took {elapsed:.1f}s — should be <5s if parallel"
-        )
+        assert elapsed < 5.0, f"Three 2s hangs took {elapsed:.1f}s — should be <5s if parallel"

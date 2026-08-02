@@ -26,9 +26,7 @@ async def get_document(
     ] = None,
     to_line: Annotated[
         int | None,
-        Field(
-            description="End line (1-indexed, inclusive). Cannot be combined with head or tail."
-        ),
+        Field(description="End line (1-indexed, inclusive). Cannot be combined with head or tail."),
     ] = None,
     head: Annotated[
         int | None,
@@ -44,9 +42,7 @@ async def get_document(
     ] = None,
     namespace: Annotated[
         str | None,
-        Field(
-            description="IRIS namespace to read from. Uses the configured default if omitted."
-        ),
+        Field(description="IRIS namespace to read from. Uses the configured default if omitted."),
     ] = None,
 ) -> dict:
     """Fetch a document from the IRIS server and return its content inline.
@@ -96,9 +92,7 @@ async def get_document(
         elif isinstance(item, str):
             lines.append(item)
         else:
-            raise ValueError(
-                f"Unexpected content item at index {i}: {type(item).__name__}"
-            )
+            raise ValueError(f"Unexpected content item at index {i}: {type(item).__name__}")
 
     total = len(lines)
 
@@ -193,9 +187,7 @@ async def delete_document(
     ],
     namespace: Annotated[
         str | None,
-        Field(
-            description="IRIS namespace to delete from. Uses the configured default if omitted."
-        ),
+        Field(description="IRIS namespace to delete from. Uses the configured default if omitted."),
     ] = None,
 ) -> dict:
     """Delete a source code document from the IRIS server.

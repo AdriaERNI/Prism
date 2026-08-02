@@ -38,8 +38,7 @@ via PR):
 |----------|------|--------------|
 | Test Linux | `.github/workflows/test-linux.yml` | Lint, Unit tests (884), Integration tests (82, Docker IRIS) |
 | Test Windows | `.github/workflows/test-windows.yml` | Unit tests (884), PyInstaller frozen binary tests |
-| Build and Release | `.github/workflows/build-release.yml` | Full pipeline + GitHub Release (triggered by `v*` tags) |
-| Changelog | `.github/workflows/changelog.yml` | Regenerates `CHANGELOG.md` + `docs/changelog.md` via git-cliff (on `v*` tags) |
+| Build and Release | `.github/workflows/build-release.yml` | Full pipeline + GitHub Release with git-cliff changelog (triggered by `v*` tags) |
 | GitHub Pages | `.github/workflows/pages.yml` | MkDocs build + deploy (on push to `main`) |
 
 Branch protection is enabled on `main` and `development`. Required status
@@ -143,6 +142,7 @@ from pydantic import Field
 from prism.mcp._decorator import logged_tool
 from prism.iris.api import my_api  # your API module
 
+
 @logged_tool
 async def my_tool(
     param: Annotated[str, Field(description="What this param does")],
@@ -163,6 +163,7 @@ API modules in `src/prism/iris/api/` are thin HTTP wrappers:
 ```python
 from prism.iris.sdk.http import api_url, client, parse_json
 
+
 async def my_operation(param: str, namespace: str | None = None) -> dict:
     c = client()
     r = await c.post(f"{api_url(namespace)}/action/endpoint", json={"param": param})
@@ -182,8 +183,10 @@ import httpx
 from unittest.mock import patch
 from prism.iris.api import my_api
 
+
 def mock_client(handler):
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
 
 async def test_my_api():
     def handler(request):

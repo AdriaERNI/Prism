@@ -4,8 +4,9 @@ Uses httpx.MockTransport to simulate IRIS Atelier API responses.
 No live IRIS needed.
 """
 
-import httpx
 from unittest.mock import patch
+
+import httpx
 
 from prism.iris.api import index as index_api
 

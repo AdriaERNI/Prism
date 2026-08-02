@@ -4,10 +4,9 @@ Tests that execute_terminal can run ObjectScript commands and return results.
 """
 
 import json
+from unittest.mock import patch
 
 import pytest
-
-from unittest.mock import patch
 
 from prism.settings import settings
 from tests.integration.conftest import stage_file

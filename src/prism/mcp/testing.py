@@ -127,13 +127,7 @@ async def run_tests(
 
         methods.append(method_info)
 
-    overall = (
-        "passed"
-        if failed == 0 and passed > 0
-        else "failed"
-        if failed > 0
-        else "unknown"
-    )
+    overall = "passed" if failed == 0 and passed > 0 else "failed" if failed > 0 else "unknown"
 
     return {
         "class": test_class,
@@ -188,9 +182,7 @@ async def list_tests(
         if cls_name:
             classes.setdefault(cls_name, []).append(method_name)
 
-    class_list = [
-        {"name": name, "methods": methods} for name, methods in classes.items()
-    ]
+    class_list = [{"name": name, "methods": methods} for name, methods in classes.items()]
     return {"classes": class_list, "count": len(class_list)}
 
 

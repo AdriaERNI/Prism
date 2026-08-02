@@ -37,9 +37,7 @@ async def compile_documents(
     ] = None,
     namespace: Annotated[
         str | None,
-        Field(
-            description="IRIS namespace to compile in. Uses the configured default if omitted."
-        ),
+        Field(description="IRIS namespace to compile in. Uses the configured default if omitted."),
     ] = None,
 ) -> dict:
     """Compile one or more IRIS source code documents on the IRIS server.

@@ -1,16 +1,17 @@
 """Unit tests for the monitoring dashboard — history, sparklines, rendering."""
 
+from rich.console import Console
+
+from prism.iris.monitor import MonitorSnapshot
 from prism.iris.monitor.dashboard import (
     HistoryBuffer,
-    _sparkline,
     _color_for_score,
-    _grade_color,
     _format_score_bar,
+    _grade_color,
+    _sparkline,
     render_dashboard,
 )
-from prism.iris.monitor import MonitorSnapshot
 from prism.iris.monitor.scorer import LoadScore
-from rich.console import Console
 
 
 def _snap(overall=25.0, cpu=20.0, mem=30.0, disk=25.0, proc=25.0):
@@ -199,7 +200,7 @@ class TestFormatScoreBar:
         """Score string must NOT contain a % sign."""
         _, score_str = _format_score_bar(42.5)
         assert "%" not in score_str
-        assert "42.5/100" == score_str
+        assert score_str == "42.5/100"
 
     def test_clamps_above_100(self):
         _, score_str = _format_score_bar(150.0)

@@ -143,9 +143,7 @@ class MCPSession:
         payload: dict = {"jsonrpc": "2.0", "method": method}
         if params is not None:
             payload["params"] = params
-        self.client.post(
-            self.url, json=payload, headers=self._headers(), timeout=TIMEOUT
-        )
+        self.client.post(self.url, json=payload, headers=self._headers(), timeout=TIMEOUT)
 
     def record(self, name: str, passed: bool, detail: str = "", duration: float = 0.0):
         self.results.append(TestResult(name, passed, detail, duration))
@@ -265,9 +263,7 @@ def run_tests(url: str = DEFAULT_URL) -> int:
     check(
         "tools/list -- each tool has name, description, inputSchema",
         not missing_fields,
-        f"All {len(tools_list)} tools validated"
-        if not missing_fields
-        else str(missing_fields),
+        f"All {len(tools_list)} tools validated" if not missing_fields else str(missing_fields),
     )
 
     invalid_schemas = []
@@ -278,18 +274,14 @@ def run_tests(url: str = DEFAULT_URL) -> int:
         elif "type" not in schema:
             invalid_schemas.append(f"{t.get('name')}: missing 'type'")
         elif schema.get("type") != "object":
-            invalid_schemas.append(
-                f"{t.get('name')}: type='{schema.get('type')}' not 'object'"
-            )
+            invalid_schemas.append(f"{t.get('name')}: type='{schema.get('type')}' not 'object'")
     check(
         "tools/list -- inputSchema is valid JSON Schema",
         not invalid_schemas,
         "all schemas are objects" if not invalid_schemas else str(invalid_schemas[:3]),
     )
 
-    empty_desc = [
-        t.get("name") for t in tools_list if not t.get("description", "").strip()
-    ]
+    empty_desc = [t.get("name") for t in tools_list if not t.get("description", "").strip()]
     check(
         "tools/list -- every tool has non-empty description",
         not empty_desc,
@@ -316,9 +308,7 @@ def run_tests(url: str = DEFAULT_URL) -> int:
                     f"error (expected, no IRIS): {error_text}",
                 )
             else:
-                check(
-                    f"tools/call {tool_name}", True, f"success ({len(content)} items)"
-                )
+                check(f"tools/call {tool_name}", True, f"success ({len(content)} items)")
         elif data and "error" in data:
             err = data["error"]
             check(
@@ -360,9 +350,7 @@ def run_tests(url: str = DEFAULT_URL) -> int:
     check(
         "invalid method -- error response",
         bool(data and "error" in data),
-        data["error"].get("message", "")[:80]
-        if data and "error" in data
-        else str(data),
+        data["error"].get("message", "")[:80] if data and "error" in data else str(data),
     )
 
     data = s.call("tools/call", {"name": "execute_sql", "arguments": {"query": 12345}})
@@ -438,8 +426,7 @@ def run_tests(url: str = DEFAULT_URL) -> int:
     )
     check(
         "tools/list -- deterministic results",
-        (tools1 == tools2 and len(tools1) > 0)
-        or (len(tools1) == 0 and len(tools2) == 0),
+        (tools1 == tools2 and len(tools1) > 0) or (len(tools1) == 0 and len(tools2) == 0),
         f"call1={len(tools1)}, call2={len(tools2)}",
     )
 

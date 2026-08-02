@@ -83,9 +83,7 @@ class TestEndToEnd:
         for name, age in [("A", 20), ("B", 30), ("C", 40)]:
             await live.call_tool(
                 "execute_sql",
-                {
-                    "query": f"INSERT INTO Test.MCPPerson (Name, Age) VALUES ('{name}', {age})"
-                },
+                {"query": f"INSERT INTO Test.MCPPerson (Name, Age) VALUES ('{name}', {age})"},
             )
 
         result = await live.call_tool(

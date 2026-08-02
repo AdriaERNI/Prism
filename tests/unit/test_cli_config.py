@@ -41,9 +41,7 @@ class TestShow:
     def test_password_redacted(self, runner, tmp_config):
         result = runner.invoke(app, ["config"])
         assert "***" in result.stdout
-        password_line = next(
-            line for line in result.stdout.splitlines() if "iris_password" in line
-        )
+        password_line = next(line for line in result.stdout.splitlines() if "iris_password" in line)
         assert "SYS" not in password_line
         assert "***" in password_line
 
@@ -136,12 +134,8 @@ class TestReset:
     def test_reset_multiple_keys(self, runner, tmp_config):
         from prism.settings import save_config
 
-        save_config(
-            {"iris_username": "u", "iris_password": "p", "iris_base_url": "http://x"}
-        )
-        result = runner.invoke(
-            app, ["config", "-r", "iris_username", "-r", "iris_password"]
-        )
+        save_config({"iris_username": "u", "iris_password": "p", "iris_base_url": "http://x"})
+        result = runner.invoke(app, ["config", "-r", "iris_username", "-r", "iris_password"])
         assert result.exit_code == 0
         assert json.loads(tmp_config.read_text()) == {"iris_base_url": "http://x"}
 
@@ -179,9 +173,7 @@ class TestInteractive:
         prompts = "c\nhttp://changed:9000\n" + "k\n" * (n_fields - 1)
         result = runner.invoke(app, ["config", "-i"], input=prompts)
         assert result.exit_code == 0
-        assert json.loads(tmp_config.read_text()) == {
-            "iris_base_url": "http://changed:9000"
-        }
+        assert json.loads(tmp_config.read_text()) == {"iris_base_url": "http://changed:9000"}
 
     def test_reset_a_value(self, runner, tmp_config):
         from prism.settings import Settings, save_config
@@ -199,11 +191,7 @@ class TestInteractive:
 
         fields = list(Settings.model_fields)
         port_idx = fields.index("iris_superserver_port")
-        prompts = (
-            "k\n" * port_idx
-            + "c\nnot-a-number\n"
-            + "k\n" * (len(fields) - port_idx - 1)
-        )
+        prompts = "k\n" * port_idx + "c\nnot-a-number\n" + "k\n" * (len(fields) - port_idx - 1)
         result = runner.invoke(app, ["config", "-i"], input=prompts)
         assert result.exit_code == 0
         assert "Invalid value" in result.stdout

@@ -8,9 +8,6 @@ from xml.etree.ElementTree import Element, SubElement
 import httpx
 import pytest
 
-from prism.iris.sdk.dbgp import DbgpError, _check_error, _parse_dbgp_response
-from prism.iris.sdk.debug_session import DebugSession, SessionManager
-from prism.settings import settings
 from prism.iris.api.debugger import (
     _context_name,
     _parse_breakpoint_list,
@@ -20,7 +17,9 @@ from prism.iris.api.debugger import (
     attach_session,
     list_processes,
 )
-
+from prism.iris.sdk.dbgp import DbgpError, _check_error, _parse_dbgp_response
+from prism.iris.sdk.debug_session import DebugSession, SessionManager
+from prism.settings import settings
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
@@ -326,9 +325,7 @@ class TestParseProperty:
         assert result["value"] == "hello"
 
     def test_base64_encoded_value(self):
-        elem = Element(
-            "property", name="data", fullname="data", type="string", encoding="base64"
-        )
+        elem = Element("property", name="data", fullname="data", type="string", encoding="base64")
         elem.text = base64.b64encode(b"decoded value").decode("ascii")
         result = _parse_property(elem)
         assert result["value"] == "decoded value"
@@ -340,12 +337,8 @@ class TestParseProperty:
         assert result["type"] == "object"
 
     def test_nested_children(self):
-        parent = Element(
-            "property", name="obj", fullname="obj", type="object", numchildren="1"
-        )
-        child = SubElement(
-            parent, "property", name="prop", fullname="obj.prop", type="int"
-        )
+        parent = Element("property", name="obj", fullname="obj", type="object", numchildren="1")
+        child = SubElement(parent, "property", name="prop", fullname="obj.prop", type="int")
         child.text = "42"
         result = _parse_property(parent)
         assert result["num_children"] == 1
@@ -648,9 +641,7 @@ class TestAttachSession:
                 new_callable=AsyncMock,
                 return_value=mock_conn,
             ),
-            patch(
-                "prism.iris.api.debugger.get_session_manager", return_value=mock_manager
-            ),
+            patch("prism.iris.api.debugger.get_session_manager", return_value=mock_manager),
         ):
             result = await attach_session(pid=1234, namespace="USER")
 
@@ -727,9 +718,7 @@ class TestAttachSession:
                 new_callable=AsyncMock,
                 return_value=mock_conn,
             ),
-            patch(
-                "prism.iris.api.debugger.get_session_manager", return_value=mock_manager
-            ),
+            patch("prism.iris.api.debugger.get_session_manager", return_value=mock_manager),
             patch("prism.iris.api.debugger.asyncio.sleep", new_callable=AsyncMock),
         ):
             result = await attach_session(pid=42)
@@ -769,9 +758,7 @@ class TestAttachSession:
                 new_callable=AsyncMock,
                 return_value=mock_conn,
             ),
-            patch(
-                "prism.iris.api.debugger.get_session_manager", return_value=mock_manager
-            ),
+            patch("prism.iris.api.debugger.get_session_manager", return_value=mock_manager),
             patch("prism.iris.api.debugger.asyncio.sleep", new_callable=AsyncMock),
         ):
             with pytest.raises(RuntimeError, match="Attach failed.*stopped"):
@@ -811,9 +798,7 @@ class TestAttachSession:
                 new_callable=AsyncMock,
                 return_value=mock_conn,
             ),
-            patch(
-                "prism.iris.api.debugger.get_session_manager", return_value=mock_manager
-            ),
+            patch("prism.iris.api.debugger.get_session_manager", return_value=mock_manager),
             patch("prism.iris.api.debugger.asyncio.sleep", new_callable=AsyncMock),
         ):
             with pytest.raises(RuntimeError, match="timed out"):

@@ -24,9 +24,7 @@ class TestGetMetrics:
 
         def handler(request):
             assert "/api/monitor/metrics" in str(request.url)
-            return httpx.Response(
-                200, text=body, headers={"Content-Type": "text/plain"}
-            )
+            return httpx.Response(200, text=body, headers={"Content-Type": "text/plain"})
 
         with patch.object(monitor_api, "client", lambda: mock_client(handler)):
             result = await monitor_api.get_metrics()
@@ -72,9 +70,7 @@ class TestGetAlerts:
 
         def handler(request):
             assert "/api/monitor/alerts" in str(request.url)
-            return httpx.Response(
-                200, text=body, headers={"Content-Type": "text/plain"}
-            )
+            return httpx.Response(200, text=body, headers={"Content-Type": "text/plain"})
 
         with patch.object(monitor_api, "client", lambda: mock_client(handler)):
             result = await monitor_api.get_alerts()

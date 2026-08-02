@@ -77,8 +77,7 @@ async def _cleanup_debug_target():
         auth=httpx.BasicAuth(settings.iris_username, settings.iris_password)
     ) as c:
         url = (
-            f"{settings.iris_base_url}/{settings.iris_api_prefix}"
-            "/USER/doc/Test.MCPDebugTarget.cls"
+            f"{settings.iris_base_url}/{settings.iris_api_prefix}/USER/doc/Test.MCPDebugTarget.cls"
         )
         await c.delete(url)
         http_mod._client = None
@@ -111,9 +110,7 @@ def _eval_value(inspect_result: dict) -> str:
     IRIS eval returns the value either at the top level or nested
     under children[0] depending on the expression type.
     """
-    return inspect_result.get("value") or inspect_result.get("children", [{}])[0].get(
-        "value", ""
-    )
+    return inspect_result.get("value") or inspect_result.get("children", [{}])[0].get("value", "")
 
 
 # ── 1. Smoke test: start and stop ────────────────────────────────────
@@ -349,9 +346,7 @@ class TestStackInspection:
         assert len(stack["frames"]) >= 1
 
         # At least one frame should reference our class or method
-        frame_text = " ".join(
-            f.get("where", "") + f.get("filename", "") for f in stack["frames"]
-        )
+        frame_text = " ".join(f.get("where", "") + f.get("filename", "") for f in stack["frames"])
         assert "Calculate" in frame_text or "MCPDebugTarget" in frame_text
 
         await live.call_tool("debug_stop", {"session_id": session_id})

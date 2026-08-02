@@ -2,9 +2,7 @@
 
 from unittest.mock import AsyncMock, patch
 
-
-from prism.iris.monitor import collect_snapshot, MonitorSnapshot
-
+from prism.iris.monitor import MonitorSnapshot, collect_snapshot
 
 # Sample Prometheus text returned by IRIS /api/monitor/metrics
 SAMPLE_METRICS = """\
@@ -36,12 +34,8 @@ class TestCollectSnapshot:
     async def test_returns_monitor_snapshot(self):
         """collect_snapshot returns a MonitorSnapshot with score, grade, metrics."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = SAMPLE_METRICS
             mock_alerts.return_value = SAMPLE_ALERTS
@@ -57,12 +51,8 @@ class TestCollectSnapshot:
     async def test_snapshot_includes_raw_metrics(self):
         """Snapshot should include a curated subset of key metrics."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = SAMPLE_METRICS
             mock_alerts.return_value = ""
@@ -77,12 +67,8 @@ class TestCollectSnapshot:
     async def test_snapshot_handles_empty_metrics(self):
         """Empty metrics endpoint → zero score, idle grade."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = ""
             mock_alerts.return_value = ""
@@ -96,12 +82,8 @@ class TestCollectSnapshot:
     async def test_snapshot_includes_alerts(self):
         """Snapshot should include alert count from /api/monitor/alerts."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = SAMPLE_METRICS
             mock_alerts.return_value = SAMPLE_ALERTS
@@ -115,12 +97,8 @@ class TestCollectSnapshot:
         import time
 
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = SAMPLE_METRICS
             mock_alerts.return_value = ""
@@ -136,12 +114,8 @@ class TestCollectSnapshot:
         import json
 
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = SAMPLE_METRICS
             mock_alerts.return_value = ""
@@ -224,12 +198,8 @@ class TestAggregatedMetrics:
     async def test_aggregated_dict_present(self):
         """Snapshot should have a non-None aggregated dict."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -241,12 +211,8 @@ class TestAggregatedMetrics:
     async def test_db_total_size_gb(self):
         """db_total_size_gb should sum all iris_db_size_mb values and convert to GB."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -258,12 +224,8 @@ class TestAggregatedMetrics:
     async def test_db_total_free_mb(self):
         """db_total_free_mb should sum all iris_db_free_space values."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -275,12 +237,8 @@ class TestAggregatedMetrics:
     async def test_db_total_max_gb(self):
         """db_total_max_gb should sum all iris_db_max_size_mb values and convert to GB."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -292,12 +250,8 @@ class TestAggregatedMetrics:
     async def test_db_avg_latency_ms(self):
         """db_avg_latency_ms should average all iris_db_latency values."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -309,12 +263,8 @@ class TestAggregatedMetrics:
     async def test_db_count(self):
         """db_count should equal the number of iris_db_size_mb samples."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -325,12 +275,8 @@ class TestAggregatedMetrics:
     async def test_cpu_by_type(self):
         """cpu_by_type should map process type → CPU % from labeled iris_cpu_pct."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -345,12 +291,8 @@ class TestAggregatedMetrics:
     async def test_top_processes_sorted(self):
         """top_processes should be sorted by commands descending, max 5 entries."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -368,12 +310,8 @@ class TestAggregatedMetrics:
     async def test_csp_total_connections(self):
         """csp_total_connections should sum all iris_csp_actual_connections."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -385,12 +323,8 @@ class TestAggregatedMetrics:
     async def test_csp_in_use_connections(self):
         """csp_in_use_connections should sum all iris_csp_in_use_connections."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -402,12 +336,8 @@ class TestAggregatedMetrics:
     async def test_smh_total_gb(self):
         """smh_total_gb should convert KB to GB (divide by 1024*1024)."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = LABELED_METRICS
             mock_alerts.return_value = ""
@@ -419,12 +349,8 @@ class TestAggregatedMetrics:
     async def test_aggregated_empty_when_no_labeled_metrics(self):
         """Aggregated metrics should default to zeros when no labeled metrics present."""
         with (
-            patch(
-                "prism.iris.monitor.get_metrics", new_callable=AsyncMock
-            ) as mock_metrics,
-            patch(
-                "prism.iris.monitor.get_alerts", new_callable=AsyncMock
-            ) as mock_alerts,
+            patch("prism.iris.monitor.get_metrics", new_callable=AsyncMock) as mock_metrics,
+            patch("prism.iris.monitor.get_alerts", new_callable=AsyncMock) as mock_alerts,
         ):
             mock_metrics.return_value = SAMPLE_METRICS
             mock_alerts.return_value = ""

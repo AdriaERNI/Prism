@@ -9,7 +9,7 @@ without PIL image assets.
 
 from __future__ import annotations
 
-from tkinter import LEFT, X, Frame, Label, ttk
+from tkinter import LEFT, Frame, Label, X, ttk
 
 from prism.gui import theme
 
@@ -100,9 +100,9 @@ class Toolbar(Frame):
             font=theme.ui_font_sm(),
         ).pack(side=LEFT, padx=(4, 2))
 
-        from prism.settings import settings
-
         import tkinter as tk
+
+        from prism.settings import settings
 
         self._ns_var = tk.StringVar(value=settings.iris_namespace or "USER")
         self._ns_entry = ttk.Entry(self, textvariable=self._ns_var, width=10)
@@ -121,9 +121,7 @@ class Toolbar(Frame):
 
     def _separator(self) -> None:
         """Add a vertical separator between button groups."""
-        Frame(self, background=theme.BORDER_DIM, width=1).pack(
-            side=LEFT, fill="y", padx=4, pady=4
-        )
+        Frame(self, background=theme.BORDER_DIM, width=1).pack(side=LEFT, fill="y", padx=4, pady=4)
 
     # ── Callbacks (set by app.py) ─────────────────────────────────────
 

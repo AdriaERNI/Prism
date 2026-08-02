@@ -12,9 +12,7 @@ class TestCompile:
             "put_document",
             {"name": "Test.MCPPerson.cls", "path": "Test.MCPPerson.cls"},
         )
-        result = await live.call_tool(
-            "compile_documents", {"doc_names": ["Test.MCPPerson.cls"]}
-        )
+        result = await live.call_tool("compile_documents", {"doc_names": ["Test.MCPPerson.cls"]})
         data = json.loads(result.content[0].text)
         assert data["success"] is True
 
@@ -24,9 +22,7 @@ class TestCompile:
             "put_document",
             {"name": "Test.MCPUtils.cls", "path": "Test.MCPUtils.cls"},
         )
-        result = await live.call_tool(
-            "compile_documents", {"doc_names": ["Test.MCPUtils.cls"]}
-        )
+        result = await live.call_tool("compile_documents", {"doc_names": ["Test.MCPUtils.cls"]})
         data = json.loads(result.content[0].text)
         assert data["success"] is True
 
@@ -54,9 +50,7 @@ class TestCompile:
             "put_document",
             {"name": "Test.MCPRoutine.mac", "path": "Test.MCPRoutine.mac"},
         )
-        result = await live.call_tool(
-            "compile_documents", {"doc_names": ["Test.MCPRoutine.mac"]}
-        )
+        result = await live.call_tool("compile_documents", {"doc_names": ["Test.MCPRoutine.mac"]})
         data = json.loads(result.content[0].text)
         assert data["success"] is True
 

@@ -17,7 +17,6 @@ from prism.cast import manager
 from prism.cast.manager import _slug_from_url
 from prism.cli.app import app
 
-
 # ── Fixtures ────────────────────────────────────────────────────────
 
 
@@ -82,10 +81,7 @@ def _make_cast_repo(path: Path, name: str = "test-cast", commands: dict | None =
 
 class TestSlugFromUrl:
     def test_https_with_git_suffix(self):
-        assert (
-            _slug_from_url("https://github.com/user/Prism-CastTemplate.git")
-            == "casttemplate"
-        )
+        assert _slug_from_url("https://github.com/user/Prism-CastTemplate.git") == "casttemplate"
 
     def test_prism_prefix_stripped(self):
         assert _slug_from_url("https://github.com/user/Prism-Weather.git") == "weather"

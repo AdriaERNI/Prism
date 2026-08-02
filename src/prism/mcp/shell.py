@@ -116,8 +116,7 @@ async def run_shell(
             if os.geteuid() == 0:
                 return {
                     "stdout": "",
-                    "stderr": "Refusing to run shell command as root. "
-                    "Use a non-root user.",
+                    "stderr": "Refusing to run shell command as root. Use a non-root user.",
                     "exit_code": -1,
                     "shell": "bash",
                 }
@@ -153,7 +152,7 @@ async def run_shell(
             stdout_bytes, stderr_bytes = await asyncio.wait_for(
                 process.communicate(), timeout=timeout
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             process.kill()
             await process.wait()
             return {

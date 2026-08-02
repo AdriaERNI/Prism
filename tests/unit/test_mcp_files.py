@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 
-
 from prism.mcp.files import _is_binary, _truncate_content, list_files, read_file
 
 

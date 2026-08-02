@@ -12,7 +12,6 @@ import pytest
 from prism.iris.api.interactive_ws import InteractiveWSSession
 from prism.iris.api.terminal import TerminalError
 
-
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
@@ -52,9 +51,7 @@ def _patch_connect(ws):
     async def _connect(*args, **kwargs):
         return ws
 
-    return patch(
-        "prism.iris.api.interactive_ws.websockets.connect", side_effect=_connect
-    )
+    return patch("prism.iris.api.interactive_ws.websockets.connect", side_effect=_connect)
 
 
 def _patch_cookies(cookies: dict | None = None):
@@ -150,9 +147,7 @@ class TestRun:
 
     async def test_run_multiple_commands_persist(self):
         """Multiple run() calls use the same WebSocket session."""
-        messages = (
-            _init_and_prompt() + _output_and_prompt("42") + _output_and_prompt("84")
-        )
+        messages = _init_and_prompt() + _output_and_prompt("42") + _output_and_prompt("84")
 
         ws = _make_ws(messages)
 
@@ -252,9 +247,7 @@ class TestRun:
 
     async def test_run_error_message(self):
         """run() raises TerminalError on server error."""
-        messages = _init_and_prompt() + [
-            {"type": "error", "text": "Something went wrong"}
-        ]
+        messages = _init_and_prompt() + [{"type": "error", "text": "Something went wrong"}]
 
         ws = _make_ws(messages)
 
@@ -266,9 +259,7 @@ class TestRun:
 
     async def test_run_unexpected_init(self):
         """run() raises TerminalError if init arrives mid-session."""
-        messages = _init_and_prompt() + [
-            {"type": "init", "protocol": 1, "version": "2024.1"}
-        ]
+        messages = _init_and_prompt() + [{"type": "init", "protocol": 1, "version": "2024.1"}]
 
         ws = _make_ws(messages)
 

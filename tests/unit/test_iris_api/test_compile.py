@@ -8,7 +8,7 @@ import pytest
 
 from prism.iris.api import compile as compile_api
 from prism.settings import settings
-from tests.unit.test_iris_api.conftest import mock_client, json_response, text_response
+from tests.unit.test_iris_api.conftest import json_response, mock_client, text_response
 
 
 class TestCompileDocuments:

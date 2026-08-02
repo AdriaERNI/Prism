@@ -40,9 +40,7 @@ class TestMonitorDashboard:
 
     def test_monitor_default_renders_dashboard(self):
         """`prism monitor` (no flags) renders a human-readable dashboard."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot()
             result = runner.invoke(app, ["monitor"])
 
@@ -68,9 +66,7 @@ class TestMonitorDashboard:
             metric_count=snap.metric_count,
             alerts_count=snap.alerts_count,
         )
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = snap
             result = runner.invoke(app, ["monitor"])
 
@@ -79,9 +75,7 @@ class TestMonitorDashboard:
 
     def test_monitor_dashboard_shows_score_bar(self):
         """Dashboard shows a progress bar for the overall score."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot(overall=50.0)
             result = runner.invoke(app, ["monitor"])
 
@@ -91,9 +85,7 @@ class TestMonitorDashboard:
 
     def test_monitor_dashboard_score_shown_as_number_not_percentage(self):
         """Load score must be displayed as a number (N.N/100), not a percentage."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot(overall=42.5)
             result = runner.invoke(app, ["monitor"])
 
@@ -106,9 +98,7 @@ class TestMonitorDashboard:
 
     def test_monitor_dashboard_shows_per_category_numbers(self):
         """Load Score panel must show numeric scores for each category."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot(overall=42.5)
             result = runner.invoke(app, ["monitor"])
 
@@ -121,9 +111,7 @@ class TestMonitorDashboard:
 
     def test_monitor_dashboard_shows_units(self):
         """Sub-metrics must display their unit type (%, /s, ms, etc.)."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot(overall=42.5)
             result = runner.invoke(app, ["monitor"])
 
@@ -147,9 +135,7 @@ class TestMonitorDashboard:
         have their own sparkline graph.  The Load Score panel is a
         numeric summary only — no duplicate graphs.
         """
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot(overall=42.5)
             result = runner.invoke(app, ["monitor"])
 
@@ -171,9 +157,7 @@ class TestMonitorDashboard:
 
     def test_load_score_panel_shows_averages(self):
         """Load Score panel must show SMA + EWMA (1m/5m/15m) + trend arrow."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot(overall=42.5)
             result = runner.invoke(app, ["monitor"])
 
@@ -189,9 +173,7 @@ class TestMonitorDashboard:
 
     def test_load_score_panel_shows_helpers(self):
         """Load Score panel must show helper text explaining how to read it."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot(overall=42.5)
             result = runner.invoke(app, ["monitor"])
 
@@ -208,9 +190,7 @@ class TestMonitorDashboard:
 
     def test_monitor_dashboard_shows_new_panels(self):
         """Dashboard should render the new SQL/Tx and License panels."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot(overall=42.5)
             result = runner.invoke(app, ["monitor"])
 
@@ -245,9 +225,7 @@ class TestMonitorDashboard:
                 "db_count": 3,
             },
         )
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = snap
             result = runner.invoke(app, ["monitor"])
 
@@ -272,9 +250,7 @@ class TestMonitorDashboard:
             metric_count=snap.metric_count,
             alerts_count=snap.alerts_count,
         )
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = snap
             result = runner.invoke(app, ["monitor"])
 
@@ -286,9 +262,7 @@ class TestMonitorDashboard:
 class TestMonitorJson:
     def test_monitor_json_outputs_json(self):
         """`prism monitor --json` outputs JSON with score and metrics."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot()
             result = runner.invoke(app, ["monitor", "--json"])
 
@@ -314,9 +288,7 @@ class TestMonitorJson:
             alerts_count=snapshot.alerts_count,
             raw_samples=[MetricSample(name="iris_cpu_usage", value=12.5, labels={})],
         )
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = snapshot
             result = runner.invoke(app, ["monitor", "--json", "--raw"])
 
@@ -331,9 +303,7 @@ class TestMonitorErrorHandling:
         """`prism monitor` handles connection errors gracefully."""
         import httpx
 
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.side_effect = httpx.ConnectError("Connection refused")
             result = runner.invoke(app, ["monitor"])
 
@@ -351,9 +321,7 @@ class TestMonitorCompare:
             pass
 
         with (
-            patch(
-                "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-            ) as mock,
+            patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock,
             patch(
                 "prism.cli.commands.monitor.asyncio.sleep",
                 side_effect=fast_sleep,

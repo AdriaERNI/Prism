@@ -12,18 +12,10 @@ from prism.output import format_output, get_output_format
 
 
 def index(
-    namespace: str = typer.Option(
-        "", "--namespace", "-n", help="IRIS namespace to index."
-    ),
-    include_system: bool = typer.Option(
-        False, "--system", help="Include system classes."
-    ),
-    prefix: str = typer.Option(
-        "", "--prefix", help="Only index classes with this prefix."
-    ),
-    summary: bool = typer.Option(
-        False, "--summary", help="Only show counts, no class details."
-    ),
+    namespace: str = typer.Option("", "--namespace", "-n", help="IRIS namespace to index."),
+    include_system: bool = typer.Option(False, "--system", help="Include system classes."),
+    prefix: str = typer.Option("", "--prefix", help="Only index classes with this prefix."),
+    summary: bool = typer.Option(False, "--summary", help="Only show counts, no class details."),
 ) -> None:
     """Build a compact index of classes in an IRIS namespace.
 

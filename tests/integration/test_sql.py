@@ -24,9 +24,7 @@ class TestSQL:
         assert "5" in text
 
     async def test_date_function(self, live):
-        result = await live.call_tool(
-            "execute_sql", {"query": "SELECT CURRENT_DATE AS today"}
-        )
+        result = await live.call_tool("execute_sql", {"query": "SELECT CURRENT_DATE AS today"})
         text = result.content[0].text
         assert "2026" in text or "today" in text
 

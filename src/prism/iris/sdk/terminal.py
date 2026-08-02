@@ -95,7 +95,7 @@ def _load_iris():
         return _iris_sdk
 
     _log.debug("Loading InterSystems iris module...")
-    import iris  # noqa: F811 — the top-level InterSystems package
+    import iris
 
     _log.debug(
         "iris module loaded from %s, has createConnection: %s",
@@ -125,9 +125,7 @@ def _connect(namespace: str | None = None):
 
     host = _parse_host(settings.iris_base_url)
     ns = namespace or settings.iris_namespace
-    _log.debug(
-        "Connecting to %s:%s ns=%s ...", host, settings.iris_superserver_port, ns
-    )
+    _log.debug("Connecting to %s:%s ns=%s ...", host, settings.iris_superserver_port, ns)
     conn = iris_mod.createConnection(
         host,
         settings.iris_superserver_port,
@@ -154,8 +152,8 @@ async def ensure_helper_deployed(namespace: str | None = None) -> None:
         if ns in _deployed_namespaces:
             return
 
-        from prism.iris.api.documents import get_document, put_document
         from prism.iris.api.compile import compile_documents
+        from prism.iris.api.documents import DocumentNotFound, get_document, put_document
 
         _log.debug("Ensuring %s is deployed in namespace %s", HELPER_DOC, ns)
 
@@ -164,7 +162,7 @@ async def ensure_helper_deployed(namespace: str | None = None) -> None:
             _deployed_namespaces.add(ns)
             _log.debug("%s already exists in %s", HELPER_DOC, ns)
             return
-        except Exception:
+        except DocumentNotFound:
             pass
 
         _log.debug("Deploying %s to namespace %s", HELPER_DOC, ns)
@@ -189,9 +187,7 @@ def _run_command_sync(command: str, namespace: str | None = None) -> str:
             conn = _connect(namespace)
             _log.debug("Creating IRIS object...")
             iris_obj = iris_mod.createIRIS(conn)
-            _log.debug(
-                "Calling %s.Execute()... (attempt %d)", HELPER_CLASS, attempt + 1
-            )
+            _log.debug("Calling %s.Execute()... (attempt %d)", HELPER_CLASS, attempt + 1)
             result = iris_obj.classMethodString(HELPER_CLASS, "Execute", command)
             _log.debug("Execute returned %d chars", len(result) if result else 0)
             return result
@@ -241,16 +237,12 @@ async def execute_command(
     elapsed = time.monotonic() - start
     remaining = timeout - elapsed
     if remaining <= 0:
-        raise TimeoutError(
-            f"Terminal command timed out after {timeout}s before execution started"
-        )
+        raise TimeoutError(f"Terminal command timed out after {timeout}s before execution started")
 
     ns = namespace or settings.iris_namespace
     loop = asyncio.get_running_loop()
     run_sync = functools.partial(_run_command_sync, command, namespace)
-    output = await asyncio.wait_for(
-        loop.run_in_executor(None, run_sync), timeout=remaining
-    )
+    output = await asyncio.wait_for(loop.run_in_executor(None, run_sync), timeout=remaining)
 
     return {
         "namespace": ns,

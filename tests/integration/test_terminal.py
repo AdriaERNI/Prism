@@ -19,9 +19,7 @@ class TestTerminal:
         assert "5" in data["output"]
 
     async def test_system_variable(self, live, terminal_method):
-        result = await live.call_tool(
-            "execute_terminal", {"command": "write $zversion"}
-        )
+        result = await live.call_tool("execute_terminal", {"command": "write $zversion"})
         data = json.loads(result.content[0].text)
         assert "IRIS" in data["output"]
 

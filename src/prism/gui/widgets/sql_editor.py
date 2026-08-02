@@ -11,6 +11,8 @@ Tab bar is managed by this widget so the editor owns its own tabs
 (like DBeaver's script tabs).
 """
 
+import re
+import tkinter as tk
 from tkinter import (
     BOTH,
     END,
@@ -18,20 +20,17 @@ from tkinter import (
     LEFT,
     SEL_FIRST,
     SEL_LAST,
-    TclError,
     WORD,
     YES,
     Canvas,
     Frame,
     Menu,
     Scrollbar,
+    TclError,
     Text,
 )
-import tkinter as tk
-import re
 
 from prism.gui import theme
-
 
 # ── SQL keyword list ──────────────────────────────────────────────────
 SQL_KEYWORDS = [
@@ -218,9 +217,7 @@ class EditorTabBar(Frame):
         """
         self._on_rename_callback = callback
 
-    def add_tab(
-        self, name: str | None = None, content: str = "", modified: bool = False
-    ) -> int:
+    def add_tab(self, name: str | None = None, content: str = "", modified: bool = False) -> int:
         """Add a new tab with a unique name. Returns the tab index.
 
         Args:
@@ -367,9 +364,7 @@ class EditorTabBar(Frame):
 
             # Bind right-click for rename context menu
             label.bind("<Button-3>", lambda e, idx=i: self._show_rename_menu(e, idx))
-            tab_frame.bind(
-                "<Button-3>", lambda e, idx=i: self._show_rename_menu(e, idx)
-            )
+            tab_frame.bind("<Button-3>", lambda e, idx=i: self._show_rename_menu(e, idx))
 
     def set_modified(self, idx: int, modified: bool) -> None:
         """Update tab modified indicator."""
@@ -471,12 +466,8 @@ class EditorTabBar(Frame):
         # Buttons
         btn_frame = Frame(dialog)
         btn_frame.pack(pady=5)
-        tk.Button(btn_frame, text="OK", width=8, command=do_rename).pack(
-            side=LEFT, padx=5
-        )
-        tk.Button(btn_frame, text="Cancel", width=8, command=do_cancel).pack(
-            side=LEFT, padx=5
-        )
+        tk.Button(btn_frame, text="OK", width=8, command=do_rename).pack(side=LEFT, padx=5)
+        tk.Button(btn_frame, text="Cancel", width=8, command=do_cancel).pack(side=LEFT, padx=5)
 
     def rename_tab(self, idx: int, new_name: str) -> None:
         """Rename the tab at *idx* to *new_name* and fire callback."""
@@ -596,9 +587,7 @@ class SQLEditor(Frame):
         """Configure text tags for syntax highlighting."""
         for tag, config in _TAG_CONFIG.items():
             self._text.tag_config(tag, **config)
-        self._text.tag_config(
-            "sel", background=theme.SELECTED_BG, foreground=theme.SELECTED_FG
-        )
+        self._text.tag_config("sel", background=theme.SELECTED_BG, foreground=theme.SELECTED_FG)
 
     def _setup_events(self) -> None:
         """Bind events for syntax highlighting and shortcuts."""

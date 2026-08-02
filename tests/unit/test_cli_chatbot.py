@@ -219,9 +219,7 @@ class TestListSkills:
 
         save_config({"chatbot_skills_path": str(tmp_path)})
         # Patch the settings singleton to pick up the saved value
-        monkeypatch.setattr(
-            "prism.settings.settings.chatbot_skills_path", str(tmp_path)
-        )
+        monkeypatch.setattr("prism.settings.settings.chatbot_skills_path", str(tmp_path))
         result = runner.invoke(app, ["chatbot", "--list-skills"])
         assert result.exit_code == 0
         assert "sql" in result.stdout
@@ -247,9 +245,7 @@ class TestMissingConfig:
 
     def test_no_api_key_shows_error(self, runner, tmp_config, monkeypatch):
         # URL is set but key is not
-        monkeypatch.setattr(
-            "prism.settings.settings.chatbot_api_url", "https://api.test/v1"
-        )
+        monkeypatch.setattr("prism.settings.settings.chatbot_api_url", "https://api.test/v1")
         result = runner.invoke(app, ["chatbot", "Hello"])
         assert result.exit_code == 1
         assert "API key" in result.output

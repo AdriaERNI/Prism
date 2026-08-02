@@ -76,6 +76,7 @@ prism cast template portcheck <TAB> # → host (positional), port (positional), 
 # In cast.py CLI setup:
 cast_app = typer.Typer(name="cast", help="...", no_args_is_help=True)
 
+
 @cast_app.callback()
 def cast_callback(
     add: str = typer.Option(None, "--add", ...),
@@ -83,8 +84,11 @@ def cast_callback(
     # ...
 ):
     """Manage and run custom command repositories."""
-    if add: ...
-    if list: ...
+    if add:
+        ...
+    if list:
+        ...
+
 
 # Dynamically register cast repos as sub-groups
 for repo in manager.list_repos():
@@ -186,6 +190,7 @@ app.command()(ip)
 ```python
 # commands/weather.py
 import typer
+
 
 def weather(
     city: str = typer.Argument(None, help="City name"),

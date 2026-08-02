@@ -9,7 +9,6 @@ from __future__ import annotations
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
-
 from prism.gui.controllers.sql_controller import QueryResult, SQLController
 from prism.gui.widgets.sql_editor import (
     _COMMENT_RE,
@@ -18,7 +17,6 @@ from prism.gui.widgets.sql_editor import (
     _NUMBER_RE,
     _STRING_RE,
 )
-
 
 # ── QueryResult ───────────────────────────────────────────────────────
 

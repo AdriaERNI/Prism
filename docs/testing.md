@@ -78,8 +78,10 @@ import httpx
 from unittest.mock import patch
 from prism.iris.api import my_api
 
+
 def mock_client(handler):
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
 
 async def test_my_api():
     def handler(request):

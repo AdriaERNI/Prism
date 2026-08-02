@@ -48,8 +48,7 @@ async def monitor_system(
 
     if include_raw_metrics:
         result["raw_metrics"] = [
-            {"name": s.name, "value": s.value, "labels": s.labels}
-            for s in snapshot.raw_samples
+            {"name": s.name, "value": s.value, "labels": s.labels} for s in snapshot.raw_samples
         ]
 
     return result
