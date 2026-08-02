@@ -32,3 +32,7 @@ site/
 # Agent local settings
 .claude/settings.local.json
 .worktrees/
+
+# Hermes agent artifacts (hardening reports, discovery plans)
+.hermes/plans/
+HARDENING-REPORT.md
