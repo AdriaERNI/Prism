@@ -2,13 +2,14 @@
 
 Tests cover:
   - Config file path resolution per service / OS
-  - Patchers (preview generation) for all 4 services
-  - Appliers (actual file writing) for all 4 services
+  - Patchers (preview generation) for all 5 services
+  - Appliers (actual file writing) for all 5 services
   - Idempotency (running twice doesn't duplicate)
   - Preservation of existing config
   - CLI integration via Typer's CliRunner
   - Error handling (invalid service name)
   - Custom URL and port options
+  - stdio transport config generation
 """
 
 from __future__ import annotations
@@ -28,16 +29,21 @@ from prism.cli.commands.install import (
     HERMES,
     OPENCODE,
     SERVER_NAME,
+    STDIO_ARGS,
+    STDIO_COMMAND,
+    VSCODE,
     _apply_claude,
     _apply_codex,
     _apply_hermes,
     _apply_opencode,
+    _apply_vscode,
     _config_path,
     _default_url,
     _patch_claude,
     _patch_codex,
     _patch_hermes,
     _patch_opencode,
+    _patch_vscode,
 )
 
 runner = CliRunner()
@@ -52,6 +58,15 @@ def _expected_opencode_path(tmp_home: Path) -> Path:
     return tmp_home / ".config" / "opencode" / "opencode.json"
 
 
+def _expected_vscode_path(tmp_home: Path) -> Path:
+    """Return the expected VS Code settings.json path for the current OS."""
+    if sys.platform == "darwin":
+        return tmp_home / "Library" / "Application Support" / "Code" / "User" / "settings.json"
+    if IS_WINDOWS:
+        return tmp_home / "AppData" / "Roaming" / "Code" / "User" / "settings.json"
+    return tmp_home / ".config" / "Code" / "User" / "settings.json"
+
+
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
@@ -60,18 +75,18 @@ def tmp_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Create a temporary HOME and patch os.path.expanduser.
 
     Also patches APPDATA (Windows) and XDG_CONFIG_HOME (Linux/macOS) so
-    that _config_path() for OpenCode resolves inside the temp directory
-    on every platform.
+    that _config_path() for OpenCode and VS Code resolves inside the temp
+    directory on every platform.
     """
     monkeypatch.setenv("HOME", str(tmp_path))
     monkeypatch.setattr(os.path, "expanduser", lambda p: p.replace("~", str(tmp_path)))
 
-    # Windows: APPDATA is used for the OpenCode config path
+    # Windows: APPDATA is used for OpenCode and VS Code config paths
     appdata = tmp_path / "AppData" / "Roaming"
     appdata.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("APPDATA", str(appdata))
 
-    # Linux/macOS: XDG_CONFIG_HOME is used for the OpenCode config path
+    # Linux/macOS: XDG_CONFIG_HOME is used for OpenCode and VS Code config paths
     xdg_config = tmp_path / ".config"
     xdg_config.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg_config))
@@ -111,6 +126,9 @@ class TestConfigPath:
     def test_opencode_path(self, tmp_home: Path) -> None:
         assert _config_path(OPENCODE) == _expected_opencode_path(tmp_home)
 
+    def test_vscode_path(self, tmp_home: Path) -> None:
+        assert _config_path(VSCODE) == _expected_vscode_path(tmp_home)
+
     def test_hermes_path(self, tmp_home: Path) -> None:
         assert _config_path(HERMES) == tmp_home / ".hermes" / "config.yaml"
 
@@ -133,7 +151,6 @@ class TestPatchClaude:
         assert data["mcpServers"][SERVER_NAME] == {"type": "http", "url": url}
 
     def test_modify_existing(self, tmp_home: Path) -> None:
-        # Write existing config
         config_file = tmp_home / ".claude.json"
         config_file.write_text(json.dumps({"theme": "dark"}))
         url = "http://localhost:3000/mcp"
@@ -156,6 +173,16 @@ class TestPatchClaude:
         assert action == "modify"
         data = json.loads(content)
         assert data["mcpServers"][SERVER_NAME]["url"] == new_url
+
+    def test_stdio_config(self, tmp_home: Path) -> None:
+        path, action, content = _patch_claude(None)
+
+        data = json.loads(content)
+        assert data["mcpServers"][SERVER_NAME] == {
+            "type": "stdio",
+            "command": STDIO_COMMAND,
+            "args": STDIO_ARGS,
+        }
 
 
 class TestApplyClaude:
@@ -217,10 +244,17 @@ class TestPatchCodex:
         url = "http://localhost:3000/mcp"
         _, _, content = _patch_codex(url)
 
-        # Should not have duplicate sections
         assert content.count(f"[mcp_servers.{SERVER_NAME}]") == 1
         assert url in content
         assert "http://old:9999/mcp" not in content
+
+    def test_stdio_config(self, tmp_home: Path) -> None:
+        _, _, content = _patch_codex(None)
+
+        assert f"[mcp_servers.{SERVER_NAME}]" in content
+        assert f'command = "{STDIO_COMMAND}"' in content
+        assert "serve" in content
+        assert "stdio" in content
 
 
 class TestApplyCodex:
@@ -274,6 +308,14 @@ class TestPatchOpencode:
         assert data["theme"] == "dark"
         assert data["mcp"][SERVER_NAME]["url"] == url
 
+    def test_stdio_config(self, tmp_home: Path) -> None:
+        _, _, content = _patch_opencode(None)
+
+        data = json.loads(content)
+        assert data["mcp"][SERVER_NAME]["type"] == "local"
+        assert data["mcp"][SERVER_NAME]["command"] == [STDIO_COMMAND, *STDIO_ARGS]
+        assert data["mcp"][SERVER_NAME]["enabled"] is True
+
 
 class TestApplyOpencode:
     def test_writes_file(self, tmp_home: Path) -> None:
@@ -285,6 +327,70 @@ class TestApplyOpencode:
         assert data["mcp"][SERVER_NAME]["type"] == "remote"
         assert data["mcp"][SERVER_NAME]["url"] == url
         assert data["mcp"][SERVER_NAME]["enabled"] is True
+
+
+# ── VS Code Copilot patcher ───────────────────────────────────────────
+
+
+class TestPatchVscode:
+    def test_create_new(self, tmp_home: Path) -> None:
+        url = "http://localhost:3000/mcp"
+        path, action, content = _patch_vscode(url)
+
+        assert action == "create"
+        assert path == _expected_vscode_path(tmp_home)
+        data = json.loads(content)
+        assert data["chat.mcp.servers"][SERVER_NAME] == {"type": "http", "url": url}
+
+    def test_modify_existing(self, tmp_home: Path) -> None:
+        config_file = _expected_vscode_path(tmp_home)
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(json.dumps({"editor.fontSize": 14}))
+        url = "http://localhost:3000/mcp"
+        path, action, content = _patch_vscode(url)
+
+        assert action == "modify"
+        data = json.loads(content)
+        assert data["editor.fontSize"] == 14
+        assert data["chat.mcp.servers"][SERVER_NAME]["url"] == url
+
+    def test_stdio_config(self, tmp_home: Path) -> None:
+        _, _, content = _patch_vscode(None)
+
+        data = json.loads(content)
+        assert data["chat.mcp.servers"][SERVER_NAME] == {
+            "type": "stdio",
+            "command": STDIO_COMMAND,
+            "args": STDIO_ARGS,
+        }
+
+
+class TestApplyVscode:
+    def test_writes_file(self, tmp_home: Path) -> None:
+        url = "http://localhost:3000/mcp"
+        path = _apply_vscode(url)
+
+        assert path.is_file()
+        data = json.loads(path.read_text())
+        assert data["chat.mcp.servers"][SERVER_NAME] == {"type": "http", "url": url}
+
+    def test_preserves_existing(self, tmp_home: Path) -> None:
+        config_file = _expected_vscode_path(tmp_home)
+        config_file.parent.mkdir(parents=True, exist_ok=True)
+        config_file.write_text(
+            json.dumps(
+                {
+                    "editor.fontSize": 14,
+                    "chat.mcp.servers": {"other": {"type": "http", "url": "http://x"}},
+                }
+            )
+        )
+        _apply_vscode("http://localhost:3000/mcp")
+
+        data = json.loads(config_file.read_text())
+        assert data["editor.fontSize"] == 14
+        assert "other" in data["chat.mcp.servers"]
+        assert SERVER_NAME in data["chat.mcp.servers"]
 
 
 # ── Hermes patcher ────────────────────────────────────────────────────
@@ -311,6 +417,16 @@ class TestPatchHermes:
         assert action == "modify"
         assert "provider: openai" in content or "provider:" in content
         assert url in content
+
+    def test_stdio_config(self, tmp_home: Path) -> None:
+        _, _, content = _patch_hermes(None)
+
+        assert "mcp_servers:" in content
+        assert SERVER_NAME in content
+        assert (
+            f'command: "{STDIO_COMMAND}"' in content
+            or f'command: "{STDIO_COMMAND}"'.replace('"', "'") in content
+        )
 
 
 class TestApplyHermes:
@@ -341,7 +457,7 @@ class TestApplyHermes:
 
 
 class TestIdempotency:
-    @pytest.mark.parametrize("service", [CLAUDE, CODEX, OPENCODE, HERMES])
+    @pytest.mark.parametrize("service", [CLAUDE, CODEX, OPENCODE, VSCODE, HERMES])
     def test_run_twice_no_duplicates(self, service: str, tmp_home: Path) -> None:
         from prism.cli.commands.install import APPLIERS, PATCHERS
 
@@ -352,16 +468,65 @@ class TestIdempotency:
 
         # Patch should still show only one prism entry
         path, action, content = PATCHERS[service](url)
-        if service in (CLAUDE, OPENCODE):
+        if service in (CLAUDE, OPENCODE, VSCODE):
             count = content.count(f'"{SERVER_NAME}"')
             assert count == 1, f"Duplicate entries found in {service}"
         elif service == CODEX:
             count = content.count(f"[mcp_servers.{SERVER_NAME}]")
             assert count == 1, f"Duplicate sections found in {service}"
         elif service == HERMES:
-            # Hermes YAML has prism: at 2-space indent
             lines = [line for line in content.splitlines() if line.strip() == f"{SERVER_NAME}:"]
             assert len(lines) == 1, f"Duplicate entries found in {service}"
+
+
+# ── stdio transport tests ────────────────────────────────────────────
+
+
+class TestStdioTransport:
+    """Test that stdio transport generates correct config for each service."""
+
+    @pytest.mark.parametrize("service", [CLAUDE, OPENCODE, VSCODE])
+    def test_stdio_json_config(self, service: str, tmp_home: Path) -> None:
+        """JSON-based services should have command/args instead of url."""
+        from prism.cli.commands.install import APPLIERS
+
+        APPLIERS[service](None)  # None = stdio
+        path = _config_path(service)
+        data = json.loads(path.read_text())
+
+        if service == CLAUDE:
+            entry = data["mcpServers"][SERVER_NAME]
+        elif service == OPENCODE:
+            entry = data["mcp"][SERVER_NAME]
+        elif service == VSCODE:
+            entry = data["chat.mcp.servers"][SERVER_NAME]
+
+        assert entry["type"] == "stdio" or entry["type"] == "local"
+        assert STDIO_COMMAND in (entry.get("command") or entry.get("command", []))
+        assert "url" not in entry
+
+    def test_stdio_codex_config(self, tmp_home: Path) -> None:
+        """Codex TOML should have command/args instead of url."""
+        from prism.cli.commands.install import APPLIERS
+
+        APPLIERS[CODEX](None)
+        path = _config_path(CODEX)
+        content = path.read_text()
+
+        assert f"[mcp_servers.{SERVER_NAME}]" in content
+        assert f'command = "{STDIO_COMMAND}"' in content
+        assert "url" not in content
+
+    def test_stdio_hermes_config(self, tmp_home: Path) -> None:
+        """Hermes YAML should have command/args instead of url."""
+        from prism.cli.commands.install import APPLIERS
+
+        APPLIERS[HERMES](None)
+        path = _config_path(HERMES)
+        content = path.read_text()
+
+        assert SERVER_NAME in content
+        assert STDIO_COMMAND in content
 
 
 # ── CLI integration ───────────────────────────────────────────────────
@@ -394,10 +559,12 @@ class TestCli:
         assert "Claude Code" in result.output
         assert "Codex CLI" in result.output
         assert "OpenCode" in result.output
+        assert "VS Code Copilot" in result.output
         assert "Hermes Agent" in result.output
         assert (tmp_home / ".claude.json").is_file()
         assert (tmp_home / ".codex" / "config.toml").is_file()
         assert (_expected_opencode_path(tmp_home)).is_file()
+        assert (_expected_vscode_path(tmp_home)).is_file()
         assert (tmp_home / ".hermes" / "config.yaml").is_file()
 
     def test_setup_with_custom_port(self, tmp_home: Path) -> None:
@@ -442,17 +609,17 @@ class TestCli:
         assert "[MODIFY]" in result.output
 
     def test_setup_each_service(self, tmp_home: Path) -> None:
-        for svc in ("claude", "codex", "opencode", "hermes"):
+        for svc in ("claude", "codex", "opencode", "vscode", "hermes"):
             result = runner.invoke(app, ["setup", svc, "--yes"])
             assert result.exit_code == 0, f"Failed for {svc}: {result.output}"
 
     def test_setup_default_is_all(self, tmp_home: Path) -> None:
         result = runner.invoke(app, ["setup", "--yes"])
         assert result.exit_code == 0
-        # All 4 files should exist
         assert (tmp_home / ".claude.json").is_file()
         assert (tmp_home / ".codex" / "config.toml").is_file()
         assert (_expected_opencode_path(tmp_home)).is_file()
+        assert (_expected_vscode_path(tmp_home)).is_file()
         assert (tmp_home / ".hermes" / "config.yaml").is_file()
 
     def test_setup_shows_start_serve_hint(self, tmp_home: Path) -> None:
@@ -468,3 +635,50 @@ class TestCli:
         data = json.loads((tmp_home / ".claude.json").read_text())
         assert len(data["mcpServers"]) == 1
         assert SERVER_NAME in data["mcpServers"]
+
+
+# ── CLI stdio transport tests ────────────────────────────────────────
+
+
+class TestCliStdio:
+    def test_setup_stdio_claude(self, tmp_home: Path) -> None:
+        result = runner.invoke(app, ["setup", "claude", "--transport", "stdio", "--yes"])
+        assert result.exit_code == 0
+        assert "stdio" in result.output.lower()
+        data = json.loads((tmp_home / ".claude.json").read_text())
+        entry = data["mcpServers"][SERVER_NAME]
+        assert entry["type"] == "stdio"
+        assert entry["command"] == STDIO_COMMAND
+        assert entry["args"] == STDIO_ARGS
+
+    def test_setup_stdio_vscode(self, tmp_home: Path) -> None:
+        result = runner.invoke(app, ["setup", "vscode", "--transport", "stdio", "--yes"])
+        assert result.exit_code == 0
+        path = _expected_vscode_path(tmp_home)
+        data = json.loads(path.read_text())
+        entry = data["chat.mcp.servers"][SERVER_NAME]
+        assert entry["type"] == "stdio"
+        assert entry["command"] == STDIO_COMMAND
+        assert entry["args"] == STDIO_ARGS
+
+    def test_setup_stdio_all(self, tmp_home: Path) -> None:
+        result = runner.invoke(app, ["setup", "--transport", "stdio", "--yes"])
+        assert result.exit_code == 0
+        # Claude
+        data = json.loads((tmp_home / ".claude.json").read_text())
+        assert data["mcpServers"][SERVER_NAME]["type"] == "stdio"
+        # VS Code
+        path = _expected_vscode_path(tmp_home)
+        data = json.loads(path.read_text())
+        assert data["chat.mcp.servers"][SERVER_NAME]["type"] == "stdio"
+
+    def test_setup_stdio_no_port_hint(self, tmp_home: Path) -> None:
+        """stdio mode should not show 'prism serve --port' hint."""
+        result = runner.invoke(app, ["setup", "claude", "--transport", "stdio", "--yes"])
+        assert result.exit_code == 0
+        assert "spawn" in result.output.lower() or "stdio" in result.output.lower()
+
+    def test_setup_invalid_transport(self, tmp_home: Path) -> None:
+        result = runner.invoke(app, ["setup", "claude", "--transport", "websocket", "--yes"])
+        assert result.exit_code == 1
+        assert "Unknown transport" in result.output

@@ -147,6 +147,34 @@ class TestServeCommand:
             assert result.exit_code == 0
             assert mock_mcp.run.call_args[1]["port"] == 3000
 
+    def test_serve_transport_stdio(self):
+        """--transport stdio should use stdio transport and skip preflight."""
+        with (
+            patch("prism.mcp.server.mcp") as mock_mcp,
+            patch("prism.iris.sdk.preflight.preflight_check") as mock_preflight,
+        ):
+            result = runner.invoke(app, ["serve", "--transport", "stdio"])
+            assert result.exit_code == 0
+            mock_preflight.assert_not_called()
+            mock_mcp.run.assert_called_once()
+            assert mock_mcp.run.call_args[1]["transport"] == "stdio"
+
+    def test_serve_transport_http(self):
+        """--transport http should use streamable-http transport."""
+        with (
+            patch("prism.mcp.server.mcp") as mock_mcp,
+            patch("prism.iris.sdk.preflight.preflight_check"),
+        ):
+            result = runner.invoke(app, ["serve", "--transport", "http", "--port", "9999"])
+            assert result.exit_code == 0
+            mock_mcp.run.assert_called_once()
+            assert mock_mcp.run.call_args[1]["transport"] == "streamable-http"
+
+    def test_serve_transport_invalid(self):
+        """Invalid transport should error."""
+        result = runner.invoke(app, ["serve", "--transport", "websocket"])
+        assert result.exit_code != 0
+
 
 # ── Chatbot command ──────────────────────────────────────────────────────────
 
