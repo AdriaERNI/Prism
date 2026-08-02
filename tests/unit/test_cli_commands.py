@@ -6,6 +6,7 @@ CLI commands with the lowest coverage.
 
 from __future__ import annotations
 
+import re
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from typer.testing import CliRunner
@@ -13,6 +14,13 @@ from typer.testing import CliRunner
 from prism.cli.app import app
 
 runner = CliRunner()
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text (CI renders help with colors)."""
+    return _ANSI_RE.sub("", text)
 
 
 # ── GUI command ──────────────────────────────────────────────────────────
@@ -24,8 +32,9 @@ class TestGuiCommand:
     def test_gui_help(self):
         """--help should show usage."""
         result = runner.invoke(app, ["gui", "--help"])
+        output = _strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "GUI" in result.output or "gui" in result.output.lower()
+        assert "GUI" in output or "gui" in output.lower()
 
     def test_gui_tkinter_not_available(self):
         """If tkinter is not importable, should error with exit code 1."""
@@ -89,10 +98,11 @@ class TestServeCommand:
     def test_serve_help(self):
         """--help should show usage."""
         result = runner.invoke(app, ["serve", "--help"])
+        output = _strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "MCP server" in result.output
-        assert "--port" in result.output
-        assert "--skip-preflight" in result.output
+        assert "MCP server" in output
+        assert "--port" in output
+        assert "--skip-preflight" in output
 
     def test_serve_with_skip_preflight(self):
         """--skip-preflight should bypass preflight check."""
