@@ -5,10 +5,11 @@ Desktop, Cursor, VS Code Copilot, …) at it.
 
 !!! tip "Automated setup"
     Run [`prism setup`](../commands/setup.md) to register Prism MCP in
-    Claude Code, Codex CLI, OpenCode, and Hermes Agent automatically — no
-    manual file editing needed. The sections below cover the manual approach
-    for clients not yet supported by `prism setup` (Claude Desktop, Cursor,
-    VS Code Copilot).
+    Claude Code, Codex CLI, OpenCode, VS Code Copilot, and Hermes Agent
+    automatically — no manual file editing needed. Use
+    `--transport stdio` for local (no-port) setups. The sections below
+    cover the manual approach for clients not yet supported by
+    `prism setup` (Claude Desktop, Cursor).
 
 ## Start Prism
 
@@ -83,9 +84,37 @@ below assumes that URL; adjust the host/port if you ran
 
     Same pattern as Claude Code — start `prism serve` yourself.
 
-=== "VS Code / GitHub Copilot"
+=== "VS Code Copilot"
 
-    Add to `.vscode/mcp.json`:
+    **Automated:** `prism setup vscode --transport stdio --yes`
+
+    **Manual (stdio):** Add to VS Code's `settings.json` (user-level):
+
+    === "Linux"
+        Path: `~/.config/Code/User/settings.json`
+
+    === "macOS"
+        Path: `~/Library/Application Support/Code/User/settings.json`
+
+    === "Windows"
+        Path: `%APPDATA%\Code\User\settings.json`
+
+    ```json
+    {
+      "chat.mcp.servers": {
+        "prism": {
+          "type": "stdio",
+          "command": "prism",
+          "args": ["serve", "--transport", "stdio"]
+        }
+      }
+    }
+    ```
+
+    VS Code spawns `prism serve --transport stdio` as a subprocess —
+    no manual `prism serve` needed.
+
+    **Manual (HTTP):** Add to `.vscode/mcp.json` (workspace-level):
 
     ```json
     {

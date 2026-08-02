@@ -61,8 +61,8 @@ prism <command> --help
 
 | Command | Summary |
 |---------|---------|
-| [`prism serve`](serve.md) | Start the Prism MCP server on `http://localhost:3000/mcp`. |
-| [`prism setup`](setup.md) | Register Prism MCP in external tools (Claude Code, Codex CLI, OpenCode, Hermes Agent). |
+| [`prism serve`](serve.md) | Start the Prism MCP server (HTTP or stdio transport). |
+| [`prism setup`](setup.md) | Register Prism MCP in external tools (Claude Code, Codex CLI, OpenCode, VS Code Copilot, Hermes Agent). |
 
 ### GUI
 

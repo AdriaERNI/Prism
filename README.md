@@ -25,7 +25,7 @@
 - **Testing** — Run `%UnitTest` test classes, list test methods, view historical results
 - **Code Indexing** — Build a compact, token-efficient index of all classes using `%Dictionary` metadata
 - **Monitoring** — Live IRIS resource dashboard with CPU, memory, disk, process load scoring, and real-time sparkline graphs
-- **MCP Server** — Expose all tools to AI assistants (Claude Code, Claude Desktop, Cursor, GitHub Copilot)
+- **MCP Server** — Expose all tools to AI assistants (Claude Code, Claude Desktop, Cursor, VS Code Copilot, Codex CLI, OpenCode, Hermes Agent)
 - **Chatbot** — AI agent that orchestrates Prism's MCP tools via natural language, connecting to any OpenAI-compatible LLM
 - **GUI** — tkinter SQL editor with database navigator, inline-editable results grid, and multi-tab editing *(work in progress)*
 - **Cast Plugins** — Extend Prism with custom commands from any Git repository
@@ -140,11 +140,12 @@ See the [full tool reference](https://adriaerni.github.io/Prism/mcp/tools/) for 
 ## MCP Client Configuration
 
 > **Tip:** Run `prism setup` to automatically register Prism MCP in Claude
-> Code, Codex CLI, OpenCode, and Hermes Agent. See
+> Code, Codex CLI, OpenCode, VS Code Copilot, and Hermes Agent. Use
+> `--transport stdio` for local (no-port) setups. See
 > [setup docs](https://adriaerni.github.io/Prism/commands/setup/) for details.
 
 The manual configurations below are for clients not yet supported by
-`prism setup` (Claude Desktop, Cursor, VS Code Copilot).
+`prism setup` (Claude Desktop, Cursor).
 
 ### Claude Code
 
@@ -176,9 +177,33 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-### GitHub Copilot (VS Code)
+### VS Code Copilot
 
-Add to `.vscode/mcp.json`:
+**Automated:** `prism setup vscode --transport stdio --yes`
+
+**Manual (stdio):** Add to VS Code's `settings.json` (user-level, not
+workspace):
+
+Linux: `~/.config/Code/User/settings.json`
+macOS: `~/Library/Application Support/Code/User/settings.json`
+Windows: `%APPDATA%\Code\User\settings.json`
+
+```json
+{
+  "chat.mcp.servers": {
+    "prism": {
+      "type": "stdio",
+      "command": "prism",
+      "args": ["serve", "--transport", "stdio"]
+    }
+  }
+}
+```
+
+VS Code spawns `prism serve --transport stdio` as a subprocess — no
+manual `prism serve` needed.
+
+**Manual (HTTP):** Add to `.vscode/mcp.json` (workspace-level):
 
 ```json
 {
@@ -190,6 +215,8 @@ Add to `.vscode/mcp.json`:
   }
 }
 ```
+
+The server must be running before Copilot connects.
 
 ### Cursor
 
@@ -248,7 +275,7 @@ src/prism/
 ├── cast/              # Cast plugin system (import-based Typer plugins)
 │   └── manager.py      # Clone, import, cache, run commands
 └── cli/               # Typer CLI commands (async wrappers)
-    └── commands/       # One module per command (18 commands)
+    └── commands/       # One module per command (19 commands)
 ```
 
 ## Testing
