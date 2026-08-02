@@ -46,9 +46,7 @@ class TestFacadeDispatch:
             result = await execute_command("Write 1", namespace="null", timeout=10.0)
 
         assert result["output"] == "1"
-        mock_native_exec.assert_called_once_with(
-            "Write 1", settings.iris_namespace, 10.0
-        )
+        mock_native_exec.assert_called_once_with("Write 1", settings.iris_namespace, 10.0)
 
     async def test_native_method_sanitizes_output(self):
         mock_native_exec = AsyncMock(
@@ -97,9 +95,7 @@ class TestFacadeDispatch:
         with (
             patch.object(settings, "iris_terminal_method", "ws"),
             patch("prism.iris.api.terminal._get_session_cookies", mock_cookies),
-            patch(
-                "prism.iris.api.terminal.websockets.connect", return_value=mock_connect
-            ),
+            patch("prism.iris.api.terminal.websockets.connect", return_value=mock_connect),
         ):
             from prism.iris.api.terminal import execute_command
 

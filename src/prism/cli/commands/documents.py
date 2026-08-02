@@ -48,12 +48,8 @@ def list_docs(
     doc_type: str = typer.Option(
         None, "--type", "-t", help="Filter by document type (e.g. cls, mac, int, inc)"
     ),
-    generated: bool = typer.Option(
-        False, "--generated", help="Include generated documents"
-    ),
-    filter: str = typer.Option(
-        None, "--filter", "-f", help="Filter by name prefix (e.g. MyApp)"
-    ),
+    generated: bool = typer.Option(False, "--generated", help="Include generated documents"),
+    filter: str = typer.Option(None, "--filter", "-f", help="Filter by name prefix (e.g. MyApp)"),
 ) -> None:
     """List source documents on the IRIS server."""
     try:
@@ -93,8 +89,7 @@ def put_doc(
         content = file.read_text(encoding="utf-8").splitlines()
     except UnicodeDecodeError:
         typer.echo(
-            f"Error: Could not read {file} as UTF-8 text. "
-            f"Prism only supports text files.",
+            f"Error: Could not read {file} as UTF-8 text. Prism only supports text files.",
             err=True,
         )
         sys.exit(1)

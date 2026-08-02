@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 import tkinter as tk
-from tkinter import BOTH, TOP, X, YES, Frame, Menu, messagebox, ttk
+from tkinter import BOTH, TOP, YES, Frame, Menu, X, messagebox, ttk
 
 from prism import __version__
 from prism.gui import theme
@@ -183,9 +183,7 @@ class PrismGUI:
             borderwidth=0,
         )
         query_menu.add_command(label="Execute\tCtrl+Enter", command=self._execute_query)
-        query_menu.add_command(
-            label="Execute Selection", command=self._execute_selection
-        )
+        query_menu.add_command(label="Execute Selection", command=self._execute_selection)
         query_menu.add_command(label="Clear Results", command=self._clear_results)
         menubar.add_cascade(label="Query", menu=query_menu)
 
@@ -395,9 +393,7 @@ class PrismGUI:
             ns = (ns_var.get().strip() if ns_var else "USER") or "USER"
         self._status_bar.set_connected(connected, namespace=ns)
         if not connected:
-            self._status_bar.set_status(
-                "Cannot connect to IRIS — check settings", is_error=True
-            )
+            self._status_bar.set_status("Cannot connect to IRIS — check settings", is_error=True)
 
     def _refresh_tree(self) -> None:
         """Refresh the database tree."""
@@ -489,9 +485,7 @@ class PrismGUI:
         else:
             self._results.show_results(result)
             elapsed_ms = int(result.elapsed * 1000)
-            self._status_bar.set_status(
-                f"OK — {result.row_count} row(s) in {elapsed_ms} ms"
-            )
+            self._status_bar.set_status(f"OK — {result.row_count} row(s) in {elapsed_ms} ms")
 
     # ── Editor Actions ───────────────────────────────────────────────
 
@@ -539,7 +533,7 @@ class PrismGUI:
         )
         if filepath:
             try:
-                with open(filepath, "r", encoding="utf-8") as f:
+                with open(filepath, encoding="utf-8") as f:
                     content = f.read()
                 self._editor.set_text(content)
                 self._root.title(f"Prism {__version__} — {filepath}")

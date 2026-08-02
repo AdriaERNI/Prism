@@ -5,11 +5,11 @@ from unittest.mock import patch
 import pytest
 
 from prism.iris.sdk.workspace import (
-    workspace_root,
+    load_content,
     resolve_safe,
     save_content,
-    load_content,
     validate_doc_name,
+    workspace_root,
 )
 from prism.settings import settings
 

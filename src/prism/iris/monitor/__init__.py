@@ -19,7 +19,7 @@ import math
 import time
 from dataclasses import dataclass, field
 
-from prism.iris.api.monitor import get_metrics, get_alerts
+from prism.iris.api.monitor import get_alerts, get_metrics
 from prism.iris.monitor.parser import MetricSample, parse_prometheus_text
 from prism.iris.monitor.scorer import (
     LoadScore,
@@ -144,9 +144,7 @@ async def collect_snapshot() -> MonitorSnapshot:
         alerts_text = await get_alerts()
         alerts_samples = parse_prometheus_text(alerts_text)
         # Sum the values of alert metrics (each alert may have a value of 1)
-        alerts_count = int(
-            sum(s.value for s in alerts_samples if s.name == "iris_system_alerts")
-        )
+        alerts_count = int(sum(s.value for s in alerts_samples if s.name == "iris_system_alerts"))
     except Exception:
         alerts_count = 0
 
@@ -174,39 +172,29 @@ async def collect_snapshot() -> MonitorSnapshot:
     db_sizes = [
         s.value
         for s in samples
-        if s.name == "iris_db_size_mb"
-        and not math.isnan(s.value)
-        and not math.isinf(s.value)
+        if s.name == "iris_db_size_mb" and not math.isnan(s.value) and not math.isinf(s.value)
     ]
     db_free = [
         s.value
         for s in samples
-        if s.name == "iris_db_free_space"
-        and not math.isnan(s.value)
-        and not math.isinf(s.value)
+        if s.name == "iris_db_free_space" and not math.isnan(s.value) and not math.isinf(s.value)
     ]
     db_max = [
         s.value
         for s in samples
-        if s.name == "iris_db_max_size_mb"
-        and not math.isnan(s.value)
-        and not math.isinf(s.value)
+        if s.name == "iris_db_max_size_mb" and not math.isnan(s.value) and not math.isinf(s.value)
     ]
     db_latencies = [
         s.value
         for s in samples
-        if s.name == "iris_db_latency"
-        and not math.isnan(s.value)
-        and not math.isinf(s.value)
+        if s.name == "iris_db_latency" and not math.isnan(s.value) and not math.isinf(s.value)
     ]
 
     aggregated: dict[str, float | list | dict] = {
         "db_total_size_gb": sum(db_sizes) / 1024 if db_sizes else 0.0,
         "db_total_free_mb": sum(db_free) if db_free else 0.0,
         "db_total_max_gb": sum(db_max) / 1024 if db_max else 0.0,
-        "db_avg_latency_ms": (sum(db_latencies) / len(db_latencies))
-        if db_latencies
-        else 0.0,
+        "db_avg_latency_ms": (sum(db_latencies) / len(db_latencies)) if db_latencies else 0.0,
         "db_count": len(db_sizes),
     }
 
@@ -263,13 +251,9 @@ async def collect_snapshot() -> MonitorSnapshot:
     smh_total_samples = [
         s.value
         for s in samples
-        if s.name == "iris_smh_total"
-        and not math.isnan(s.value)
-        and not math.isinf(s.value)
+        if s.name == "iris_smh_total" and not math.isnan(s.value) and not math.isinf(s.value)
     ]
-    aggregated["smh_total_gb"] = (
-        smh_total_samples[0] / 1024 / 1024 if smh_total_samples else 0.0
-    )
+    aggregated["smh_total_gb"] = smh_total_samples[0] / 1024 / 1024 if smh_total_samples else 0.0
 
     return MonitorSnapshot(
         timestamp=time.time(),
@@ -284,12 +268,12 @@ async def collect_snapshot() -> MonitorSnapshot:
 
 
 __all__ = [
+    "LoadScore",
+    "MetricSample",
     "MonitorSnapshot",
     "collect_snapshot",
-    "parse_prometheus_text",
+    "compare_snapshots",
     "compute_load_score",
     "get_health_grade",
-    "compare_snapshots",
-    "MetricSample",
-    "LoadScore",
+    "parse_prometheus_text",
 ]

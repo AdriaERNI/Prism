@@ -1,17 +1,16 @@
 """Unit tests for the irisnative terminal backend."""
 
 import asyncio
-
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from prism.settings import settings
 from prism.iris.sdk.terminal import (
     _parse_host,
-    execute_command,
     ensure_helper_deployed,
+    execute_command,
 )
+from prism.settings import settings
 
 
 class TestParseHost:
@@ -31,9 +30,7 @@ class TestParseHost:
 class TestExecuteCommand:
     async def test_calls_irisnative(self):
         with (
-            patch(
-                "prism.iris.sdk.terminal.ensure_helper_deployed", new_callable=AsyncMock
-            ),
+            patch("prism.iris.sdk.terminal.ensure_helper_deployed", new_callable=AsyncMock),
             patch("prism.iris.sdk.terminal._run_command_sync", return_value="hello"),
         ):
             result = await execute_command('Write "hello"')
@@ -44,9 +41,7 @@ class TestExecuteCommand:
 
     async def test_namespace_override(self):
         with (
-            patch(
-                "prism.iris.sdk.terminal.ensure_helper_deployed", new_callable=AsyncMock
-            ),
+            patch("prism.iris.sdk.terminal.ensure_helper_deployed", new_callable=AsyncMock),
             patch("prism.iris.sdk.terminal._run_command_sync", return_value=""),
         ):
             result = await execute_command("Write 1", namespace="MYNS")
@@ -55,16 +50,14 @@ class TestExecuteCommand:
 
     async def test_error_propagates(self):
         with (
-            patch(
-                "prism.iris.sdk.terminal.ensure_helper_deployed", new_callable=AsyncMock
-            ),
+            patch("prism.iris.sdk.terminal.ensure_helper_deployed", new_callable=AsyncMock),
             patch(
                 "prism.iris.sdk.terminal._run_command_sync",
                 side_effect=RuntimeError("connection lost"),
             ),
+            pytest.raises(RuntimeError, match="connection lost"),
         ):
-            with pytest.raises(RuntimeError, match="connection lost"):
-                await execute_command("BadCommand")
+            await execute_command("BadCommand")
 
     async def test_timeout_includes_helper_deploy_time(self):
         async def _slow_deploy(*args, **kwargs):
@@ -75,12 +68,10 @@ class TestExecuteCommand:
                 "prism.iris.sdk.terminal.ensure_helper_deployed",
                 new=AsyncMock(side_effect=_slow_deploy),
             ),
-            patch(
-                "prism.iris.sdk.terminal._run_command_sync", return_value="ok"
-            ) as run,
+            patch("prism.iris.sdk.terminal._run_command_sync", return_value="ok") as run,
+            pytest.raises(TimeoutError),
         ):
-            with pytest.raises(TimeoutError):
-                await execute_command('Write "hello"', timeout=0.01)
+            await execute_command('Write "hello"', timeout=0.01)
 
         run.assert_not_called()
 
@@ -98,9 +89,10 @@ class TestEnsureHelperDeployed:
 
     async def test_deploys_when_doc_missing(self):
         import prism.iris.sdk.terminal as mod
+        from prism.iris.api.documents import DocumentNotFound
 
         with patch.object(mod, "_deployed_namespaces", set()):
-            mock_get = AsyncMock(side_effect=Exception("not found"))
+            mock_get = AsyncMock(side_effect=DocumentNotFound("MCP.Terminal.cls"))
             mock_put = AsyncMock()
             mock_compile = AsyncMock()
 

@@ -56,9 +56,7 @@ class TestRunTests:
             {"name": "Test.MCPFailingTest.cls", "path": "Test.MCPFailingTest.cls"},
         )
 
-        result = await live.call_tool(
-            "run_tests", {"test_class": "Test.MCPFailingTest"}
-        )
+        result = await live.call_tool("run_tests", {"test_class": "Test.MCPFailingTest"})
         data = json.loads(result.content[0].text)
 
         assert data["class"] == "Test.MCPFailingTest"
@@ -73,9 +71,7 @@ class TestRunTests:
 
     async def test_run_nonexistent_class(self, live):
         """Running tests for a class that doesn't exist returns an error."""
-        result = await live.call_tool(
-            "run_tests", {"test_class": "Test.NoSuchClass999"}
-        )
+        result = await live.call_tool("run_tests", {"test_class": "Test.NoSuchClass999"})
         data = json.loads(result.content[0].text)
 
         # The runner should still return a result (not crash)
@@ -165,7 +161,5 @@ class TestAutoDeployRunner:
             "list_documents", {"filter": "MCP.TestRunner", "doc_type": "cls"}
         )
         doc_data = json.loads(doc_result.content[0].text)
-        runner_docs = [
-            d for d in doc_data["documents"] if d["name"] == "MCP.TestRunner.cls"
-        ]
+        runner_docs = [d for d in doc_data["documents"] if d["name"] == "MCP.TestRunner.cls"]
         assert len(runner_docs) == 1

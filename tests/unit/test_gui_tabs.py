@@ -586,8 +586,7 @@ class TestAppTabCreation:
             app._new_query()
 
             names = [
-                app._editor_tab_bar.get_tab_name(i)
-                for i in range(app._editor_tab_bar.tab_count)
+                app._editor_tab_bar.get_tab_name(i) for i in range(app._editor_tab_bar.tab_count)
             ]
             assert len(names) == len(set(names)), f"Duplicate names: {names}"
             assert names == ["Script-1", "Script-2", "Script-3", "Script-4"]
@@ -703,15 +702,12 @@ class TestAppTabSwitching:
 class TestAutoSave:
     """Test auto-save after typing inactivity."""
 
-    def test_autosave_saves_to_config(
-        self, tk_root, tmp_path, monkeypatch, mock_gui_env
-    ):
+    def test_autosave_saves_to_config(self, tk_root, tmp_path, monkeypatch, mock_gui_env):
         """After the delay, queries should be saved to config.json."""
-        from prism.gui.app import PrismGUI
-
         # Redirect config to tmp_path
         import prism.gui.app as app_mod
         import prism.settings as settings_mod
+        from prism.gui.app import PrismGUI
 
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
@@ -745,9 +741,9 @@ class TestAutoSave:
 
     def test_autosave_multiple_tabs(self, tk_root, tmp_path, monkeypatch, mock_gui_env):
         """Auto-save should save all tabs, not just the active one."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
         import prism.settings as settings_mod
+        from prism.gui.app import PrismGUI
 
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
@@ -783,9 +779,9 @@ class TestAutoSave:
 
     def test_autosave_disabled(self, tk_root, tmp_path, monkeypatch, mock_gui_env):
         """When autosave is disabled, queries should not be saved."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
         import prism.settings as settings_mod
+        from prism.gui.app import PrismGUI
 
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
@@ -813,8 +809,8 @@ class TestAutoSave:
 
     def test_autosave_schedules_timer(self, tk_root, mock_gui_env):
         """Key release should schedule a timer for auto-save."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         root = _make_tk_root()
         root.withdraw()
@@ -837,8 +833,8 @@ class TestAutoSave:
 
     def test_autosave_cancels_previous_timer(self, tk_root, mock_gui_env):
         """Typing again should cancel the previous save timer and set a new one."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         root = _make_tk_root()
         root.withdraw()
@@ -873,8 +869,8 @@ class TestQueryRestoration:
 
     def test_restore_single_query(self, tk_root, monkeypatch, mock_gui_env):
         """A single saved query should be restored into the first tab."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         saved = json.dumps([{"name": "Script-1", "content": "SELECT 42"}])
 
@@ -897,8 +893,8 @@ class TestQueryRestoration:
 
     def test_restore_multiple_queries(self, tk_root, mock_gui_env):
         """Multiple saved queries should be restored as multiple tabs."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         saved = json.dumps(
             [
@@ -938,8 +934,8 @@ class TestQueryRestoration:
 
     def test_restore_empty_queries(self, tk_root, mock_gui_env):
         """Empty saved queries should result in a single blank tab."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         root = _make_tk_root()
         root.withdraw()
@@ -960,8 +956,8 @@ class TestQueryRestoration:
 
     def test_restore_invalid_json(self, tk_root, mock_gui_env):
         """Invalid JSON in saved queries should not crash — fall back to empty."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         root = _make_tk_root()
         root.withdraw()
@@ -982,8 +978,8 @@ class TestQueryRestoration:
 
     def test_restore_preserves_tab_names(self, tk_root, mock_gui_env):
         """Restored tabs should keep their original names."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         saved = json.dumps(
             [
@@ -1018,9 +1014,9 @@ class TestSaveOnExit:
 
     def test_save_on_exit(self, tk_root, tmp_path, monkeypatch, mock_gui_env):
         """_on_close should save queries before destroying the window."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
         import prism.settings as settings_mod
+        from prism.gui.app import PrismGUI
 
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
@@ -1049,13 +1045,11 @@ class TestSaveOnExit:
             except tk.TclError:
                 pass
 
-    def test_save_on_exit_multiple_tabs(
-        self, tk_root, tmp_path, monkeypatch, mock_gui_env
-    ):
+    def test_save_on_exit_multiple_tabs(self, tk_root, tmp_path, monkeypatch, mock_gui_env):
         """Closing with multiple tabs should save all of them."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
         import prism.settings as settings_mod
+        from prism.gui.app import PrismGUI
 
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
@@ -1097,8 +1091,8 @@ class TestInitialQuery:
 
     def test_initial_query_sets_first_tab(self, tk_root, mock_gui_env):
         """Passing initial_query should fill the first tab and editor."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         root = _make_tk_root()
         root.withdraw()
@@ -1119,8 +1113,8 @@ class TestInitialQuery:
 
     def test_initial_query_skips_restore(self, tk_root, mock_gui_env):
         """When initial_query is provided, saved queries should not be restored."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         saved = json.dumps([{"name": "Script-1", "content": "SELECT old"}])
 
@@ -1151,9 +1145,9 @@ class TestSaveRestoreCycle:
 
     def test_full_cycle_single_tab(self, tk_root, tmp_path, monkeypatch, mock_gui_env):
         """Save a query, then restore it in a new app instance."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
         import prism.settings as settings_mod
+        from prism.gui.app import PrismGUI
 
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
@@ -1196,13 +1190,11 @@ class TestSaveRestoreCycle:
         finally:
             root2.destroy()
 
-    def test_full_cycle_multiple_tabs(
-        self, tk_root, tmp_path, monkeypatch, mock_gui_env
-    ):
+    def test_full_cycle_multiple_tabs(self, tk_root, tmp_path, monkeypatch, mock_gui_env):
         """Save multiple tabs, then verify they're all in the config."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
         import prism.settings as settings_mod
+        from prism.gui.app import PrismGUI
 
         fake_path = tmp_path / "config.json"
         monkeypatch.setattr(settings_mod, "config_path", lambda: fake_path)
@@ -1255,8 +1247,8 @@ class TestAppTabClose:
 
     def test_close_tab_loads_new_active(self, tk_root, mock_gui_env):
         """After closing a tab, the editor should show the new active tab's content."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         root = _make_tk_root()
         root.withdraw()
@@ -1288,8 +1280,8 @@ class TestAppTabClose:
 
     def test_close_last_tab_prevented(self, tk_root, mock_gui_env):
         """Closing the last tab should be prevented."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         root = _make_tk_root()
         root.withdraw()
@@ -1317,14 +1309,12 @@ class TestAppTabClose:
 class TestAppTabRename:
     """Test tab rename through the PrismGUI app."""
 
-    def test_rename_triggers_autosave(
-        self, tk_root, mock_gui_env, tmp_path, monkeypatch
-    ):
+    def test_rename_triggers_autosave(self, tk_root, mock_gui_env, tmp_path, monkeypatch):
         """Renaming a tab should trigger auto-save so the new name persists."""
         import json
 
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
         from prism.settings import Settings
 
         fake_path = tmp_path / "config.json"
@@ -1356,8 +1346,8 @@ class TestAppTabRename:
 
     def test_rename_callback_set(self, tk_root, mock_gui_env):
         """PrismGUI should set a rename callback on the tab bar."""
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
 
         root = _make_tk_root()
         root.withdraw()
@@ -1382,8 +1372,8 @@ class TestAppTabRename:
         """A renamed tab should keep its custom name through save → restore."""
         import json
 
-        from prism.gui.app import PrismGUI
         import prism.gui.app as app_mod
+        from prism.gui.app import PrismGUI
         from prism.settings import Settings
 
         fake_path = tmp_path / "config.json"

@@ -2,8 +2,7 @@
 
 import math
 
-
-from prism.iris.monitor.parser import parse_prometheus_text, MetricSample
+from prism.iris.monitor.parser import MetricSample, parse_prometheus_text
 
 
 class TestParseBasic:
@@ -88,9 +87,7 @@ class TestParseLabels:
 
     def test_label_with_escaped_quote(self):
         text = (
-            "# HELP iris_process Process\n"
-            "# TYPE iris_process gauge\n"
-            'iris_process{id="pid\\"1"} 1\n'
+            '# HELP iris_process Process\n# TYPE iris_process gauge\niris_process{id="pid\\"1"} 1\n'
         )
         metrics = parse_prometheus_text(text)
         assert len(metrics) == 1

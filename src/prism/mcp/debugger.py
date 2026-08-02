@@ -12,9 +12,7 @@ from prism.mcp._decorator import logged_tool
 async def debug_list_processes(
     namespace: Annotated[
         str | None,
-        Field(
-            description="Filter processes by IRIS namespace. Returns all namespaces if omitted."
-        ),
+        Field(description="Filter processes by IRIS namespace. Returns all namespaces if omitted."),
     ] = None,
     system: Annotated[
         bool,
@@ -30,9 +28,7 @@ async def debug_list_processes(
     """
     processes = await debugger_api.list_processes(system=system)
     if namespace:
-        processes = [
-            p for p in processes if p.get("namespace", "").upper() == namespace.upper()
-        ]
+        processes = [p for p in processes if p.get("namespace", "").upper() == namespace.upper()]
     return processes
 
 

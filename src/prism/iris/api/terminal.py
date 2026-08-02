@@ -50,9 +50,7 @@ def _clean_text(value: str) -> str:
     control characters, preserving newlines, tabs, and printable text.
     """
     stripped = _ANSI_ESCAPE_RE.sub("", value)
-    return "".join(
-        ch for ch in stripped if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
-    )
+    return "".join(ch for ch in stripped if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f"))
 
 
 def _finalize_result(result: dict) -> dict:

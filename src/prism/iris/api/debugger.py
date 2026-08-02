@@ -9,15 +9,13 @@ from __future__ import annotations
 import asyncio
 import base64
 import re
-from xml.etree.ElementTree import Element
-
 from urllib.parse import quote
+from xml.etree.ElementTree import Element
 
 from prism.iris.sdk.dbgp import DbgpConnection, DbgpError
 from prism.iris.sdk.debug_session import get_session_manager
 from prism.iris.sdk.http import api_url, client, parse_json
 from prism.settings import settings
-
 
 # ── Session lifecycle ─────────────────────────────────────────────────
 
@@ -52,15 +50,11 @@ async def start_session(
         # The target value is base64-encoded (using -v_base64) to avoid
         # DBGP argument parsing issues with special characters like ##, ()
         # in ObjectScript expressions — matches VS Code ObjectScript extension.
-        await conn.send_command(
-            "feature_set", n="max_data", v=str(settings.iris_debug_max_data)
-        )
+        await conn.send_command("feature_set", n="max_data", v=str(settings.iris_debug_max_data))
         await conn.send_command(
             "feature_set", n="max_children", v=str(settings.iris_debug_max_children)
         )
-        await conn.send_command(
-            "feature_set", n="max_depth", v=str(settings.iris_debug_max_depth)
-        )
+        await conn.send_command("feature_set", n="max_depth", v=str(settings.iris_debug_max_depth))
         await conn.send_command(
             "feature_set",
             n="step_granularity",
@@ -201,15 +195,11 @@ async def _do_attach(pid: int, namespace: str | None) -> dict:
         await conn.send_command("feature_set", n="debug_target", v=target)
 
         # Then configure session features
-        await conn.send_command(
-            "feature_set", n="max_data", v=str(settings.iris_debug_max_data)
-        )
+        await conn.send_command("feature_set", n="max_data", v=str(settings.iris_debug_max_data))
         await conn.send_command(
             "feature_set", n="max_children", v=str(settings.iris_debug_max_children)
         )
-        await conn.send_command(
-            "feature_set", n="max_depth", v=str(settings.iris_debug_max_depth)
-        )
+        await conn.send_command("feature_set", n="max_depth", v=str(settings.iris_debug_max_depth))
         await conn.send_command(
             "feature_set",
             n="step_granularity",
@@ -481,9 +471,7 @@ async def manage_breakpoints(
             await session.conn.send_command("breakpoint_remove", d=breakpoint_id)
         else:
             state = "enabled" if action == "enable" else "disabled"
-            await session.conn.send_command(
-                "breakpoint_update", d=breakpoint_id, s=state
-            )
+            await session.conn.send_command("breakpoint_update", d=breakpoint_id, s=state)
         return {
             "session_id": session_id,
             "action": action,
@@ -629,9 +617,7 @@ def _parse_breakpoint_list(resp: Element) -> list[dict]:
     return bps
 
 
-async def _set_breakpoint(
-    conn: DbgpConnection, bp: dict, namespace: str | None = None
-) -> dict:
+async def _set_breakpoint(conn: DbgpConnection, bp: dict, namespace: str | None = None) -> dict:
     """Set a single breakpoint from a breakpoint definition dict.
 
     IRIS expects file URIs in ``dbgp://|NAMESPACE|FileName.cls`` format
@@ -700,6 +686,4 @@ async def _get_current_stack_level(conn: DbgpConnection) -> int:
 
 
 def _context_name(context_id: int) -> str:
-    return {0: "private", 1: "public", 2: "class"}.get(
-        context_id, f"context_{context_id}"
-    )
+    return {0: "private", 1: "public", 2: "class"}.get(context_id, f"context_{context_id}")

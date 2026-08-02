@@ -319,9 +319,7 @@ def install(
         "all",
         help="Service to configure: claude, codex, opencode, hermes, or all.",
     ),
-    port: int = typer.Option(
-        3000, "--port", "-p", help="Port the Prism MCP server listens on."
-    ),
+    port: int = typer.Option(3000, "--port", "-p", help="Port the Prism MCP server listens on."),
     url: str | None = typer.Option(
         None,
         "--url",
@@ -353,8 +351,7 @@ def install(
         services = [service]
     else:
         typer.echo(
-            f"Unknown service: {service!r}. "
-            f"Choose from: {', '.join(ALL_SERVICES)}, or 'all'.",
+            f"Unknown service: {service!r}. Choose from: {', '.join(ALL_SERVICES)}, or 'all'.",
             err=True,
         )
         raise typer.Exit(code=1)
@@ -403,4 +400,4 @@ def install(
     typer.echo("Done! Prism MCP server has been configured.")
     typer.echo("")
     typer.echo("Make sure 'prism serve' is running before using the MCP tools.")
-    typer.echo("Start it with:  prism serve --port {}".format(port))
+    typer.echo(f"Start it with:  prism serve --port {port}")

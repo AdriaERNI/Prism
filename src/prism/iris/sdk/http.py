@@ -34,6 +34,14 @@ def client() -> httpx.AsyncClient:
     return _client
 
 
+async def close_client() -> None:
+    """Close the shared ``AsyncClient`` if open and reset module state."""
+    global _client
+    if _client is not None and not _client.is_closed:
+        await _client.aclose()
+    _client = None
+
+
 def parse_json(response: httpx.Response) -> dict:
     """Parse JSON from an httpx response, raising a clear error on failure."""
     try:

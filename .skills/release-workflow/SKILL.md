@@ -46,7 +46,7 @@ Branch naming: `v` prefix on release/hotfix branches and tags
 | **Pre-release** | Tag on development: `git tag vX.Y.Z-beta.N && git push origin vX.Y.Z-beta.N`. CI auto-builds + creates GitHub Pre-release. No branch, no PR. |
 | **Stable release** | Cut `release/vX.Y.Z` from development → PR to `main` → squash-merge via **web UI** → tag `vX.Y.Z` on main → push tag → sync main back to development → delete release branch. |
 | **Hotfix** | Cut `hotfix/vX.Y.Z` from main → fix → PR to `main` → squash-merge via **web UI** → tag → sync back to development → delete hotfix branch. |
-| **Sync main→dev** | Check `git diff --stat origin/main development` first. If empty → already synced, don't rebase. If clean rebase → `git rebase main`. If diverged → `git merge main` on a sync branch + PR. |
+| **Sync main→dev** | Check `git diff --stat origin/main development` first. If empty → hard-reset development to main (`git reset --hard origin/main && git push --force-with-lease origin development`; temporarily disable branch protection if `enforce_admins=true`). If diff shows real changes → `git merge main` on a sync branch + PR. Never rebase or squash-merge a sync PR when trees are identical — it creates phantom SHAs. |
 
 ## Critical rules
 
@@ -54,8 +54,8 @@ Branch naming: `v` prefix on release/hotfix branches and tags
 2. **NEVER run `gh release create`** — CI auto-creates releases from tag pushes. Manual creation races with CI.
 3. **NEVER create `release/vX.Y.Z-beta.N` branches** — pre-releases are tags only, not branches.
 4. **NEVER create `release/x` branches without the `v` prefix** — use `release/vX.Y.Z`.
-5. **Use rebase, not merge** on `development` (linear history enforced). If diverged significantly, use a sync branch with `git merge main` + PR.
-6. **Check `git diff --stat origin/main development` before rebasing** — squash merges create duplicate SHAs that look like "ahead" commits but have no actual file changes.
+5. **Sync main→dev with hard-reset, not rebase or merge** — squash-merge creates a new SHA on main that can never match development's history. Rebase replays phantom commits (conflict after conflict); merge+PR creates yet another phantom SHA. The correct sync is `git reset --hard origin/main && git push --force-with-lease origin development` (temporarily disable branch protection if `enforce_admins=true`). Only use merge+PR when trees actually differ.
+6. **Check `git diff --stat origin/main development` before syncing** — if the diff is empty, hard-reset development to main. If the diff shows real changes, use a sync branch with `git merge main` + PR.
 7. **CI syncs version from the tag** — never manually edit `pyproject.toml` or `__init__.py` version for a release.
 8. **Never remove branch protection** on `main` or `development` without the user's explicit approval.
 
@@ -136,25 +136,31 @@ Tag push triggers `build-release.yml` (build + GitHub Release) and
 
 ### 6. Sync main back to development
 
-**Check if sync is needed first:**
+After a squash-merge, the release commit on `main` has a new SHA that does
+not exist in `development`'s history. **Rebase and merge+PR both fail here**:
+rebase replays phantom commits (conflict after conflict); a sync PR
+squash-merged into development creates yet another phantom SHA.
+
+**Check if hard-reset is appropriate (trees identical):**
 
 ```bash
 git diff --stat origin/main development
 ```
 
-If the diff is empty or only shows intentional changes → already synced,
-skip rebase.
-
-**If clean rebase:**
+If empty, hard-reset development to main:
 
 ```bash
 git checkout development
-git pull origin development
-git rebase main
-git push origin development
+git fetch origin
+git reset --hard origin/main
+git push --force-with-lease origin development
 ```
 
-**If diverged (many commits on both sides):**
+> **Branch protection:** If `enforce_admins=true` and force pushes are
+> disabled, temporarily disable protection on `development` via GitHub
+> web UI, force-push, then re-enable.
+
+**If trees differ** (hotfix on main + new commits on development):
 
 ```bash
 git checkout development
@@ -165,6 +171,7 @@ gh pr create --base development --head sync/main-to-development \
   --title "chore: sync main into development" \
   --body "Sync main back to development after release vX.Y.Z."
 # User merges via web UI (squash merge)
+# Then hard-reset development to main to clear the phantom SHA
 ```
 
 ### 7. Clean up
@@ -209,15 +216,11 @@ gh pr create --base main --head hotfix/vX.Y.Z \
 git checkout main && git pull origin main
 git tag vX.Y.Z && git push origin vX.Y.Z
 
-# Sync back to development via sync PR (see step 6 above)
-git checkout development
-git checkout -b sync/hotfix-vX.Y.Z-to-dev
-git merge main --no-edit
-git push -u origin sync/hotfix-vX.Y.Z-to-dev
-gh pr create --base development --head sync/hotfix-vX.Y.Z-to-dev \
-  --title "sync: hotfix vX.Y.Z to development" \
-  --body "Sync hotfix back to development."
-# User merges via web UI
+# Sync back to development
+# Check if trees are identical first:
+git diff --stat origin/main development
+# If empty → hard-reset (see "Sync main back to development" above)
+# If differs → merge+PR, then hard-reset to clear phantom SHA
 ```
 
 ### 5. Clean up
@@ -257,16 +260,24 @@ Both `main` and `development` — identical rules:
 ## Squash-merge deduplication pitfall
 
 After a squash merge, `git log` shows main's commits as "not in development"
-because the SHA changed — even though the content is identical. Before
-rebasing, always check:
+because the SHA changed — even though the content is identical. **Do NOT
+rebase or merge+PR to fix this** — both create phantom SHAs without
+converging the branches. Instead, hard-reset development to main:
 
 ```bash
-git diff --stat origin/main development
+git diff --stat origin/main development   # check: empty = trees identical
+git checkout development
+git fetch origin
+git reset --hard origin/main
+git push --force-with-lease origin development
 ```
 
-If the diff is empty, the branches are already content-synced. **Do NOT
-rebase** — it will replay dozens of already-applied commits and produce
-conflict after conflict for no benefit.
+This makes development point to the exact same SHA as main. No phantom
+commits, no divergence, no future conflict.
+
+Rebase fails because it replays already-applied commits (conflict after
+conflict). Merge+PR fails because the squash-merge of the sync PR creates
+yet another new SHA — the branches never converge.
 
 ## Stale branch cleanup
 

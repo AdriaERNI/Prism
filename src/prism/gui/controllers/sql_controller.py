@@ -20,10 +20,10 @@ import html
 import queue
 import threading
 import time
-from dataclasses import dataclass, field
-from typing import Any, Callable
-
 import tkinter as tk
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -150,9 +150,7 @@ class SQLController:
 
         self._running = True
         self._cancel_requested = False
-        self._pending_callback = (
-            None  # connection check doesn't use QueryResult callback
-        )
+        self._pending_callback = None  # connection check doesn't use QueryResult callback
 
         def _conn_done(connected: bool) -> None:
             self._running = False
@@ -308,8 +306,9 @@ class SQLController:
         fail with "Event loop is closed".
         """
         import httpx
-        from prism.settings import settings
+
         from prism.iris.sdk.http import api_url, parse_json
+        from prism.settings import settings
 
         result = QueryResult()
         start = time.monotonic()
@@ -320,9 +319,7 @@ class SQLController:
 
             async def _do():
                 async with httpx.AsyncClient(
-                    auth=httpx.BasicAuth(
-                        settings.iris_username, settings.iris_password
-                    ),
+                    auth=httpx.BasicAuth(settings.iris_username, settings.iris_password),
                     timeout=30.0,
                 ) as c:
                     url = f"{api_url(namespace)}/action/query"

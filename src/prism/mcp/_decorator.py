@@ -31,16 +31,12 @@ def logged_tool(fn=None, *, task=None):
             sig = inspect.signature(fn)
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
-            params = {
-                k: v for k, v in bound.arguments.items() if not isinstance(v, Context)
-            }
+            params = {k: v for k, v in bound.arguments.items() if not isinstance(v, Context)}
 
             log_request(fn.__name__, params)
             result = await fn(*args, **kwargs)
 
-            if settings.prism_output_format == "toon" and isinstance(
-                result, (dict, list)
-            ):
+            if settings.prism_output_format == "toon" and isinstance(result, (dict, list)):
                 toon_text = format_output(result, "toon")
                 log_response(fn.__name__, toon_text)
                 return ToolResult(

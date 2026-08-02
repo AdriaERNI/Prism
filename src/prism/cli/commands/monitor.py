@@ -134,8 +134,7 @@ def _run_json_once(raw: bool) -> None:
     result = snapshot.to_dict()
     if raw:
         result["raw_metrics"] = [
-            {"name": s.name, "value": s.value, "labels": s.labels}
-            for s in snapshot.raw_samples
+            {"name": s.name, "value": s.value, "labels": s.labels} for s in snapshot.raw_samples
         ]
     typer.echo(format_output(result, get_output_format()))
 

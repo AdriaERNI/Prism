@@ -21,21 +21,15 @@ async def index_code(
     ] = None,
     include_system: Annotated[
         bool,
-        Field(
-            description="Include system classes (%Library, %SYS, etc.). Default: false."
-        ),
+        Field(description="Include system classes (%Library, %SYS, etc.). Default: false."),
     ] = False,
     filter_prefix: Annotated[
         str | None,
-        Field(
-            description="Only index classes starting with this prefix (e.g. 'MyApp')."
-        ),
+        Field(description="Only index classes starting with this prefix (e.g. 'MyApp')."),
     ] = None,
     summary_only: Annotated[
         bool,
-        Field(
-            description="Return only counts (no class details). Faster for quick overviews."
-        ),
+        Field(description="Return only counts (no class details). Faster for quick overviews."),
     ] = False,
 ) -> dict:
     """Build a compact index of all classes in an IRIS namespace.

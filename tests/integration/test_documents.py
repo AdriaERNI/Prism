@@ -48,9 +48,7 @@ class TestDocuments:
         )
         # Overwrite with modified content
         original = (workspace / "Test.MCPUtils.cls").read_text()
-        (workspace / "Test.MCPUtils.cls").write_text(
-            original.replace("Greet", "SayHello")
-        )
+        (workspace / "Test.MCPUtils.cls").write_text(original.replace("Greet", "SayHello"))
         await live.call_tool(
             "put_document",
             {"name": "Test.MCPUtils.cls", "path": "Test.MCPUtils.cls"},
@@ -71,9 +69,7 @@ class TestDocuments:
         assert data["deleted"] is True
 
     async def test_get_nonexistent_document(self, live):
-        result = await live.call_tool(
-            "get_document", {"name": "Test.DoesNotExist99999.cls"}
-        )
+        result = await live.call_tool("get_document", {"name": "Test.DoesNotExist99999.cls"})
         data = json.loads(result.content[0].text)
         assert data["found"] is False
 

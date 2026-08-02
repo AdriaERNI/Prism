@@ -3,35 +3,34 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 # Disable Typer's Rich-based help formatting before typer is imported.
 # Must be set before ``import typer`` so the module-level ``HAS_RICH`` flag
 # in ``typer.core`` picks it up.
 os.environ.setdefault("TYPER_USE_RICH", "false")
 
-import typer  # noqa: E402
+import typer
 
-from prism.cli.commands.cast import cast_app  # noqa: E402
-from prism.cli.commands.chatbot import chatbot  # noqa: E402
-from prism.cli.commands.compile import compile as compile_cmd  # noqa: E402
-from prism.cli.commands.config import config  # noqa: E402
-from prism.cli.commands.documents import (  # noqa: E402
+from prism.cli.commands.cast import cast_app
+from prism.cli.commands.chatbot import chatbot
+from prism.cli.commands.compile import compile as compile_cmd
+from prism.cli.commands.config import config
+from prism.cli.commands.documents import (
     delete_doc,
     get_doc,
     list_docs,
     put_doc,
 )
-from prism.cli.commands.gui import gui  # noqa: E402
-from prism.cli.commands.install import install  # noqa: E402
-from prism.cli.commands.serve import serve  # noqa: E402
-from prism.cli.commands.server_info import info  # noqa: E402
-from prism.cli.commands.index import index as index_cmd  # noqa: E402
-from prism.cli.commands.monitor import monitor  # noqa: E402
-from prism.cli.commands.sql import sql  # noqa: E402
-from prism.cli.commands.terminal import terminal, ws  # noqa: E402
-from prism.cli.commands.testing import list_tests, test  # noqa: E402
-from prism.output import set_output_format  # noqa: E402
+from prism.cli.commands.gui import gui
+from prism.cli.commands.index import index as index_cmd
+from prism.cli.commands.install import install
+from prism.cli.commands.monitor import monitor
+from prism.cli.commands.serve import serve
+from prism.cli.commands.server_info import info
+from prism.cli.commands.sql import sql
+from prism.cli.commands.terminal import terminal, ws
+from prism.cli.commands.testing import list_tests, test
+from prism.output import set_output_format
 
 
 def _get_version() -> str:
@@ -56,12 +55,12 @@ app.add_typer(cast_app, name="cast")
 @app.callback(invoke_without_command=True)
 def _callback(
     ctx: typer.Context,
-    fmt: Optional[str] = typer.Option(  # noqa: UP007
+    fmt: str | None = typer.Option(
         None,
         "--format",
         help="Output format: json (default) or toon.",
     ),
-    show_version: bool = typer.Option(  # noqa: UP007
+    show_version: bool = typer.Option(
         False,
         "--version",
         "-V",

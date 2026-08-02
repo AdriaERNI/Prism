@@ -49,8 +49,7 @@ def handle_command_error(exc: Exception) -> NoReturn:
         )
     elif isinstance(exc, httpx.HTTPStatusError):
         typer.echo(
-            f"Error: IRIS returned HTTP {exc.response.status_code}: "
-            f"{exc.response.text[:200]}",
+            f"Error: IRIS returned HTTP {exc.response.status_code}: {exc.response.text[:200]}",
             err=True,
         )
     elif isinstance(exc, TimeoutError):

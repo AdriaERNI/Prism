@@ -31,13 +31,11 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Install MkDocs and Material theme
-        run: |
-          uv venv
-          uv pip install --system mkdocs-material pymdown-extensions mkdocs-glightbox
+      - name: Install documentation dependencies
+        run: uv sync --group docs
 
       - name: Build documentation
-        run: mkdocs build --strict
+        run: uv run mkdocs build --strict
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5

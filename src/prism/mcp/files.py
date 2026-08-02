@@ -130,9 +130,7 @@ async def read_file(
         return {
             "content": "",
             "path": path,
-            "error": f"File not found: {path}. "
-            f"The file does not exist in the workspace "
-            f"({root}).",
+            "error": f"File not found: {path}. The file does not exist in the workspace ({root}).",
             "size": 0,
         }
 

@@ -26,9 +26,7 @@ def terminal(
     namespace: str = typer.Option(
         None, "--namespace", "-n", help="Target namespace (defaults to IRIS_NAMESPACE)"
     ),
-    timeout: float = typer.Option(
-        30.0, "--timeout", "-t", help="Timeout in seconds", min=0.1
-    ),
+    timeout: float = typer.Option(30.0, "--timeout", "-t", help="Timeout in seconds", min=0.1),
 ) -> None:
     """Run an ObjectScript command via irisnative (SuperServer)."""
     if not command or not command.strip():
@@ -53,9 +51,7 @@ def ws(
     namespace: str = typer.Option(
         None, "--namespace", "-n", help="Target namespace (defaults to IRIS_NAMESPACE)"
     ),
-    timeout: float = typer.Option(
-        30.0, "--timeout", "-t", help="Timeout in seconds", min=0.1
-    ),
+    timeout: float = typer.Option(30.0, "--timeout", "-t", help="Timeout in seconds", min=0.1),
     interactive: bool = typer.Option(
         False,
         "--interactive",
@@ -99,6 +95,4 @@ def ws(
     if command and command.strip():
         initial_command = command.strip()
 
-    run_interactive(
-        namespace=namespace, timeout=timeout, initial_command=initial_command
-    )
+    run_interactive(namespace=namespace, timeout=timeout, initial_command=initial_command)

@@ -125,15 +125,11 @@ def _interactive() -> None:
             continue
         if choice.startswith("d"):
             resets.append(name)
-            typer.echo(
-                f"        → reset to default ({_format_value(name, field.default)})\n"
-            )
+            typer.echo(f"        → reset to default ({_format_value(name, field.default)})\n")
             continue
         if choice.startswith("c"):
             try:
-                new_raw = typer.prompt(
-                    "        New value", default="", show_default=False
-                )
+                new_raw = typer.prompt("        New value", default="", show_default=False)
             except (EOFError, typer.Abort):
                 typer.echo("\n  Input ended — keeping current.\n")
                 break
@@ -161,9 +157,7 @@ def config(
     url: str | None = typer.Option(None, "-U", "--url", help="IRIS base URL"),
     user: str | None = typer.Option(None, "-u", "--user", help="IRIS username"),
     password: str | None = typer.Option(None, "-p", "--password", help="IRIS password"),
-    namespace: str | None = typer.Option(
-        None, "-n", "--namespace", help="Default IRIS namespace"
-    ),
+    namespace: str | None = typer.Option(None, "-n", "--namespace", help="Default IRIS namespace"),
     workspace: str | None = typer.Option(
         None, "-w", "--workspace", help="Local workspace directory for file I/O tools"
     ),
@@ -190,9 +184,7 @@ def config(
     terminal_max_output: int | None = typer.Option(
         None, "--terminal-max-output", help="Max chars of terminal output"
     ),
-    test_runner: str | None = typer.Option(
-        None, "--test-runner", help="Test runner class name"
-    ),
+    test_runner: str | None = typer.Option(None, "--test-runner", help="Test runner class name"),
     test_method: str | None = typer.Option(
         None, "--test-method", help="Test runner classmethod name"
     ),
@@ -246,9 +238,7 @@ def config(
         "--reset",
         help="Reset KEY to its default (remove from config.json). Repeatable.",
     ),
-    reset_all: bool = typer.Option(
-        False, "--reset-all", help="Wipe config.json entirely"
-    ),
+    reset_all: bool = typer.Option(False, "--reset-all", help="Wipe config.json entirely"),
 ) -> None:
     """View or edit Prism settings.
 
@@ -277,9 +267,7 @@ def config(
 
     locals_ = locals()
     updates: dict[str, object] = {
-        field: locals_[flag]
-        for flag, field in _FLAG_TO_FIELD.items()
-        if locals_[flag] is not None
+        field: locals_[flag] for flag, field in _FLAG_TO_FIELD.items() if locals_[flag] is not None
     }
 
     # Validate output_format if being set

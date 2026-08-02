@@ -38,9 +38,7 @@ def compile(
         sys.exit(1)
 
     try:
-        response = asyncio.run(
-            compile_documents(documents, namespace=namespace, flags=flags)
-        )
+        response = asyncio.run(compile_documents(documents, namespace=namespace, flags=flags))
     except Exception as exc:
         handle_command_error(exc)
 

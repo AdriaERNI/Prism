@@ -4,11 +4,11 @@ from typing import Annotated
 
 from pydantic import Field
 
-from prism.iris.api import documents as docs_api
 from prism.iris.api import compile as compile_api
+from prism.iris.api import documents as docs_api
 from prism.iris.sdk.workspace import (
-    resolve_safe,
     load_content,
+    resolve_safe,
     validate_doc_name,
 )
 from prism.mcp._decorator import logged_tool
@@ -30,9 +30,7 @@ async def put_document(
     ] = None,
     namespace: Annotated[
         str | None,
-        Field(
-            description="IRIS namespace to write to. Uses the configured default if omitted."
-        ),
+        Field(description="IRIS namespace to write to. Uses the configured default if omitted."),
     ] = None,
 ) -> dict:
     """Read a file from the local workspace and push it to the IRIS server.

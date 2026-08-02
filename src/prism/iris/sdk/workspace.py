@@ -7,9 +7,7 @@ from pathlib import Path
 
 from prism.settings import settings
 
-_DOC_NAME_RE = re.compile(
-    r"^[A-Za-z%][A-Za-z0-9]*(\.[A-Za-z%][A-Za-z0-9]*)*\.[a-z][a-z0-9]*$"
-)
+_DOC_NAME_RE = re.compile(r"^[A-Za-z%][A-Za-z0-9]*(\.[A-Za-z%][A-Za-z0-9]*)*\.[a-z][a-z0-9]*$")
 
 
 def validate_doc_name(name: str) -> None:
@@ -43,9 +41,7 @@ def resolve_safe(relative_path: str) -> Path:
     root = workspace_root()
     resolved = (root / relative_path).resolve()
     if not resolved.is_relative_to(root):
-        raise ValueError(
-            f"Path escapes workspace: {relative_path!r} resolves to {resolved}"
-        )
+        raise ValueError(f"Path escapes workspace: {relative_path!r} resolves to {resolved}")
     return resolved
 
 

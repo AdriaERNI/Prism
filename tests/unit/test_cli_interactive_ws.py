@@ -202,9 +202,7 @@ class TestFormatPrompt:
 
 class TestLocalCommands:
     class TestExitCommand:
-        @pytest.mark.parametrize(
-            "text", ["exit", "EXIT", "quit", "q", "/exit", "/quit"]
-        )
+        @pytest.mark.parametrize("text", ["exit", "EXIT", "quit", "q", "/exit", "/quit"])
         def test_recognized(self, text):
             assert _is_exit_command(text) is True
 
@@ -271,11 +269,8 @@ class TestWsSingleCommand:
             called["namespace"] = namespace
             called["timeout"] = timeout
             called["initial_command"] = initial_command
-            return None
 
-        with patch(
-            "prism.cli.interactive.run_interactive", side_effect=fake_run_interactive
-        ):
+        with patch("prism.cli.interactive.run_interactive", side_effect=fake_run_interactive):
             result = runner.invoke(app, ["ws", "set x=42", "--interactive"])
 
         assert result.exit_code == 0
@@ -289,11 +284,8 @@ class TestWsSingleCommand:
             called["namespace"] = namespace
             called["timeout"] = timeout
             called["initial_command"] = initial_command
-            return None
 
-        with patch(
-            "prism.cli.interactive.run_interactive", side_effect=fake_run_interactive
-        ):
+        with patch("prism.cli.interactive.run_interactive", side_effect=fake_run_interactive):
             result = runner.invoke(app, ["ws"])
 
         assert result.exit_code == 0
@@ -307,11 +299,8 @@ class TestWsSingleCommand:
         def fake_run_interactive(namespace, timeout, initial_command):
             called["namespace"] = namespace
             called["initial_command"] = initial_command
-            return None
 
-        with patch(
-            "prism.cli.interactive.run_interactive", side_effect=fake_run_interactive
-        ):
+        with patch("prism.cli.interactive.run_interactive", side_effect=fake_run_interactive):
             result = runner.invoke(app, ["ws", "-n", "SAMPLES"])
 
         assert result.exit_code == 0
@@ -323,11 +312,8 @@ class TestWsSingleCommand:
 
         def fake_run_interactive(namespace, timeout, initial_command):
             called["timeout"] = timeout
-            return None
 
-        with patch(
-            "prism.cli.interactive.run_interactive", side_effect=fake_run_interactive
-        ):
+        with patch("prism.cli.interactive.run_interactive", side_effect=fake_run_interactive):
             result = runner.invoke(app, ["ws", "-t", "5"])
 
         assert result.exit_code == 0
@@ -348,10 +334,7 @@ class TestWsErrorHandling:
             result = runner.invoke(app, ["ws", "write 1"])
 
         assert result.exit_code == 1
-        assert (
-            "cannot connect" in result.output.lower()
-            or "error" in result.output.lower()
-        )
+        assert "cannot connect" in result.output.lower() or "error" in result.output.lower()
 
 
 # ── _make_on_read callback ─────────────────────────────────────────
