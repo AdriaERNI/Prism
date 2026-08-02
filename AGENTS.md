@@ -62,8 +62,8 @@ workflow.
 - **NEVER run `gh release create`** — CI auto-creates releases from tag pushes
 - **NEVER create `release/vX.Y.Z-beta.N` branches** — pre-releases are tags only, not branches
 - **NEVER create `release/x` branches without the `v` prefix** — use `release/vX.Y.Z`
-- **Use rebase, not merge** on `development` (linear history enforced); if diverged significantly, use a sync branch with `git merge main` + PR
-- **Check `git diff --stat origin/main development` before rebasing** — squash merges create duplicate SHAs that look like "ahead" commits but have no actual file changes
+- **Sync main→dev with hard-reset, not rebase or merge** — squash-merge creates a new SHA on main that can never match development's history. Rebase replays phantom commits (conflict after conflict); merge+PR creates yet another phantom SHA. The correct sync is `git reset --hard origin/main && git push --force-with-lease origin development` (requires temporarily disabling branch protection if `enforce_admins=true`). Only use merge+PR when trees actually differ (e.g. hotfix landed on main and development has new commits).
+- **Check `git diff --stat origin/main development` before syncing** — if the diff is empty, hard-reset development to main. If the diff shows real changes, use a sync branch with `git merge main` + PR.
 - **CI syncs version from the tag** — never manually edit `pyproject.toml` or `__init__.py` version for a release
 
 ### Branch model (Git Flow)
