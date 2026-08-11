@@ -119,11 +119,23 @@ def _load_iris():
     return _iris_sdk
 
 
-def _connect(namespace: str | None = None):
-    """Create a native connection to the IRIS SuperServer."""
+def _connect(
+    namespace: str | None = None,
+    target_host: str | None = None,
+):
+    """Create a native connection to the IRIS SuperServer.
+
+    When *target_host* is provided, it overrides the host parsed from
+    ``settings.iris_base_url``.  The SuperServer port always comes from
+    ``settings.iris_superserver_port``.
+    """
     iris_mod = _load_iris()
 
-    host = _parse_host(settings.iris_base_url)
+    host = (
+        target_host.strip()
+        if target_host and target_host.strip()
+        else _parse_host(settings.iris_base_url)
+    )
     ns = namespace or settings.iris_namespace
     _log.debug("Connecting to %s:%s ns=%s ...", host, settings.iris_superserver_port, ns)
     conn = iris_mod.createConnection(
@@ -172,7 +184,11 @@ async def ensure_helper_deployed(namespace: str | None = None) -> None:
         _log.debug("%s deployed and compiled in %s", HELPER_DOC, ns)
 
 
-def _run_command_sync(command: str, namespace: str | None = None) -> str:
+def _run_command_sync(
+    command: str,
+    namespace: str | None = None,
+    target_host: str | None = None,
+) -> str:
     """Execute an ObjectScript command via the native IRIS API (blocking).
 
     Retries on transient errors: CLASS DOES NOT EXIST (compile race),
@@ -184,7 +200,7 @@ def _run_command_sync(command: str, namespace: str | None = None) -> str:
     for attempt in range(3):
         conn = None
         try:
-            conn = _connect(namespace)
+            conn = _connect(namespace, target_host=target_host)
             _log.debug("Creating IRIS object...")
             iris_obj = iris_mod.createIRIS(conn)
             _log.debug("Calling %s.Execute()... (attempt %d)", HELPER_CLASS, attempt + 1)
@@ -221,6 +237,7 @@ async def execute_command(
     command: str,
     namespace: str | None = None,
     timeout: float = 30.0,
+    target_host: str | None = None,
 ) -> dict:
     """Execute an ObjectScript command via the native IRIS API.
 
@@ -241,7 +258,7 @@ async def execute_command(
 
     ns = namespace or settings.iris_namespace
     loop = asyncio.get_running_loop()
-    run_sync = functools.partial(_run_command_sync, command, namespace)
+    run_sync = functools.partial(_run_command_sync, command, namespace, target_host)
     output = await asyncio.wait_for(loop.run_in_executor(None, run_sync), timeout=remaining)
 
     return {

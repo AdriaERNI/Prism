@@ -125,7 +125,10 @@ class MonitorSnapshot:
         }
 
 
-async def collect_snapshot() -> MonitorSnapshot:
+async def collect_snapshot(
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> MonitorSnapshot:
     """Fetch metrics + alerts from IRIS, parse, score, and return a snapshot.
 
     Makes two HTTP calls in sequence:
@@ -136,12 +139,12 @@ async def collect_snapshot() -> MonitorSnapshot:
     is fast enough for real-time monitoring (typically <200ms on a local
     IRIS instance).
     """
-    raw_text = await get_metrics()
+    raw_text = await get_metrics(target_host=target_host, target_port=target_port)
     samples = parse_prometheus_text(raw_text)
 
     # Try to fetch alerts; if it fails, don't let it block the whole snapshot
     try:
-        alerts_text = await get_alerts()
+        alerts_text = await get_alerts(target_host=target_host, target_port=target_port)
         alerts_samples = parse_prometheus_text(alerts_text)
         # Sum the values of alert metrics (each alert may have a value of 1)
         alerts_count = int(sum(s.value for s in alerts_samples if s.name == "iris_system_alerts"))

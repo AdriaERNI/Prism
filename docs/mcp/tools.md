@@ -78,6 +78,59 @@ All MCP tools return `dict`s. Error handling varies per tool:
 - **Compilation** errors are reported in the Atelier response's `status.errors`
   and `console` fields — the tool call itself succeeds.
 
+## Multi-server targeting
+
+Every IRIS-targeting tool accepts two optional parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `target_host` | `str \| None` | IRIS server hostname or IP (e.g. `192.168.1.100`) |
+| `target_port` | `int \| None` | IRIS REST API port (e.g. `52773`) |
+
+When both are omitted, the tool uses the configured `IRIS_BASE_URL` from
+settings. When provided, a separate HTTP client is created and cached per
+`host:port` pair, allowing concurrent calls to multiple IRIS instances
+without changing global configuration.
+
+```python
+# Query the default server
+await execute_sql("SELECT 1")
+
+# Query a different IRIS instance
+await execute_sql("SELECT 1", target_host="10.0.0.50", target_port=52774)
+```
+
+This applies to all tools that connect to IRIS: `execute_sql`,
+`execute_terminal`, `get_server_info`, `list_documents`, `get_document`,
+`put_document`, `put_and_compile`, `delete_document`, `compile_documents`,
+`run_tests`, `list_tests`, `get_test_results`, `index_code`, and
+`monitor_system`.
+
+Tools that operate locally (`list_files`, `read_file`, `run_shell`) do not
+accept these parameters.
+
+## Tool annotations
+
+Tools carry MCP annotations per the specification:
+
+| Annotation | Meaning |
+|------------|---------|
+| `readOnlyHint` | Tool does not modify state |
+| `destructiveHint` | Tool may destroy data |
+| `idempotentHint` | Repeated calls produce the same result |
+| `openWorldHint` | Tool interacts with external systems |
+
+## Response size limits
+
+Read-heavy tools (`execute_sql`, `get_document`, `list_documents`) apply a
+`CHARACTER_LIMIT = 25000` truncation when the serialized response exceeds
+the limit. Truncated responses include `truncated: true` and a
+`truncation_message` with guidance on reducing the result size.
+
+`list_documents` also supports pagination via `limit` (default 50, max 200)
+and `offset` (default 0) parameters. The response includes `total`,
+`has_more`, and `next_offset` for navigation.
+
 ## Related
 
 - [`prism serve`](../commands/serve.md) — start the server.

@@ -5,6 +5,7 @@ from typing import Annotated
 from pydantic import Field
 
 from prism.iris.api import compile as compile_api
+from prism.iris.sdk.http import handle_api_error
 from prism.iris.sdk.workspace import validate_doc_name
 from prism.mcp._decorator import logged_tool
 
@@ -21,23 +22,53 @@ def _parse_compile(data: dict) -> dict:
     }
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def compile_documents(
     doc_names: Annotated[
         list[str],
         Field(
-            description="List of document names to compile. Each name must include the file extension. Examples: ['MyApp.Person.cls'], ['MyApp.Person.cls', 'MyApp.Address.cls']. Use this when multiple classes need compilation together (e.g. classes that reference each other)."
+            description="List of document names to compile. Each name must include the file extension. Examples: ['MyApp.Person.cls'], ['MyApp.Person.cls', 'MyApp.Address.cls']. Use this when multiple classes need compilation together (e.g. classes that reference each other).",
+            min_length=1,
+            max_length=100,
         ),
     ],
     flags: Annotated[
         str | None,
         Field(
-            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output. Use 'ckb' to recompile all subclasses after changing a parent class."
+            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output. Use 'ckb' to recompile all subclasses after changing a parent class.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
-        Field(description="IRIS namespace to compile in. Uses the configured default if omitted."),
+        Field(
+            description="IRIS namespace to compile in. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
     ] = None,
 ) -> dict:
     """Compile one or more IRIS source code documents on the IRIS server.
@@ -55,5 +86,14 @@ async def compile_documents(
     """
     for doc_name in doc_names:
         validate_doc_name(doc_name)
-    data = await compile_api.compile_documents(doc_names, namespace, flags)
+    try:
+        data = await compile_api.compile_documents(
+            doc_names,
+            namespace,
+            flags,
+            target_host=target_host,
+            target_port=target_port,
+        )
+    except Exception as exc:
+        return {"success": False, "errors": [handle_api_error(exc)], "console": []}
     return _parse_compile(data)

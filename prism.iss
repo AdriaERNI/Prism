@@ -8,6 +8,10 @@
 #ifndef AppVerFile
   #define AppVerFile AppVer
 #endif
+; VersionInfoVersion must be numeric x.y.z.w — strip pre-release suffix
+#ifndef AppVerNumeric
+  #define AppVerNumeric "0.0.0.0"
+#endif
 
 [Setup]
 AppName=Prism
@@ -38,9 +42,9 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 
 ; Version info (shows in file properties)
-VersionInfoVersion={#AppVer}
+VersionInfoVersion={#AppVerNumeric}
 VersionInfoProductName=Prism
-VersionInfoProductVersion={#AppVer}
+VersionInfoProductVersion={#AppVerNumeric}
 VersionInfoCompany=Adria Sanchez
 VersionInfoDescription=Prism — InterSystems IRIS CLI and MCP Server
 VersionInfoCopyright=Copyright (C) 2026 Adria Sanchez

@@ -8,7 +8,14 @@ from prism.iris.api import debugger as debugger_api
 from prism.mcp._decorator import logged_tool
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_list_processes(
     namespace: Annotated[
         str | None,
@@ -32,7 +39,14 @@ async def debug_list_processes(
     return processes
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_attach(
     pid: Annotated[
         int,
@@ -60,7 +74,14 @@ async def debug_attach(
     return await debugger_api.attach_session(pid=pid, namespace=namespace)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_start(
     target: Annotated[
         str,
@@ -111,7 +132,14 @@ async def debug_start(
     )
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_step(
     session_id: Annotated[
         str,
@@ -140,7 +168,14 @@ async def debug_step(
     return await debugger_api.step(session_id, action)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_inspect(
     session_id: Annotated[
         str,
@@ -173,7 +208,14 @@ async def debug_inspect(
     return await debugger_api.inspect_expression(session_id, expression, stack_level)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_variables(
     session_id: Annotated[
         str,
@@ -213,7 +255,14 @@ async def debug_variables(
     return await debugger_api.get_variables(session_id, context_id, sl)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_stack(
     session_id: Annotated[
         str,
@@ -229,7 +278,14 @@ async def debug_stack(
     return await debugger_api.get_stack(session_id)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_breakpoints(
     session_id: Annotated[
         str,
@@ -285,7 +341,14 @@ async def debug_breakpoints(
     )
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_stop(
     session_id: Annotated[
         str,

@@ -14,23 +14,53 @@ from prism.iris.sdk.workspace import (
 from prism.mcp._decorator import logged_tool
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def put_document(
     name: Annotated[
         str,
         Field(
-            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file (e.g. 'Class MyApp.Person' → name 'MyApp.Person.cls')."
+            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file (e.g. 'Class MyApp.Person' → name 'MyApp.Person.cls').",
+            min_length=1,
+            max_length=255,
         ),
     ],
     path: Annotated[
         str | None,
         Field(
-            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace — write it first before calling this tool."
+            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace — write it first before calling this tool.",
+            min_length=1,
+            max_length=1024,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
-        Field(description="IRIS namespace to write to. Uses the configured default if omitted."),
+        Field(
+            description="IRIS namespace to write to. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
     ] = None,
 ) -> dict:
     """Read a file from the local workspace and push it to the IRIS server.
@@ -46,34 +76,66 @@ async def put_document(
     validate_doc_name(name)
     file_path = resolve_safe(path or name)
     content = load_content(file_path)
-    await docs_api.put_document(name, content, namespace)
+    await docs_api.put_document(
+        name, content, namespace, target_host=target_host, target_port=target_port
+    )
     return {"name": name, "uploaded": True, "lines": len(content)}
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def put_and_compile(
     name: Annotated[
         str,
         Field(
-            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file."
+            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file.",
+            min_length=1,
+            max_length=255,
         ),
     ],
     path: Annotated[
         str | None,
         Field(
-            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace."
+            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace.",
+            min_length=1,
+            max_length=1024,
         ),
     ] = None,
     flags: Annotated[
         str | None,
         Field(
-            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output."
+            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to write to and compile in. Uses the configured default if omitted."
+            description="IRIS namespace to write to and compile in. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
         ),
     ] = None,
 ) -> dict:
@@ -89,8 +151,12 @@ async def put_and_compile(
     validate_doc_name(name)
     file_path = resolve_safe(path or name)
     content = load_content(file_path)
-    await docs_api.put_document(name, content, namespace)
-    compile_data = await compile_api.compile_documents([name], namespace, flags)
+    await docs_api.put_document(
+        name, content, namespace, target_host=target_host, target_port=target_port
+    )
+    compile_data = await compile_api.compile_documents(
+        [name], namespace, flags, target_host=target_host, target_port=target_port
+    )
     status = compile_data.get("status", {})
     errors = [e.get("error", str(e)) for e in status.get("errors", [])]
     console = [line for line in compile_data.get("console", []) if line.strip()]

@@ -78,7 +78,7 @@ class TestBuildIndex:
                 },
             )
 
-        with patch.object(index_api, "client", lambda: mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await index_api.build_index()
 
         assert result["namespace"] == "USER"
@@ -132,7 +132,7 @@ class TestBuildIndex:
                 },
             )
 
-        with patch.object(index_api, "client", lambda: mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await index_api.build_index(filter_prefix="MyApp")
 
         assert result["statistics"]["classes"] == 1
@@ -152,7 +152,7 @@ class TestBuildIndex:
                 },
             )
 
-        with patch.object(index_api, "client", lambda: mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await index_api.build_index()
 
         assert result["statistics"]["classes"] == 0
@@ -182,7 +182,7 @@ class TestBuildIndex:
                 },
             )
 
-        with patch.object(index_api, "client", lambda: mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await index_api.build_index()
 
         desc = result["classes"][0].get("desc", "")
@@ -216,7 +216,7 @@ class TestIndexSummary:
                 },
             )
 
-        with patch.object(index_api, "client", lambda: mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await index_api.index_summary()
 
         assert result["namespace"] == "USER"
@@ -236,7 +236,7 @@ class TestIndexSummary:
                 },
             )
 
-        with patch.object(index_api, "client", lambda: mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await index_api.index_summary()
 
         assert result["classes"] == 0
@@ -288,7 +288,7 @@ class TestIndexMCPTool:
         mcp = create_mcp()
         client = Client(mcp)
         async with client:
-            with patch.object(index_api, "client", lambda: mock_client(handler)):
+            with patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)):
                 result = await client.call_tool("index_code", {"summary_only": True})
                 import json
 

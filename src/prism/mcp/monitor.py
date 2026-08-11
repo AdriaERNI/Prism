@@ -13,7 +13,14 @@ from prism.iris.monitor import collect_snapshot
 from prism.mcp._decorator import logged_tool
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def monitor_system(
     include_raw_metrics: Annotated[
         bool,
@@ -22,6 +29,21 @@ async def monitor_system(
             "(default: false — only key metrics and score are returned)."
         ),
     ] = False,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Monitor IRIS instance CPU, RAM, disk I/O, GPU (where available), and process load.
 
@@ -43,7 +65,10 @@ async def monitor_system(
     Use two snapshots to compare instances and determine which is less
     loaded — the lower score wins.
     """
-    snapshot = await collect_snapshot()
+    snapshot = await collect_snapshot(
+        target_host=target_host,
+        target_port=target_port,
+    )
     result = snapshot.to_dict()
 
     if include_raw_metrics:

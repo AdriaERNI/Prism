@@ -126,11 +126,16 @@ WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%'
 ORDER BY Parent->Name, Name"""
 
 
-async def _run_query(query: str, namespace: str | None = None) -> list[dict]:
+async def _run_query(
+    query: str,
+    namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> list[dict]:
     """Execute a SQL query via the Atelier API and return rows."""
-    c = client()
+    c = client(target_host=target_host, target_port=target_port)
     r = await c.post(
-        f"{api_url(namespace)}/action/query",
+        f"{api_url(namespace, target_host, target_port)}/action/query",
         json={"query": query},
     )
     r.raise_for_status()
@@ -143,6 +148,8 @@ async def build_index(
     namespace: str | None = None,
     include_system: bool = False,
     filter_prefix: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Build a compact index of all classes in the namespace.
 
@@ -186,12 +193,12 @@ async def build_index(
         sqlprocs_raw,
         imports_raw,
     ) = await asyncio.gather(
-        _run_query(classes_q, namespace),
-        _run_query(methods_q, namespace),
-        _run_query(props_q, namespace),
-        _run_query(params_q, namespace),
-        _run_query(sqlprocs_q, namespace),
-        _run_query(imports_q, namespace),
+        _run_query(classes_q, namespace, target_host, target_port),
+        _run_query(methods_q, namespace, target_host, target_port),
+        _run_query(props_q, namespace, target_host, target_port),
+        _run_query(params_q, namespace, target_host, target_port),
+        _run_query(sqlprocs_q, namespace, target_host, target_port),
+        _run_query(imports_q, namespace, target_host, target_port),
     )
 
     # Build class info objects
@@ -276,7 +283,11 @@ async def build_index(
     }
 
 
-async def index_summary(namespace: str | None = None) -> dict:
+async def index_summary(
+    namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> dict:
     """Return a brief summary of the namespace — just counts, no class details.
 
     Useful for agents to quickly understand the scope of a codebase.
@@ -284,18 +295,26 @@ async def index_summary(namespace: str | None = None) -> dict:
     class_count = await _run_query(
         "SELECT COUNT(*) AS cnt FROM %Dictionary.ClassDefinition WHERE Name NOT LIKE '\\%' AND Name NOT LIKE '%SYS.%' AND Name NOT LIKE '%Library.%' AND Name NOT LIKE '%Api.%'",
         namespace,
+        target_host,
+        target_port,
     )
     method_count = await _run_query(
         "SELECT COUNT(*) AS cnt FROM %Dictionary.MethodDefinition WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'",
         namespace,
+        target_host,
+        target_port,
     )
     prop_count = await _run_query(
         "SELECT COUNT(*) AS cnt FROM %Dictionary.PropertyDefinition WHERE Parent->Name NOT LIKE '\\\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'",
         namespace,
+        target_host,
+        target_port,
     )
     sqlproc_count = await _run_query(
         "SELECT COUNT(*) AS cnt FROM %Dictionary.MethodDefinition WHERE Parent->Name NOT LIKE '\\\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%' AND SqlProc = 1",
         namespace,
+        target_host,
+        target_port,
     )
 
     def _get_count(rows):

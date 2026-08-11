@@ -15,16 +15,16 @@ from prism.iris.sdk import http as http_sdk
 @pytest.fixture(autouse=True)
 def _reset_client():
     """Ensure the module-level _client is reset before and after each test."""
-    http_sdk._client = None
+    http_sdk._default_client = None
     yield
     # Close any leftover client
     import asyncio
 
-    if http_sdk._client is not None and not http_sdk._client.is_closed:
+    if http_sdk._default_client is not None and not http_sdk._default_client.is_closed:
         loop = asyncio.new_event_loop()
-        loop.run_until_complete(http_sdk._client.aclose())
+        loop.run_until_complete(http_sdk._default_client.aclose())
         loop.close()
-    http_sdk._client = None
+    http_sdk._default_client = None
 
 
 class TestClient:
@@ -40,7 +40,7 @@ class TestClient:
     def test_client_recreated_after_close(self):
         """After close_client(), client() creates a new instance."""
         c1 = http_sdk.client()
-        http_sdk._client = None  # simulate closed
+        http_sdk._default_client = None  # simulate closed
         c2 = http_sdk.client()
         assert c1 is not c2
 
@@ -57,23 +57,23 @@ class TestCloseClient:
     async def test_close_client_resets_module_state(self):
         """After close_client(), _client is None."""
         http_sdk.client()
-        assert http_sdk._client is not None
+        assert http_sdk._default_client is not None
         await http_sdk.close_client()
-        assert http_sdk._client is None
+        assert http_sdk._default_client is None
 
     async def test_close_client_idempotent(self):
         """Calling close_client() when no client exists is a no-op."""
         # No client created yet
-        assert http_sdk._client is None
+        assert http_sdk._default_client is None
         await http_sdk.close_client()  # should not raise
-        assert http_sdk._client is None
+        assert http_sdk._default_client is None
 
     async def test_close_client_called_twice(self):
         """Calling close_client() twice does not error."""
         http_sdk.client()
         await http_sdk.close_client()
         await http_sdk.close_client()  # second call — no-op
-        assert http_sdk._client is None
+        assert http_sdk._default_client is None
 
     async def test_client_recreated_after_close(self):
         """A new client can be created after close_client()."""

@@ -72,7 +72,7 @@ async def _cleanup_debug_target():
     import prism.iris.sdk.http as http_mod
     from prism.settings import settings
 
-    http_mod._client = None
+    http_mod._default_client = None
     async with httpx.AsyncClient(
         auth=httpx.BasicAuth(settings.iris_username, settings.iris_password)
     ) as c:
@@ -80,7 +80,7 @@ async def _cleanup_debug_target():
             f"{settings.iris_base_url}/{settings.iris_api_prefix}/USER/doc/Test.MCPDebugTarget.cls"
         )
         await c.delete(url)
-        http_mod._client = None
+        http_mod._default_client = None
 
 
 def _parse(result) -> dict | list:
