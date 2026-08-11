@@ -265,3 +265,26 @@ class TestChatbotToolCallForwarding:
         assert tool_msg["role"] == "tool"
         assert tool_msg["tool_call_id"] == "call_1"
         assert tool_msg["name"] == "get_server_info"
+
+
+class TestSystemPromptMentionsTargeting:
+    """Verify the system prompt tells the LLM about target_host/target_port."""
+
+    def test_system_prompt_mentions_target_host(self):
+        """System prompt should mention target_host and multi-server targeting."""
+        from prism.chatbot.agent import _build_system_prompt
+
+        prompt = _build_system_prompt("- **execute_sql**: dummy", "")
+        assert "target_host" in prompt
+        assert "target_port" in prompt
+        assert "Multi-server targeting" in prompt
+
+    def test_system_prompt_gives_usage_guidance(self):
+        """System prompt should tell the LLM when to use target params."""
+        from prism.chatbot.agent import _build_system_prompt
+
+        prompt = _build_system_prompt("- **execute_sql**: dummy", "")
+        # Must tell the LLM to use target params when user specifies a server
+        assert "specific server" in prompt.lower() or "specific host" in prompt.lower()
+        # Must tell the LLM NOT to guess when no server is mentioned
+        assert "omit both" in prompt.lower() or "never guess" in prompt.lower()
