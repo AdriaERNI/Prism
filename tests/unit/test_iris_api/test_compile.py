@@ -20,7 +20,7 @@ class TestCompileDocuments:
             assert "flags=cuk" in str(request.url)
             return json_response(body)
 
-        with patch.object(compile_api, "client", lambda: mock_client(handler)):
+        with patch.object(compile_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await compile_api.compile_documents(["MyApp.cls"])
         assert "successfully" in str(result)
 
@@ -29,7 +29,7 @@ class TestCompileDocuments:
             assert "flags=ck" in str(request.url)
             return json_response({"result": {}})
 
-        with patch.object(compile_api, "client", lambda: mock_client(handler)):
+        with patch.object(compile_api, "client", lambda *a, **kw: mock_client(handler)):
             await compile_api.compile_documents(["MyApp.cls"], flags="ck")
 
     async def test_default_flags_from_env(self):
@@ -38,7 +38,7 @@ class TestCompileDocuments:
             return json_response({"result": {}})
 
         with (
-            patch.object(compile_api, "client", lambda: mock_client(handler)),
+            patch.object(compile_api, "client", lambda *a, **kw: mock_client(handler)),
             patch.object(settings, "iris_compile_flags", "bck"),
         ):
             await compile_api.compile_documents(["MyApp.cls"])
@@ -49,14 +49,14 @@ class TestCompileDocuments:
             assert payload == ["A.cls", "B.cls"]
             return json_response({"result": {}})
 
-        with patch.object(compile_api, "client", lambda: mock_client(handler)):
+        with patch.object(compile_api, "client", lambda *a, **kw: mock_client(handler)):
             await compile_api.compile_documents(["A.cls", "B.cls"])
 
     async def test_http_error(self):
         def handler(request):
             return httpx.Response(500)
 
-        with patch.object(compile_api, "client", lambda: mock_client(handler)):
+        with patch.object(compile_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.HTTPStatusError):
                 await compile_api.compile_documents(["MyApp.cls"])
 
@@ -64,6 +64,6 @@ class TestCompileDocuments:
         def handler(request):
             return text_response("nah", status=200)
 
-        with patch.object(compile_api, "client", lambda: mock_client(handler)):
+        with patch.object(compile_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(ValueError, match="invalid JSON"):
                 await compile_api.compile_documents(["MyApp.cls"])

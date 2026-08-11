@@ -147,6 +147,65 @@ class TestServeCommand:
             assert result.exit_code == 0
             assert mock_mcp.run.call_args[1]["port"] == 3000
 
+    def test_serve_default_transport_is_http(self):
+        """Default transport is streamable-http."""
+        with (
+            patch("prism.mcp.server.mcp") as mock_mcp,
+            patch("prism.iris.sdk.preflight.preflight_check"),
+        ):
+            result = runner.invoke(app, ["serve"])
+            assert result.exit_code == 0
+            assert mock_mcp.run.call_args[1]["transport"] == "streamable-http"
+
+    def test_serve_transport_stdio(self):
+        """--transport stdio uses stdio transport and skips preflight."""
+        with (
+            patch("prism.mcp.server.mcp") as mock_mcp,
+            patch("prism.iris.sdk.preflight.preflight_check") as mock_preflight,
+        ):
+            result = runner.invoke(app, ["serve", "--transport", "stdio"])
+            assert result.exit_code == 0
+            assert mock_mcp.run.call_args[1]["transport"] == "stdio"
+            # stdio should NOT call preflight even without --skip-preflight
+            mock_preflight.assert_not_called()
+
+    def test_serve_transport_http_alias(self):
+        """--transport http maps to streamable-http."""
+        with (
+            patch("prism.mcp.server.mcp") as mock_mcp,
+            patch("prism.iris.sdk.preflight.preflight_check"),
+        ):
+            result = runner.invoke(app, ["serve", "--transport", "http"])
+            assert result.exit_code == 0
+            assert mock_mcp.run.call_args[1]["transport"] == "streamable-http"
+
+    def test_serve_transport_sse(self):
+        """--transport sse uses sse transport."""
+        with (
+            patch("prism.mcp.server.mcp") as mock_mcp,
+            patch("prism.iris.sdk.preflight.preflight_check"),
+        ):
+            result = runner.invoke(app, ["serve", "--transport", "sse"])
+            assert result.exit_code == 0
+            assert mock_mcp.run.call_args[1]["transport"] == "sse"
+
+    def test_serve_transport_invalid_rejects(self):
+        """Invalid transport value is rejected."""
+        with (
+            patch("prism.mcp.server.mcp"),
+            patch("prism.iris.sdk.preflight.preflight_check"),
+        ):
+            result = runner.invoke(app, ["serve", "--transport", "websocket"])
+            assert result.exit_code != 0
+
+    def test_serve_help_advertises_transport(self):
+        """--help should show --transport option."""
+        result = runner.invoke(app, ["serve", "--help"])
+        output = _strip_ansi(result.output)
+        assert result.exit_code == 0
+        assert "--transport" in output
+        assert "stdio" in output
+
 
 # ── Chatbot command ──────────────────────────────────────────────────────────
 

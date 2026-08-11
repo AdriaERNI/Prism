@@ -62,7 +62,14 @@ def _truncate_content(text: str, max_chars: int = _MAX_FILE_CHARS) -> str:
     return text[:cut] + f"\n\n[... file truncated, {len(text) - cut} more chars]"
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    }
+)
 async def read_file(
     path: Annotated[
         str,
@@ -187,7 +194,14 @@ async def read_file(
     }
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    }
+)
 async def list_files(
     path: Annotated[
         str | None,

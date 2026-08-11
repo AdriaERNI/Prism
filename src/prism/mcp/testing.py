@@ -10,7 +10,14 @@ from prism.mcp._decorator import logged_tool
 _STATUS_MAP = {0: "failed", 1: "passed", 2: "skipped"}
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def run_tests(
     test_class: Annotated[
         str,
@@ -36,6 +43,21 @@ async def run_tests(
             description="IRIS namespace to run tests in. Uses the configured default if omitted."
         ),
     ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Run ObjectScript unit tests on the IRIS server and return structured results.
 
@@ -55,6 +77,8 @@ async def run_tests(
         test_method=test_method or "",
         manager_class=manager_class,
         namespace=namespace,
+        target_host=target_host,
+        target_port=target_port,
     )
 
     # Check for SQL-level errors
@@ -71,7 +95,12 @@ async def run_tests(
         return {"class": test_class, "error": runner_result}
 
     # Fetch structured results from %UnitTest_Result tables
-    results_data = await testing_api.get_latest_results(test_class, namespace)
+    results_data = await testing_api.get_latest_results(
+        test_class,
+        namespace,
+        target_host=target_host,
+        target_port=target_port,
+    )
     result_errors = results_data.get("status", {}).get("errors", [])
     if result_errors:
         # Results tables might not be accessible — return basic status
@@ -112,7 +141,11 @@ async def run_tests(
 
             # Fetch assertion-level detail for failed methods
             assertions_data = await testing_api.get_assertions(
-                test_class, row.get("method_name", ""), namespace
+                test_class,
+                row.get("method_name", ""),
+                namespace,
+                target_host=target_host,
+                target_port=target_port,
             )
             assertion_rows = assertions_data.get("result", {}).get("content", [])
             if assertion_rows:
@@ -139,7 +172,14 @@ async def run_tests(
     }
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def list_tests(
     filter: Annotated[
         str | None,
@@ -151,6 +191,21 @@ async def list_tests(
         str | None,
         Field(
             description="IRIS namespace to search for test classes. Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
         ),
     ] = None,
 ) -> dict:
@@ -165,7 +220,12 @@ async def list_tests(
     Returns ``{"classes": [{"name": "...", "methods": ["TestX", ...]}, ...],
     "count": N}``.
     """
-    data = await testing_api.list_test_classes(filter, namespace)
+    data = await testing_api.list_test_classes(
+        filter,
+        namespace,
+        target_host=target_host,
+        target_port=target_port,
+    )
 
     errors = data.get("status", {}).get("errors", [])
     if errors:
@@ -186,7 +246,14 @@ async def list_tests(
     return {"classes": class_list, "count": len(class_list)}
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def get_test_results(
     test_class: Annotated[
         str | None,
@@ -208,6 +275,21 @@ async def get_test_results(
             description="IRIS namespace to query results from. Uses the configured default if omitted."
         ),
     ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Retrieve historical unit test results from the IRIS server.
 
@@ -219,7 +301,13 @@ async def get_test_results(
     Returns ``{"runs": [{"run_id": N, "run_time": "...", "test_class": "...",
     "status": "passed|failed", ...}], "count": N}``.
     """
-    data = await testing_api.get_test_history(test_class, limit, namespace)
+    data = await testing_api.get_test_history(
+        test_class,
+        limit,
+        namespace,
+        target_host=target_host,
+        target_port=target_port,
+    )
 
     errors = data.get("status", {}).get("errors", [])
     if errors:

@@ -18,7 +18,7 @@ class TestExecuteQuery:
             assert "/action/query" in str(request.url)
             return json_response(body)
 
-        with patch.object(sql_api, "client", lambda: mock_client(handler)):
+        with patch.object(sql_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await sql_api.execute_query("SELECT 1")
         assert result["result"]["content"][0]["Name"] == "Alice"
 
@@ -28,7 +28,7 @@ class TestExecuteQuery:
             assert payload["query"] == "SELECT * FROM Test.Person"
             return json_response({"result": {}})
 
-        with patch.object(sql_api, "client", lambda: mock_client(handler)):
+        with patch.object(sql_api, "client", lambda *a, **kw: mock_client(handler)):
             await sql_api.execute_query("SELECT * FROM Test.Person")
 
     async def test_namespace_override(self):
@@ -36,14 +36,14 @@ class TestExecuteQuery:
             assert "/SAMPLES/" in str(request.url)
             return json_response({"result": {}})
 
-        with patch.object(sql_api, "client", lambda: mock_client(handler)):
+        with patch.object(sql_api, "client", lambda *a, **kw: mock_client(handler)):
             await sql_api.execute_query("SELECT 1", namespace="SAMPLES")
 
     async def test_http_error(self):
         def handler(request):
             return httpx.Response(500)
 
-        with patch.object(sql_api, "client", lambda: mock_client(handler)):
+        with patch.object(sql_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.HTTPStatusError):
                 await sql_api.execute_query("SELECT 1")
 
@@ -51,6 +51,6 @@ class TestExecuteQuery:
         def handler(request):
             return text_response("error", status=200)
 
-        with patch.object(sql_api, "client", lambda: mock_client(handler)):
+        with patch.object(sql_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(ValueError, match="invalid JSON"):
                 await sql_api.execute_query("SELECT 1")

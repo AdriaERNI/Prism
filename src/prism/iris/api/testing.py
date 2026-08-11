@@ -91,7 +91,11 @@ _RUNNER_SOURCE = [
 # ── Auto-deploy ──────────────────────────────────────────────────────
 
 
-async def ensure_runner_deployed(namespace: str | None = None) -> bool:
+async def ensure_runner_deployed(
+    namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> bool:
     """Deploy the test runner helper class if auto-deploy is enabled and it is missing.
 
     Returns True if the runner is available (either already present or just deployed).
@@ -100,13 +104,23 @@ async def ensure_runner_deployed(namespace: str | None = None) -> bool:
         return True
 
     try:
-        await get_document(_RUNNER_DOC_NAME, namespace)
+        await get_document(
+            _RUNNER_DOC_NAME, namespace, target_host=target_host, target_port=target_port
+        )
         return True
     except DocumentNotFound:
         pass
 
-    await put_document(_RUNNER_DOC_NAME, _RUNNER_SOURCE, namespace)
-    result = await compile_documents([_RUNNER_DOC_NAME], namespace)
+    await put_document(
+        _RUNNER_DOC_NAME,
+        _RUNNER_SOURCE,
+        namespace,
+        target_host=target_host,
+        target_port=target_port,
+    )
+    result = await compile_documents(
+        [_RUNNER_DOC_NAME], namespace, target_host=target_host, target_port=target_port
+    )
     errors = result.get("status", {}).get("errors", [])
     if errors:
         msg = errors[0].get("error", str(errors[0]))
@@ -122,12 +136,14 @@ async def run_tests(
     test_method: str = "",
     manager_class: str | None = None,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Execute unit tests via the deployed SqlProc runner.
 
     Returns the raw SQL response from the runner method.
     """
-    await ensure_runner_deployed(namespace)
+    await ensure_runner_deployed(namespace, target_host=target_host, target_port=target_port)
 
     # Validate user-supplied inputs to prevent SQL injection — the runner
     # SQL function name and method name come from settings (trusted), but the
@@ -148,7 +164,7 @@ async def run_tests(
         f"SELECT {runner_sql_name}_{method_sql_name}"
         f"('{test_class}', '{test_method}', '{manager}') AS Result"
     )
-    return await execute_query(query, namespace)
+    return await execute_query(query, namespace, target_host=target_host, target_port=target_port)
 
 
 # ── Result queries ───────────────────────────────────────────────────
@@ -227,29 +243,35 @@ ORDER BY cd.Name, md.Name\
 async def get_latest_results(
     test_class: str,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Query the %UnitTest_Result tables for the latest run of a test class."""
     _validate_class_name(test_class)
     query = _LATEST_RESULTS_QUERY.format(test_class=test_class)
-    return await execute_query(query, namespace)
+    return await execute_query(query, namespace, target_host=target_host, target_port=target_port)
 
 
 async def get_assertions(
     test_class: str,
     test_method: str,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Query assertion details for a specific test method in the latest run."""
     _validate_class_name(test_class)
     _validate_identifier(test_method)
     query = _LATEST_ASSERTIONS_QUERY.format(test_class=test_class, test_method=test_method)
-    return await execute_query(query, namespace)
+    return await execute_query(query, namespace, target_host=target_host, target_port=target_port)
 
 
 async def get_test_history(
     test_class: str | None = None,
     limit: int = 10,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Query historical test runs, optionally filtered by class."""
     # Validate limit is a positive integer to prevent injection via the
@@ -261,12 +283,14 @@ async def get_test_history(
         _validate_class_name(test_class)
         where_clause = f"WHERE tc.Name = '{test_class}'"
     query = _HISTORY_QUERY.format(limit=limit, where_clause=where_clause)
-    return await execute_query(query, namespace)
+    return await execute_query(query, namespace, target_host=target_host, target_port=target_port)
 
 
 async def list_test_classes(
     filter_prefix: str | None = None,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Discover test classes and their Test* methods via %Dictionary."""
     filter_clause = ""
@@ -274,4 +298,4 @@ async def list_test_classes(
         _validate_filter_prefix(filter_prefix)
         filter_clause = f"AND cd.Name %STARTSWITH '{filter_prefix}'"
     query = _LIST_TESTS_QUERY.format(filter_clause=filter_clause)
-    return await execute_query(query, namespace)
+    return await execute_query(query, namespace, target_host=target_host, target_port=target_port)

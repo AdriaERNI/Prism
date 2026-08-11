@@ -14,7 +14,10 @@ from __future__ import annotations
 from prism.iris.sdk.http import base_url, client
 
 
-async def get_metrics() -> str:
+async def get_metrics(
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> str:
     """GET /api/monitor/metrics — raw Prometheus exposition-format text.
 
     Returns all instance metrics including CPU, memory, disk, database,
@@ -22,19 +25,22 @@ async def get_metrics() -> str:
 
     See: https://docs.intersystems.com/irislatest/csp/docbook/DocBook.UI.Page.cls?KEY=GCM_rest
     """
-    c = client()
-    r = await c.get(f"{base_url()}/api/monitor/metrics")
+    c = client(target_host=target_host, target_port=target_port)
+    r = await c.get(f"{base_url(target_host, target_port)}/api/monitor/metrics")
     r.raise_for_status()
     return r.text
 
 
-async def get_alerts() -> str:
+async def get_alerts(
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> str:
     """GET /api/monitor/alerts — system alerts since last scrape.
 
     Returns Prometheus-format alert text.  Alerts are cleared after each
     scrape, so each call returns only newly-posted alerts.
     """
-    c = client()
-    r = await c.get(f"{base_url()}/api/monitor/alerts")
+    c = client(target_host=target_host, target_port=target_port)
+    r = await c.get(f"{base_url(target_host, target_port)}/api/monitor/alerts")
     r.raise_for_status()
     return r.text

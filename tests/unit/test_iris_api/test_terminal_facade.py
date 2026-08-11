@@ -25,7 +25,7 @@ class TestFacadeDispatch:
             result = await execute_command("Write 1", namespace="USER", timeout=10.0)
 
         assert result["output"] == "1"
-        mock_native_exec.assert_called_once_with("Write 1", "USER", 10.0)
+        mock_native_exec.assert_called_once_with("Write 1", "USER", 10.0, target_host=None)
 
     async def test_native_method_normalizes_null_namespace(self):
         mock_native_exec = AsyncMock(
@@ -46,7 +46,9 @@ class TestFacadeDispatch:
             result = await execute_command("Write 1", namespace="null", timeout=10.0)
 
         assert result["output"] == "1"
-        mock_native_exec.assert_called_once_with("Write 1", settings.iris_namespace, 10.0)
+        mock_native_exec.assert_called_once_with(
+            "Write 1", settings.iris_namespace, 10.0, target_host=None
+        )
 
     async def test_native_method_sanitizes_output(self):
         mock_native_exec = AsyncMock(

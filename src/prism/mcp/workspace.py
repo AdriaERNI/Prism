@@ -14,7 +14,14 @@ from prism.iris.sdk.workspace import (
 from prism.mcp._decorator import logged_tool
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def put_document(
     name: Annotated[
         str,
@@ -32,6 +39,21 @@ async def put_document(
         str | None,
         Field(description="IRIS namespace to write to. Uses the configured default if omitted."),
     ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Read a file from the local workspace and push it to the IRIS server.
 
@@ -46,11 +68,20 @@ async def put_document(
     validate_doc_name(name)
     file_path = resolve_safe(path or name)
     content = load_content(file_path)
-    await docs_api.put_document(name, content, namespace)
+    await docs_api.put_document(
+        name, content, namespace, target_host=target_host, target_port=target_port
+    )
     return {"name": name, "uploaded": True, "lines": len(content)}
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def put_and_compile(
     name: Annotated[
         str,
@@ -76,6 +107,21 @@ async def put_and_compile(
             description="IRIS namespace to write to and compile in. Uses the configured default if omitted."
         ),
     ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Read a file from the local workspace, push it to IRIS, and compile it in one step.
 
@@ -89,8 +135,12 @@ async def put_and_compile(
     validate_doc_name(name)
     file_path = resolve_safe(path or name)
     content = load_content(file_path)
-    await docs_api.put_document(name, content, namespace)
-    compile_data = await compile_api.compile_documents([name], namespace, flags)
+    await docs_api.put_document(
+        name, content, namespace, target_host=target_host, target_port=target_port
+    )
+    compile_data = await compile_api.compile_documents(
+        [name], namespace, flags, target_host=target_host, target_port=target_port
+    )
     status = compile_data.get("status", {})
     errors = [e.get("error", str(e)) for e in status.get("errors", [])]
     console = [line for line in compile_data.get("console", []) if line.strip()]

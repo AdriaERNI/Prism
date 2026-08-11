@@ -32,7 +32,7 @@ class TestBuildIndexPrefixValidation:
             patch.object(
                 index_api,
                 "client",
-                lambda: _mock_client(
+                lambda *a, **kw: _mock_client(
                     lambda r: httpx.Response(200, json={"result": {"content": []}})
                 ),
             ),
@@ -45,7 +45,7 @@ class TestBuildIndexPrefixValidation:
             patch.object(
                 index_api,
                 "client",
-                lambda: _mock_client(
+                lambda *a, **kw: _mock_client(
                     lambda r: httpx.Response(200, json={"result": {"content": []}})
                 ),
             ),
@@ -58,7 +58,7 @@ class TestBuildIndexPrefixValidation:
             patch.object(
                 index_api,
                 "client",
-                lambda: _mock_client(
+                lambda *a, **kw: _mock_client(
                     lambda r: httpx.Response(200, json={"result": {"content": []}})
                 ),
             ),
@@ -83,7 +83,7 @@ class TestBuildIndexPrefixValidation:
                 },
             )
 
-        with patch.object(index_api, "client", lambda: _mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: _mock_client(handler)):
             result = await index_api.build_index(filter_prefix="MyApp")
 
         assert result["statistics"]["classes"] == 0
@@ -106,7 +106,7 @@ class TestBuildIndexPrefixValidation:
                 },
             )
 
-        with patch.object(index_api, "client", lambda: _mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: _mock_client(handler)):
             result = await index_api.build_index(filter_prefix="My_App")
 
         assert result["statistics"]["classes"] == 0
@@ -117,6 +117,6 @@ class TestBuildIndexPrefixValidation:
         def handler(request):
             return httpx.Response(200, json={"result": {"content": []}})
 
-        with patch.object(index_api, "client", lambda: _mock_client(handler)):
+        with patch.object(index_api, "client", lambda *a, **kw: _mock_client(handler)):
             with pytest.raises(ValueError, match="invalid"):
                 await index_api.build_index(filter_prefix="%' OR '1'='1")

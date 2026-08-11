@@ -55,7 +55,14 @@ def _truncate_output(text: str, max_chars: int = _MAX_OUTPUT_CHARS) -> str:
     return text[:cut] + f"\n... [output truncated, {len(text) - cut} more chars]"
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def run_shell(
     command: Annotated[
         str,

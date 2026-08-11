@@ -5,10 +5,18 @@ from typing import Annotated
 from pydantic import Field
 
 from prism.iris.api import terminal as terminal_api
+from prism.iris.sdk.http import handle_api_error
 from prism.mcp._decorator import logged_tool
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    },
+)
 async def execute_terminal(
     command: Annotated[
         str,
@@ -37,6 +45,21 @@ async def execute_terminal(
             gt=0,
         ),
     ] = 30.0,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Execute an ObjectScript command in the IRIS terminal (on the IRIS server).
 
@@ -57,6 +80,16 @@ async def execute_terminal(
     task to avoid blocking. The command runs in its own session while you
     continue using other tools. Increase the timeout for commands that
     take longer than 30 seconds.
-    """
 
-    return await terminal_api.execute_command(command, namespace, timeout)
+    Use *target_host* / *target_port* to target a different IRIS instance.
+    """
+    try:
+        return await terminal_api.execute_command(
+            command,
+            namespace,
+            timeout,
+            target_host=target_host,
+            target_port=target_port,
+        )
+    except Exception as exc:
+        return {"error": handle_api_error(exc), "output": ""}
