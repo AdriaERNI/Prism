@@ -64,12 +64,14 @@ def _workspace_patch(workspace: Path):
 @pytest.fixture(autouse=True)
 def _reset_http_client():
     """Reset the shared httpx client so each test gets a fresh one on its event loop."""
-    http_mod._client = None
+    http_mod._default_client = None
+    http_mod._override_clients.clear()
     yield
-    if http_mod._client is not None and not http_mod._client.is_closed:
+    if http_mod._default_client is not None and not http_mod._default_client.is_closed:
         # Can't await close in a sync fixture; just discard the reference.
         # The GC will clean it up.
-        http_mod._client = None
+        http_mod._default_client = None
+    http_mod._override_clients.clear()
 
 
 @pytest.fixture(params=["native", "ws"])
