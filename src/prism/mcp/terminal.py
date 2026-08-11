@@ -27,14 +27,18 @@ async def execute_terminal(
             "'write \"hello world\"', "
             "'set x=42 write x', "
             "'write ##class(MyApp.Utils).Greet(\"Alice\")', "
-            "'zwrite ^myGlobal'."
+            "'zwrite ^myGlobal'.",
+            min_length=1,
+            max_length=10000,
         ),
     ],
     namespace: Annotated[
         str | None,
         Field(
             description="IRIS namespace to run the command in. "
-            "Uses the configured default if omitted."
+            "Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     timeout: Annotated[

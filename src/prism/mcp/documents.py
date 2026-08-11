@@ -26,7 +26,9 @@ async def get_document(
     name: Annotated[
         str,
         Field(
-            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac', 'MyInclude.inc'. The name must match exactly as stored in IRIS — use list_documents to discover names."
+            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac', 'MyInclude.inc'. The name must match exactly as stored in IRIS — use list_documents to discover names.",
+            min_length=1,
+            max_length=255,
         ),
     ],
     from_line: Annotated[
@@ -53,7 +55,11 @@ async def get_document(
     ] = None,
     namespace: Annotated[
         str | None,
-        Field(description="IRIS namespace to read from. Uses the configured default if omitted."),
+        Field(
+            description="IRIS namespace to read from. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
+        ),
     ] = None,
     target_host: Annotated[
         str | None,
@@ -178,13 +184,17 @@ async def list_documents(
     doc_type: Annotated[
         str | None,
         Field(
-            description="Filter by document type. Valid values: 'cls' (classes), 'mac' (routines), 'int' (intermediate code), 'inc' (include files), 'csp' (web pages), 'bpl' (business processes), 'dtl' (data transformations). Omit to list all types."
+            description="Filter by document type. Valid values: 'cls' (classes), 'mac' (routines), 'int' (intermediate code), 'inc' (include files), 'csp' (web pages), 'bpl' (business processes), 'dtl' (data transformations). Omit to list all types.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     filter: Annotated[
         str | None,
         Field(
-            description="Filter documents by name prefix. Examples: 'MyApp' returns all docs starting with 'MyApp' (MyApp.Person.cls, MyApp.Utils.cls, etc.). 'MyApp.Person' narrows to that specific class."
+            description="Filter documents by name prefix. Examples: 'MyApp' returns all docs starting with 'MyApp' (MyApp.Person.cls, MyApp.Utils.cls, etc.). 'MyApp.Person' narrows to that specific class.",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     generated: Annotated[
@@ -196,7 +206,9 @@ async def list_documents(
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to list documents from. Uses the configured default if omitted."
+            description="IRIS namespace to list documents from. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     limit: Annotated[
@@ -313,12 +325,18 @@ async def delete_document(
     name: Annotated[
         str,
         Field(
-            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac', 'MyInclude.inc'."
+            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac', 'MyInclude.inc'.",
+            min_length=1,
+            max_length=255,
         ),
     ],
     namespace: Annotated[
         str | None,
-        Field(description="IRIS namespace to delete from. Uses the configured default if omitted."),
+        Field(
+            description="IRIS namespace to delete from. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
+        ),
     ] = None,
     target_host: Annotated[
         str | None,

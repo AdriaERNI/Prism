@@ -71,7 +71,9 @@ async def run_shell(
             "PowerShell; on Linux/macOS it runs in Bash. "
             "Examples (PowerShell): 'Get-ChildItem', 'echo $env:PATH', "
             "'git status'. Examples (Bash): 'ls -la', 'echo $PATH', "
-            "'git status'."
+            "'git status'.",
+            min_length=1,
+            max_length=10000,
         ),
     ],
     timeout: Annotated[
@@ -88,7 +90,9 @@ async def run_shell(
         Field(
             description="Working directory for the command. If omitted, "
             "uses the workspace root (IRIS_WORKSPACE) or the current "
-            "directory."
+            "directory.",
+            min_length=1,
+            max_length=1024,
         ),
     ] = None,
 ) -> dict:

@@ -24,13 +24,17 @@ async def execute_sql(
     query: Annotated[
         str,
         Field(
-            description="InterSystems SQL query. Supports SELECT, INSERT, UPDATE, DELETE, CREATE TABLE, DDL, and CALL for stored procedures ([SqlProc] class methods). Table names map to class names: class MyApp.Person → table MyApp.Person. Use %ID for the auto-generated row ID. Examples: 'SELECT %ID, Name, Age FROM MyApp.Person WHERE Age > 30', 'INSERT INTO MyApp.Person (Name, Age) VALUES (\\'John\\', 30)', 'CALL MyApp.Utils_MyMethod()'."
+            description="InterSystems SQL query. Supports SELECT, INSERT, UPDATE, DELETE, CREATE TABLE, DDL, and CALL for stored procedures ([SqlProc] class methods). Table names map to class names: class MyApp.Person → table MyApp.Person. Use %ID for the auto-generated row ID. Examples: 'SELECT %ID, Name, Age FROM MyApp.Person WHERE Age > 30', 'INSERT INTO MyApp.Person (Name, Age) VALUES (\\'John\\', 30)', 'CALL MyApp.Utils_MyMethod()'.",
+            min_length=1,
+            max_length=10000,
         ),
     ],
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to run the query in. Uses the configured default if omitted."
+            description="IRIS namespace to run the query in. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     target_host: Annotated[

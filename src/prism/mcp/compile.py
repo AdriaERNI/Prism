@@ -34,18 +34,26 @@ async def compile_documents(
     doc_names: Annotated[
         list[str],
         Field(
-            description="List of document names to compile. Each name must include the file extension. Examples: ['MyApp.Person.cls'], ['MyApp.Person.cls', 'MyApp.Address.cls']. Use this when multiple classes need compilation together (e.g. classes that reference each other)."
+            description="List of document names to compile. Each name must include the file extension. Examples: ['MyApp.Person.cls'], ['MyApp.Person.cls', 'MyApp.Address.cls']. Use this when multiple classes need compilation together (e.g. classes that reference each other).",
+            min_length=1,
+            max_length=100,
         ),
     ],
     flags: Annotated[
         str | None,
         Field(
-            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output. Use 'ckb' to recompile all subclasses after changing a parent class."
+            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output. Use 'ckb' to recompile all subclasses after changing a parent class.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
-        Field(description="IRIS namespace to compile in. Uses the configured default if omitted."),
+        Field(
+            description="IRIS namespace to compile in. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
+        ),
     ] = None,
     target_host: Annotated[
         str | None,

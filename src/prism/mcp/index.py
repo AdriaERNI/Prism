@@ -24,7 +24,11 @@ from prism.mcp._decorator import logged_tool
 async def index_code(
     namespace: Annotated[
         str | None,
-        Field(description="IRIS namespace to index. Defaults to configured namespace."),
+        Field(
+            description="IRIS namespace to index. Defaults to configured namespace.",
+            min_length=1,
+            max_length=64,
+        ),
     ] = None,
     include_system: Annotated[
         bool,
@@ -32,7 +36,11 @@ async def index_code(
     ] = False,
     filter_prefix: Annotated[
         str | None,
-        Field(description="Only index classes starting with this prefix (e.g. 'MyApp')."),
+        Field(
+            description="Only index classes starting with this prefix (e.g. 'MyApp').",
+            min_length=1,
+            max_length=255,
+        ),
     ] = None,
     summary_only: Annotated[
         bool,

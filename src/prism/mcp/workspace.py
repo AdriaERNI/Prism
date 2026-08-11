@@ -26,18 +26,26 @@ async def put_document(
     name: Annotated[
         str,
         Field(
-            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file (e.g. 'Class MyApp.Person' → name 'MyApp.Person.cls')."
+            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file (e.g. 'Class MyApp.Person' → name 'MyApp.Person.cls').",
+            min_length=1,
+            max_length=255,
         ),
     ],
     path: Annotated[
         str | None,
         Field(
-            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace — write it first before calling this tool."
+            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace — write it first before calling this tool.",
+            min_length=1,
+            max_length=1024,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
-        Field(description="IRIS namespace to write to. Uses the configured default if omitted."),
+        Field(
+            description="IRIS namespace to write to. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
+        ),
     ] = None,
     target_host: Annotated[
         str | None,
@@ -86,25 +94,33 @@ async def put_and_compile(
     name: Annotated[
         str,
         Field(
-            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file."
+            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file.",
+            min_length=1,
+            max_length=255,
         ),
     ],
     path: Annotated[
         str | None,
         Field(
-            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace."
+            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace.",
+            min_length=1,
+            max_length=1024,
         ),
     ] = None,
     flags: Annotated[
         str | None,
         Field(
-            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output."
+            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to write to and compile in. Uses the configured default if omitted."
+            description="IRIS namespace to write to and compile in. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     target_host: Annotated[

@@ -22,25 +22,33 @@ async def run_tests(
     test_class: Annotated[
         str,
         Field(
-            description="Fully qualified ObjectScript class name extending %UnitTest.TestCase. Examples: 'MyApp.Tests.Calculator', 'Test.PersonTests'. The class must already be compiled on the server."
+            description="Fully qualified ObjectScript class name extending %UnitTest.TestCase. Examples: 'MyApp.Tests.Calculator', 'Test.PersonTests'. The class must already be compiled on the server.",
+            min_length=1,
+            max_length=255,
         ),
     ],
     test_method: Annotated[
         str | None,
         Field(
-            description="Specific test method to run (e.g. 'TestAddition'). If omitted, all Test* methods in the class are executed."
+            description="Specific test method to run (e.g. 'TestAddition'). If omitted, all Test* methods in the class are executed.",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     manager_class: Annotated[
         str | None,
         Field(
-            description="Custom %UnitTest.Manager subclass to use for execution (e.g. 'TestCoverage.Manager'). Defaults to IRIS_TEST_MANAGER_CLASS env var ('%UnitTest.Manager')."
+            description="Custom %UnitTest.Manager subclass to use for execution (e.g. 'TestCoverage.Manager'). Defaults to IRIS_TEST_MANAGER_CLASS env var ('%UnitTest.Manager').",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to run tests in. Uses the configured default if omitted."
+            description="IRIS namespace to run tests in. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     target_host: Annotated[
@@ -184,13 +192,17 @@ async def list_tests(
     filter: Annotated[
         str | None,
         Field(
-            description="Filter test classes by name prefix. Examples: 'MyApp.Tests' returns all test classes in that package. Omit to list all test classes in the namespace."
+            description="Filter test classes by name prefix. Examples: 'MyApp.Tests' returns all test classes in that package. Omit to list all test classes in the namespace.",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to search for test classes. Uses the configured default if omitted."
+            description="IRIS namespace to search for test classes. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     target_host: Annotated[
@@ -258,7 +270,9 @@ async def get_test_results(
     test_class: Annotated[
         str | None,
         Field(
-            description="Filter results to a specific test class. Omit to see results across all classes."
+            description="Filter results to a specific test class. Omit to see results across all classes.",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     limit: Annotated[
@@ -272,7 +286,9 @@ async def get_test_results(
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to query results from. Uses the configured default if omitted."
+            description="IRIS namespace to query results from. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
         ),
     ] = None,
     target_host: Annotated[
