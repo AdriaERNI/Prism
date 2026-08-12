@@ -25,6 +25,8 @@ async def start_session(
     breakpoints: list[dict] | None = None,
     stop_on_entry: bool = True,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Start a new debug session targeting an ObjectScript expression.
 
@@ -37,11 +39,13 @@ async def start_session(
         stop_on_entry: If True, break at the first line. If False, run until
             a breakpoint is hit.
         namespace: IRIS namespace (defaults to configured).
+        target_host: Optional IRIS host override (defaults to configured).
+        target_port: Optional IRIS port override (defaults to configured).
 
     Returns:
         Session info with id, initial location, and source context.
     """
-    conn = await DbgpConnection.connect(namespace)
+    conn = await DbgpConnection.connect(namespace, target_host, target_port)
     session = None
     manager = get_session_manager()
 
@@ -124,18 +128,27 @@ async def start_session(
         raise
 
 
-async def list_processes(system: bool = False) -> list[dict]:
+async def list_processes(
+    system: bool = False,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> list[dict]:
     """List IRIS processes via the Atelier jobs API.
 
     Args:
         system: If True, include system processes.
+        target_host: Optional IRIS host override (defaults to configured).
+        target_port: Optional IRIS port override (defaults to configured).
 
     Returns:
         List of process dicts with pid, namespace, routine, state, device.
     """
-    c = client()
+    c = client(target_host=target_host, target_port=target_port)
     params = {"system": "1" if system else "0"}
-    r = await c.get(f"{api_url('%SYS')}/jobs", params=params)
+    r = await c.get(
+        f"{api_url('%SYS', target_host=target_host, target_port=target_port)}/jobs",
+        params=params,
+    )
     r.raise_for_status()
     data = parse_json(r)
 
@@ -157,6 +170,8 @@ async def list_processes(system: bool = False) -> list[dict]:
 async def attach_session(
     pid: int,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Attach the debugger to an already-running IRIS process.
 
@@ -166,6 +181,8 @@ async def attach_session(
     Args:
         pid: Process ID to attach to.
         namespace: IRIS namespace for the DBGP connection (defaults to configured).
+        target_host: Optional IRIS host override (defaults to configured).
+        target_port: Optional IRIS port override (defaults to configured).
 
     Returns:
         Session info with id, state, target, and location/variables if in break state.
@@ -173,7 +190,7 @@ async def attach_session(
     last_err: Exception | None = None
     for attempt in range(4):
         try:
-            return await _do_attach(pid, namespace)
+            return await _do_attach(pid, namespace, target_host, target_port)
         except (DbgpError, RuntimeError):
             raise  # Protocol / logic errors — don't retry
         except Exception as e:
@@ -183,8 +200,13 @@ async def attach_session(
     raise last_err  # type: ignore[misc]
 
 
-async def _do_attach(pid: int, namespace: str | None) -> dict:
-    conn = await DbgpConnection.connect(namespace)
+async def _do_attach(
+    pid: int,
+    namespace: str | None,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> dict:
+    conn = await DbgpConnection.connect(namespace, target_host, target_port)
     session = None
     manager = get_session_manager()
     target = f"PID:{pid}"

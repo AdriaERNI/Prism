@@ -21,6 +21,7 @@ from xml.etree.ElementTree import fromstring as parse_xml
 import websockets
 import websockets.asyncio.client
 
+from prism.iris.sdk.connection import resolve_base_url
 from prism.settings import settings
 
 
@@ -51,13 +52,18 @@ class DbgpConnection:
         self.language = init_elem.get("language", "ObjectScript")
 
     @classmethod
-    async def connect(cls, namespace: str | None = None) -> DbgpConnection:
+    async def connect(
+        cls,
+        namespace: str | None = None,
+        target_host: str | None = None,
+        target_port: int | None = None,
+    ) -> DbgpConnection:
         """Open a WebSocket to the IRIS DBGP debug endpoint and read the init packet."""
         ns = namespace or "%SYS"
         # websockets does NOT URL-encode the path, so we must pre-encode %
         encoded_ns = ns.replace("%", "%25")
 
-        base = settings.iris_base_url.rstrip("/")
+        base = resolve_base_url(target_host, target_port).rstrip("/")
         scheme = "wss" if base.startswith("https") else "ws"
         http_base = base.split("://", 1)[1] if "://" in base else base
         uri = f"{scheme}://{http_base}/{settings.iris_api_prefix}/{encoded_ns}/debug"

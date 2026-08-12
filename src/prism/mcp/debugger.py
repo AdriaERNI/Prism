@@ -25,6 +25,21 @@ async def debug_list_processes(
         bool,
         Field(description="Include system processes. Default false."),
     ] = False,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> list[dict]:
     """List running IRIS processes (on the IRIS server).
 
@@ -33,7 +48,9 @@ async def debug_list_processes(
     Returns process information including PID, namespace, routine, state,
     and device. Use this to find a process to attach the debugger to.
     """
-    processes = await debugger_api.list_processes(system=system)
+    processes = await debugger_api.list_processes(
+        system=system, target_host=target_host, target_port=target_port
+    )
     if namespace:
         processes = [p for p in processes if p.get("namespace", "").upper() == namespace.upper()]
     return processes
@@ -58,6 +75,21 @@ async def debug_attach(
             description="IRIS namespace for the debug connection. Uses configured default if omitted."
         ),
     ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Attach the debugger to a running IRIS process (on the IRIS server).
 
@@ -71,7 +103,9 @@ async def debug_attach(
     Only one debug session can be active at a time. Call debug_stop to end
     the current session before attaching to a new process.
     """
-    return await debugger_api.attach_session(pid=pid, namespace=namespace)
+    return await debugger_api.attach_session(
+        pid=pid, namespace=namespace, target_host=target_host, target_port=target_port
+    )
 
 
 @logged_tool(
@@ -114,6 +148,21 @@ async def debug_start(
         str | None,
         Field(description="IRIS namespace. Uses configured default if omitted."),
     ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Start an interactive debug session on an ObjectScript target.
 
@@ -129,6 +178,8 @@ async def debug_start(
         breakpoints=breakpoints,
         stop_on_entry=stop_on_entry,
         namespace=namespace,
+        target_host=target_host,
+        target_port=target_port,
     )
 
 
