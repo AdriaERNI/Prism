@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import httpx
+import pytest
 
 from prism.iris.sdk.connection import (
     resolve_base_url,
@@ -381,3 +382,155 @@ class TestListDocumentsPagination:
         assert result["offset"] == 10
         assert result["has_more"] is False
         assert result["next_offset"] is None
+
+
+# ── Debug tools with target ────────────────────────────────────────────
+
+
+class TestDbgpConnectionTargetOverride:
+    """Tests that DbgpConnection.connect() respects target_host/target_port."""
+
+    async def test_connect_with_target_overrides_uses_them(self):
+        """connect(target_host=..., target_port=...) builds URI pointing at the override."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        with patch("websockets.asyncio.client.connect", new_callable=AsyncMock) as mock_ws_connect:
+            # Build a fake websocket that yields a minimal valid init frame
+            init_xml = (
+                '<init xmlns="urn:debugger_protocol_v1" '
+                'appid="iris" idekey="test" session="1" '
+                'thread="1" parent="" language="ObjectScript"/>'
+            )
+            fake_ws = MagicMock()
+            fake_ws.recv = AsyncMock(return_value=init_xml)
+            fake_ws.close = AsyncMock()
+            mock_ws_connect.return_value = fake_ws
+
+            from prism.iris.sdk.dbgp import DbgpConnection
+
+            await DbgpConnection.connect(namespace="USER", target_host="10.0.0.5", target_port=8080)
+
+            # Verify websockets.connect was called with the overridden URI
+            assert mock_ws_connect.called
+            called_uri = mock_ws_connect.call_args[0][0]
+            assert called_uri.startswith("ws://10.0.0.5:8080/")
+            assert "/USER/debug" in called_uri
+
+    async def test_connect_without_target_uses_settings_default(self):
+        """connect() without target params builds URI from settings.iris_base_url."""
+        from unittest.mock import AsyncMock, MagicMock
+        from urllib.parse import urlparse
+
+        with patch("websockets.asyncio.client.connect", new_callable=AsyncMock) as mock_ws_connect:
+            init_xml = (
+                '<init xmlns="urn:debugger_protocol_v1" '
+                'appid="iris" idekey="test" session="1" '
+                'thread="1" parent="" language="ObjectScript"/>'
+            )
+            fake_ws = MagicMock()
+            fake_ws.recv = AsyncMock(return_value=init_xml)
+            fake_ws.close = AsyncMock()
+            mock_ws_connect.return_value = fake_ws
+
+            from prism.iris.sdk.dbgp import DbgpConnection
+
+            await DbgpConnection.connect(namespace="USER")
+
+            assert mock_ws_connect.called
+            called_uri = mock_ws_connect.call_args[0][0]
+            # uri should be built from settings.iris_base_url
+            settings_parsed = urlparse(settings.iris_base_url)
+            called_parsed = urlparse(called_uri.replace("ws://", "http://", 1))
+            # Host should match settings
+            assert called_parsed.hostname == settings_parsed.hostname
+            # Path should be the debug endpoint
+            assert called_uri.endswith("/USER/debug")
+
+    async def test_connect_target_port_only_keeps_default_host(self):
+        """connect(target_port=...) uses the settings host with the override port."""
+        from urllib.parse import urlparse
+
+        from prism.iris.sdk.connection import resolve_base_url
+
+        url = resolve_base_url(None, 9999)
+        parsed = urlparse(url)
+        settings_parsed = urlparse(settings.iris_base_url)
+        assert parsed.hostname == settings_parsed.hostname
+        assert parsed.port == 9999
+
+
+class TestDebugToolSchemasExposeTarget:
+    """Verify the 3 connection-establishing debug tools expose target params."""
+
+    @pytest.fixture(autouse=True)
+    def _enable_debug(self):
+        """Ensure debug tools are registered when inspecting schemas."""
+        import prism.mcp as tools_pkg
+
+        orig_skip = tools_pkg._SKIP_MODULES.copy()
+        tools_pkg._SKIP_MODULES.discard("debugger")
+        with patch.object(settings, "iris_debug_enabled", True):
+            yield
+        tools_pkg._SKIP_MODULES = orig_skip
+
+    async def test_debug_list_processes_schema_has_target_params(self):
+        from fastmcp import Client
+
+        from prism.mcp.server import create_mcp
+
+        mcp = create_mcp()
+        async with Client(mcp) as cl:
+            tools = await cl.list_tools()
+            tool = next(t for t in tools if t.name == "debug_list_processes")
+            props = (tool.inputSchema or {}).get("properties", {})
+            assert "target_host" in props
+            assert "target_port" in props
+
+    async def test_debug_attach_schema_has_target_params(self):
+        from fastmcp import Client
+
+        from prism.mcp.server import create_mcp
+
+        mcp = create_mcp()
+        async with Client(mcp) as cl:
+            tools = await cl.list_tools()
+            tool = next(t for t in tools if t.name == "debug_attach")
+            props = (tool.inputSchema or {}).get("properties", {})
+            assert "target_host" in props
+            assert "target_port" in props
+
+    async def test_debug_start_schema_has_target_params(self):
+        from fastmcp import Client
+
+        from prism.mcp.server import create_mcp
+
+        mcp = create_mcp()
+        async with Client(mcp) as cl:
+            tools = await cl.list_tools()
+            tool = next(t for t in tools if t.name == "debug_start")
+            props = (tool.inputSchema or {}).get("properties", {})
+            assert "target_host" in props
+            assert "target_port" in props
+
+    async def test_session_based_debug_tools_do_not_have_target_params(self):
+        """debug_step/inspect/variables/stack/breakpoints/stop should NOT expose target params."""
+        from fastmcp import Client
+
+        from prism.mcp.server import create_mcp
+
+        mcp = create_mcp()
+        async with Client(mcp) as cl:
+            tools = await cl.list_tools()
+            session_tool_names = {
+                "debug_step",
+                "debug_inspect",
+                "debug_variables",
+                "debug_stack",
+                "debug_breakpoints",
+                "debug_stop",
+            }
+            for t in tools:
+                if t.name in session_tool_names:
+                    props = (t.inputSchema or {}).get("properties", {})
+                    assert "target_host" not in props, f"{t.name} unexpectedly exposes target_host"
+                    assert "target_port" not in props, f"{t.name} unexpectedly exposes target_port"

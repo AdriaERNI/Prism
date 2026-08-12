@@ -284,7 +284,30 @@ class TestSystemPromptMentionsTargeting:
         from prism.chatbot.agent import _build_system_prompt
 
         prompt = _build_system_prompt("- **execute_sql**: dummy", "")
-        # Must tell the LLM to use target params when user specifies a server
-        assert "specific server" in prompt.lower() or "specific host" in prompt.lower()
+        # Must tell the LLM to use target params when user mentions a server address
+        assert "server address" in prompt.lower() or "host" in prompt.lower()
         # Must tell the LLM NOT to guess when no server is mentioned
         assert "omit both" in prompt.lower() or "never guess" in prompt.lower()
+
+    def test_system_prompt_forbids_shell_for_iris(self):
+        """Prompt must explicitly forbid using run_shell to reach a remote IRIS server."""
+        from prism.chatbot.agent import _build_system_prompt
+
+        prompt = _build_system_prompt("- **execute_sql**: dummy", "")
+        assert "Never" in prompt or "never" in prompt
+        # Must mention run_shell in the prohibition
+        assert "run_shell" in prompt
+        # Must explain WHY: run_shell is local-only
+        assert "local" in prompt.lower() and (
+            "remote" in prompt.lower() or "IRIS instance" in prompt
+        )
+
+    def test_system_prompt_maps_common_requests_to_tools(self):
+        """Prompt should map common user phrasings to specific tools."""
+        from prism.chatbot.agent import _build_system_prompt
+
+        prompt = _build_system_prompt("- **execute_sql**: dummy", "")
+        # Common mappings
+        assert "get_server_info" in prompt
+        assert "execute_sql" in prompt
+        assert "execute_terminal" in prompt
