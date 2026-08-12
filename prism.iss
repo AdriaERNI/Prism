@@ -12,6 +12,13 @@
 #ifndef AppVerNumeric
   #define AppVerNumeric "0.0.0.0"
 #endif
+; The onedir app root (PyInstaller outputs a folder named prism/).
+; Relative to the directory containing this .iss. Overridden per build:
+;   - Vagrant build-in-vm.ps1:  dist\prism  (iss is at repo root)
+;   - CI build-release.yml:     prism        (iss is copied to dist/prism.iss)
+#ifndef AppSource
+  #define AppSource "dist\prism"
+#endif
 
 [Setup]
 AppName=Prism
@@ -72,7 +79,10 @@ UninstallDisplayName=Prism
 CreateUninstallRegKey=yes
 
 [Files]
-Source: "prism-{#AppVerFile}.exe"; DestDir: "{app}"; DestName: "prism.exe"; Flags: ignoreversion
+; PyInstaller --onedir output: a folder named prism/ containing prism.exe and _internal/.
+; Install the entire folder so the companion DLLs and libs travel with the exe
+; (avoids the cold-start extraction --onefile pays on every launch).
+Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; No [Icons] section — no Start Menu, no desktop shortcuts
 ; The exe is a CLI tool accessed via PATH, not a GUI app launched from a menu
