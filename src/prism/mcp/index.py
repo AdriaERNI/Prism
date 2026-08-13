@@ -46,6 +46,15 @@ async def index_code(
         bool,
         Field(description="Return only counts (no class details). Faster for quick overviews."),
     ] = False,
+    include_call_graph: Annotated[
+        bool,
+        Field(
+            description="Also read every in-index class's method bodies and build "
+            "a method-level call graph. Significantly slower (the ~+20s pass). "
+            "Adds call_edges, r_call_edges, call stats, code_refs and unresolved-"
+            "call counts to the result. Default: false (fast %Dictionary path only)."
+        ),
+    ] = False,
     target_host: Annotated[
         str | None,
         Field(
@@ -66,10 +75,15 @@ async def index_code(
 
     **Runs on: IRIS server** (remote — queries IRIS %Dictionary SQL metadata).
 
-    Returns class hierarchies, methods, properties, SQL projections, imports,
+    Return class hierarchies, methods, properties, SQL projections, imports,
     and dependencies — without fetching full source files. Use this to understand
     a large IRIS codebase using a fraction of the tokens needed to read every
     document.
+
+    Set ``include_call_graph=True`` to also build a method-level call graph
+    ("who calls this method", "what does this method call"). This is the slow,
+    opt-in Tier 2 pass: it fetches every in-index class's body and resolves the
+    seven ObjectScript call forms.
 
     Examples:
         # Index all custom classes in USER namespace
@@ -83,6 +97,9 @@ async def index_code(
 
         # Include system classes
         index_code(include_system=True)
+
+        # Also build the method-level call graph (slow)
+        index_code(include_call_graph=True)
     """
     if summary_only:
         return await index_summary(
@@ -95,6 +112,7 @@ async def index_code(
         namespace=namespace,
         include_system=include_system,
         filter_prefix=filter_prefix,
+        include_call_graph=include_call_graph,
         target_host=target_host,
         target_port=target_port,
     )

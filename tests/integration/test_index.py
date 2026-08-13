@@ -92,3 +92,43 @@ class TestIndexCodeLive:
         summary_size = len(summary_result.content[0].text)
         full_size = len(full_result.content[0].text)
         assert summary_size < full_size
+
+    async def test_index_call_graph(self, live, workspace):
+        """index_code with include_call_graph returns method-level call edges."""
+        # Create two classes with a real method call, then index them.
+        (workspace / "Test.Caller.cls").write_text(
+            "Class Test.Caller Extends %RegisteredObject {\n"
+            "Method Go() {\n"
+            "  Do ##class(Test.Callee).Run()\n"
+            "}\n"
+            "}\n"
+        )
+        (workspace / "Test.Callee.cls").write_text(
+            "Class Test.Callee Extends %RegisteredObject {\nMethod Run() {\n  Quit $$$OK\n}\n}\n"
+        )
+        await live.call_tool(
+            "put_document",
+            {"name": "Test.Caller.cls", "path": "Test.Caller.cls"},
+        )
+        await live.call_tool(
+            "put_document",
+            {"name": "Test.Callee.cls", "path": "Test.Callee.cls"},
+        )
+
+        result = await live.call_tool(
+            "index_code",
+            # "Test.Call" indexes BOTH Test.Caller and Test.Callee so the
+            # method edge can point at an in-index target class.
+            {"filter_prefix": "Test.Call", "include_call_graph": True},
+        )
+        data = json.loads(result.content[0].text)
+        assert "call_graph" in data
+        cg = data["call_graph"]
+        assert "call_edges" in cg
+        assert "r_call_edges" in cg
+        edges = cg["call_edges"]
+        # Test.Caller.Go calls Test.Callee.Run (pattern 1)
+        caller_edges = edges.get("Test.Caller.Go", [])
+        assert any(e["to"] == "Test.Callee.Run" and e["pattern"] == 1 for e in caller_edges)
+        # reverse: who calls Test.Callee.Run
+        assert "Test.Caller.Go" in cg["r_call_edges"].get("Test.Callee.Run", [])

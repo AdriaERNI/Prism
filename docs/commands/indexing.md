@@ -20,6 +20,7 @@ prism index [OPTIONS]
 | `--system` | Include system classes (`%Library`, `%SYS`, `%Api`, etc.). |
 | `--prefix` | Only index classes starting with this prefix (e.g. `MyApp`). |
 | `--summary` | Only show counts (classes, methods, properties). No class details. |
+| `--call-graph` | Also build a method-level call graph by reading every in-index class's body. Slow (adds ~20s). Adds `call_edges`, `r_call_edges`, `code_refs` and unresolved-call counts. |
 
 ## Examples
 
@@ -122,6 +123,59 @@ old unanchored `LIKE` patterns). This excludes every `%`-prefixed class
 (`%Library`, `%SYS`, `%Api`) plus bare `SYS.` / `Api.` prefixes — and no longer
 silently drops user classes whose names merely contain `Library.`, `SYS.` or
 `Api.`.
+
+## Method-level call graph (`--call-graph`)
+
+The metadata index models class *relationships* from declarations (superclass,
+property types, signature types). It cannot see what happens *inside method
+bodies* — so it cannot answer "who calls this method?". Enable the opt-in `--call-graph`
+pass to read every in-index class's body and build a **method-level** call
+graph:
+
+```bash
+prism index --call-graph
+```
+
+This is the slow path (it streams all method bodies; ~+20s on a large
+namespace). It is deliberately **not** the default, so `prism index` stays fast
+for class lookup, hierarchy and impact queries.
+
+### Output (added to the index)
+
+| Key | Meaning |
+|-----|---------|
+| `call_edges` | `"Class.method" -> [{"to": "Other.method", "pattern": N}]` — what each method calls |
+| `r_call_edges` | reverse map — **who calls this method**. The high-value direction, materialised. |
+| `code_refs` / `r_code_refs` | class-level "who references this class" edges from body text (nearly free, falls out of the same scan) |
+| `unresolved` | `{method: count}` — call sites seen but not resolvable against the index |
+| `stats` | totals: `call_edges`, `code_refs`, `unresolved_calls`, `methods_with_calls` |
+
+Each call edge carries a `pattern` (1-7) identifying the ObjectScript call form
+that produced it, so you can apply a confidence distinction (patterns 1–4 are
+syntactically certain; 5–7 are heuristics):
+
+| # | Form | Confidence |
+|---|------|-----------|
+| 1 | `##class(Cls).Method(` | certain |
+| 2 | `..Method(` (self / inheritance chain) | certain |
+| 3 | `##class(Cls).%New(...).Method(` | certain |
+| 4 | `..property.Method(` (property type) | certain |
+| 5 | `localVar.Method(` (#Dim / FormalSpec type) | heuristic |
+| 6 | `$ClassMethod("Cls","Method")` | heuristic |
+| 7 | `$method()` / `..Invoke()` framework dispatch | heuristic |
+
+`unresolved` counts the call sites that could not be resolved (e.g. a call to a
+`%`-system method, a call to an unindexed class, or an untyped local variable).
+It is the only way to judge how complete the graph is.
+
+### Precision / recall
+
+- **Precision** — every reported caller genuinely contains the call (calls in
+  comments and string literals are ignored).
+- **Recall** — resolution to a specific method requires the target class to be
+  in the index (so `--prefix` narrowing can reduce recall for out-of-prefix
+  targets) and the receiver type to be determinable. Recheck `unresolved`
+  counts when judging completeness.
 
 ## Token efficiency
 

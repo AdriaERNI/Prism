@@ -575,3 +575,151 @@ class TestIndexMCPTool:
                 assert "classes" in data
                 assert "methods" in data
                 assert "properties" in data
+
+
+class TestCallGraphFlag:
+    """include_call_graph=True adds call-graph maps to the index."""
+
+    @staticmethod
+    def _make_handler(classes_data, methods_data, bodies):
+        """Return a router handler serving SQL (index_api.client) and
+        document bodies (documents.client) from the same transport."""
+        sql_datasets = [classes_data, methods_data, [], [], [], []]
+        sql_call = 0
+
+        def handler(request):
+            nonlocal sql_call
+            if "/doc/" in request.url.path:
+                name = request.url.path.rstrip("/").split("/")[-1]
+                body = bodies.get(name, "")
+                return httpx.Response(200, json={"result": {"content": body.splitlines()}})
+            idx = min(sql_call, len(sql_datasets) - 1)
+            sql_call += 1
+            return httpx.Response(
+                200,
+                json={
+                    "status": {"errors": [], "summary": ""},
+                    "result": {"content": sql_datasets[idx]},
+                },
+            )
+
+        return handler
+
+    async def test_build_index_call_graph_flag(self):
+        """build_index(include_call_graph=True) fetches bodies and adds call_graph."""
+        from prism.iris.api import documents
+
+        classes_data = [
+            {
+                "Name": "MyApp.Service",
+                "Super": "",
+                "ClassType": "",
+                "SqlTableName": "",
+                "Description": "",
+            },
+            {
+                "Name": "MyApp.Repo",
+                "Super": "",
+                "ClassType": "",
+                "SqlTableName": "",
+                "Description": "",
+            },
+        ]
+        methods_data = [
+            {"parent": "MyApp.Service", "Name": "Go", "ReturnType": "%Status", "FormalSpec": ""},
+            {"parent": "MyApp.Repo", "Name": "Run", "ReturnType": "%Status", "FormalSpec": ""},
+        ]
+        bodies = {
+            "MyApp.Service.cls": (
+                "Class MyApp.Service Extends %RegisteredObject {\n"
+                "Method Go() {\n  Do ##class(MyApp.Repo).Run()\n}\n"
+                "}\n"
+            ),
+            "MyApp.Repo.cls": (
+                "Class MyApp.Repo Extends %RegisteredObject {\nMethod Run() {\n  Quit $$$OK\n}\n}\n"
+            ),
+        }
+        handler = self._make_handler(classes_data, methods_data, bodies)
+
+        with (
+            patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)),
+            patch.object(documents, "client", lambda *a, **kw: mock_client(handler)),
+        ):
+            result = await index_api.build_index(include_call_graph=True)
+            # default (no flag) should not call documents.client at all
+            result_fast = await index_api.build_index()
+
+        cg = result["call_graph"]
+        assert "call_edges" in cg
+        assert "r_call_edges" in cg
+        assert "code_refs" in cg
+        assert "stats" in cg
+        # MyApp.Service.Go calls MyApp.Repo.Run via pattern 1
+        edges = cg["call_edges"]
+        service_edges = edges.get("MyApp.Service.Go", [])
+        assert any(e["to"] == "MyApp.Repo.Run" and e["pattern"] == 1 for e in service_edges)
+        # reverse: who calls MyApp.Repo.Run
+        assert "MyApp.Service.Go" in cg["r_call_edges"].get("MyApp.Repo.Run", [])
+        # code reference edge
+        assert "MyApp.Repo" in cg["code_refs"].get("MyApp.Service", [])
+        # fast path has no call graph
+        assert "call_graph" not in result_fast
+
+    async def test_index_code_mcp_tool_call_graph_param(self):
+        """index_code accepts include_call_graph and returns call-graph maps."""
+        import json
+
+        from fastmcp import Client
+
+        from prism.iris.api import documents
+        from prism.mcp.server import create_mcp
+
+        classes_data = [
+            {
+                "Name": "MyApp.Service",
+                "Super": "",
+                "ClassType": "",
+                "SqlTableName": "",
+                "Description": "",
+            },
+            {
+                "Name": "MyApp.Repo",
+                "Super": "",
+                "ClassType": "",
+                "SqlTableName": "",
+                "Description": "",
+            },
+        ]
+        methods_data = [
+            {"parent": "MyApp.Service", "Name": "Go", "ReturnType": "%Status", "FormalSpec": ""},
+            {"parent": "MyApp.Repo", "Name": "Run", "ReturnType": "%Status", "FormalSpec": ""},
+        ]
+        bodies = {
+            "MyApp.Service.cls": (
+                "Class MyApp.Service Extends %RegisteredObject {\n"
+                "Method Go() {\n  Do ##class(MyApp.Repo).Run()\n}\n"
+                "}\n"
+            ),
+            "MyApp.Repo.cls": (
+                "Class MyApp.Repo Extends %RegisteredObject {\nMethod Run() {\n  Quit $$$OK\n}\n}\n"
+            ),
+        }
+        handler = self._make_handler(classes_data, methods_data, bodies)
+
+        mcp = create_mcp()
+        client = Client(mcp)
+        async with client:
+            with (
+                patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)),
+                patch.object(documents, "client", lambda *a, **kw: mock_client(handler)),
+            ):
+                result = await client.call_tool("index_code", {"include_call_graph": True})
+                data = json.loads(result.content[0].text)
+                assert "call_graph" in data
+                cg = data["call_graph"]
+                assert "call_edges" in cg
+                edges = cg["call_edges"]
+                assert any(
+                    e["to"] == "MyApp.Repo.Run" and e["pattern"] == 1
+                    for e in edges.get("MyApp.Service.Go", [])
+                )
