@@ -18,6 +18,8 @@ import re
 from collections import deque
 from dataclasses import dataclass, field
 
+from prism.iris.api.documents import get_document
+from prism.iris.indexing.callgraph import build_call_graph
 from prism.iris.sdk.http import api_url, client, parse_json
 
 # ── Input validation ─────────────────────────────────────────────────────────
@@ -243,10 +245,57 @@ async def _run_query(
     return content if isinstance(content, list) else []
 
 
+async def _fetch_bodies(
+    class_names: list[str],
+    namespace: str | None,
+    target_host: str | None,
+    target_port: int | None,
+) -> dict[str, str]:
+    """Fetch the full source of each class in *class_names* in parallel.
+
+    Returns ``{class_name: source_text}``. Classes whose document fetch fails
+    (e.g. a generated class with no stored source, a 404) are skipped — their
+    call-site contributions are simply absent, which is a bounded, visible
+    gap rather than a hard failure.
+    """
+
+    async def _one(name: str) -> tuple[str, str | None]:
+        try:
+            data = await get_document(f"{name}.cls", namespace, target_host, target_port)
+            content = data.get("result", {}).get("content", [])
+            if isinstance(content, list):
+                return name, "\n".join(content)
+            return name, None
+        except Exception:
+            return name, None
+
+    results = await asyncio.gather(*(_one(n) for n in class_names))
+    return {name: src for name, src in results if src is not None}
+
+
+def _to_call_graph_dict(cg, class_map: dict) -> dict:
+    """Convert a :class:`CallGraph` into a compact, JSON-serialisable dict."""
+    methods_with_calls = sum(1 for k in cg.r_call_edges if "." in k)
+    return {
+        "call_edges": dict(sorted(cg.call_edges.items())),
+        "r_call_edges": {k: sorted(v) for k, v in sorted(cg.r_call_edges.items())},
+        "code_refs": {k: sorted(v) for k, v in sorted(cg.code_refs.items())},
+        "r_code_refs": {k: sorted(v) for k, v in sorted(cg.r_code_refs.items())},
+        "unresolved": dict(sorted(cg.unresolved.items())),
+        "stats": {
+            "call_edges": cg.edge_count,
+            "code_refs": cg.ref_count,
+            "unresolved_calls": cg.unresolved_count,
+            "methods_with_calls": methods_with_calls,
+        },
+    }
+
+
 async def build_index(
     namespace: str | None = None,
     include_system: bool = False,
     filter_prefix: str | None = None,
+    include_call_graph: bool = False,
     target_host: str | None = None,
     target_port: int | None = None,
 ) -> dict:
@@ -256,10 +305,16 @@ async def build_index(
         namespace: IRIS namespace (defaults to configured).
         include_system: Include system classes (%Library, %SYS, etc.).
         filter_prefix: Only include classes starting with this prefix.
+        include_call_graph: Also read method bodies and build a method-level
+            call graph (Tier 2). This is opt-in and significantly slower — it
+            fetches every in-index class's source. When False (default), only
+            the fast %Dictionary path runs.
 
     Returns:
         Index dict with class summaries, statistics, a dependency map, and
-        graph maps (``edges``, ``r_edges``, ``degree``).
+        graph maps (``edges``, ``r_edges``, ``degree``). When
+        *include_call_graph* is set, the dict also carries ``call_edges``,
+        ``r_call_edges``, ``call_stats``, ``code_refs`` and ``unresolved``.
     """
     # Build the class filter once and reuse it across all six queries so the
     # system-exclusion predicate cannot drift apart between them.
@@ -364,7 +419,7 @@ async def build_index(
     # Build graph maps
     edges, r_edges, degree = _edge_maps(class_map)
 
-    return {
+    result: dict = {
         "namespace": namespace or "USER",
         "statistics": {
             "classes": total_classes,
@@ -380,6 +435,16 @@ async def build_index(
         "r_edges": r_edges,
         "degree": degree,
     }
+
+    # Tier 2 — optional method-level call graph. Read each in-index class's
+    # body and resolve the seven ObjectScript call forms. This is the slow,
+    # opt-in path (the ~+20s pass) and is only performed when requested.
+    if include_call_graph:
+        sources = await _fetch_bodies(list(class_map), namespace, target_host, target_port)
+        cg = build_call_graph(class_map, sources)
+        result["call_graph"] = _to_call_graph_dict(cg, class_map)
+
+    return result
 
 
 async def index_summary(

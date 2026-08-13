@@ -16,6 +16,13 @@ def index(
     include_system: bool = typer.Option(False, "--system", help="Include system classes."),
     prefix: str = typer.Option("", "--prefix", help="Only index classes with this prefix."),
     summary: bool = typer.Option(False, "--summary", help="Only show counts, no class details."),
+    call_graph: bool = typer.Option(
+        False,
+        "--call-graph",
+        help="Also build a method-level call graph by reading every in-index "
+        "class's body. Slow (adds ~20s). Adds call_edges, r_call_edges, "
+        "code_refs and unresolved-call counts.",
+    ),
 ) -> None:
     """Build a compact index of classes in an IRIS namespace.
 
@@ -35,6 +42,7 @@ def index(
                     namespace=ns,
                     include_system=include_system,
                     filter_prefix=prefix_val,
+                    include_call_graph=call_graph,
                 )
             )
     except Exception as exc:
