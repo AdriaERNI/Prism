@@ -180,7 +180,7 @@ jobs:
           #   --copy-metadata: bundle .dist-info for packages that call
           #     importlib.metadata.version() at import time (fastmcp, click)
           #   --hidden-import: ensure metadata importer is loaded in frozen mode
-          uv run pyinstaller --onefile --name prism --icon logo.ico `
+          uv run pyinstaller --onedir --name prism --icon logo.ico `
             --copy-metadata fastmcp `
             --copy-metadata click `
             --copy-metadata httpx `
@@ -192,7 +192,6 @@ jobs:
             --copy-metadata python-dotenv `
             --copy-metadata toons `
             --collect-all lupa `
-            --collect-all fakeredis `
             --collect-all docket `
             --collect-all shellingham `
             --collect-submodules prism.mcp `
@@ -230,8 +229,6 @@ jobs:
           while ($parts.Count -lt 4) { $parts += "0" }
           $issVersion = $parts -join "."
           Write-Host "Inno Setup version: $issVersion (from $version)"
-          # Rename exe to versioned name (matches .iss Source path)
-          Copy-Item dist/prism.exe "dist/prism-$version.exe"
           # Find ISCC.exe
           $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           if (-not $iscc) {
@@ -242,8 +239,9 @@ jobs:
             exit 1
           }
           Write-Host "Using ISCC: $($iscc.FullName)"
-          # Compile from dist/ (where prism-$version.exe and the .iss assets are)
-          & $iscc.FullName "/DAppVer=$issVersion" "/DAppVerFile=$version" "dist/prism.iss"
+          # Compile from dist/ (where the .iss assets are). The onedir output
+          # lives at dist/prism/, so pass /DAppSource=prism (relative to dist/).
+          & $iscc.FullName "/DAppVer=$issVersion" "/DAppVerFile=$version" "/DAppSource=prism" "dist/prism.iss"
           # Verify installer was created
           $installer = "dist/prism-$version-setup.exe"
           if (Test-Path $installer) {
@@ -260,17 +258,17 @@ jobs:
         run: |
           Write-Host "=== Testing frozen prism.exe ==="
           # 1. --version
-          $v = & ./dist/prism.exe --version 2>&1
+          $v = & ./dist/prism/prism.exe --version 2>&1
           Write-Host "Version: $v"
           if ($v -notmatch "Prism") { Write-Error "--version failed: $v"; exit 1 }
           # 2. --help (no crash)
-          $h = & ./dist/prism.exe --help 2>&1
+          $h = & ./dist/prism/prism.exe --help 2>&1
           if ($LASTEXITCODE -ne 0) { Write-Error "--help failed"; exit 1 }
           # 3. cast --list (empty, should not crash)
-          $c = & ./dist/prism.exe cast --list 2>&1
+          $c = & ./dist/prism/prism.exe cast --list 2>&1
           if ($LASTEXITCODE -ne 0) { Write-Error "cast --list failed: $c"; exit 1 }
           # 4. serve (must start without crashing -- lupa/fakeredis/docket fix)
-          $job = Start-Job -ScriptBlock { param($exe) & $exe serve --skip-preflight --port 29999 2>&1 } -ArgumentList (Resolve-Path ./dist/prism.exe).Path
+          $job = Start-Job -ScriptBlock { param($exe) & $exe serve --skip-preflight --port 29999 2>&1 } -ArgumentList (Resolve-Path ./dist/prism/prism.exe).Path
           Start-Sleep -Seconds 5
           $out = Receive-Job $job
           Stop-Job $job -ErrorAction SilentlyContinue
@@ -288,7 +286,7 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: |
             dist/*.whl
-            dist/prism.exe
+            dist/prism
             dist/prism-*-setup.exe
 
   release:

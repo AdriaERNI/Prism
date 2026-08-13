@@ -23,8 +23,6 @@ import typer
 
 from prism.cli.errors import handle_command_error
 from prism.iris.monitor import collect_snapshot
-from prism.iris.monitor.dashboard import HistoryBuffer, render_dashboard
-from prism.iris.monitor.scorer import compare_snapshots
 from prism.output import format_output, get_output_format
 
 
@@ -86,6 +84,8 @@ async def _run_dashboard(watch: float) -> None:
     """
     from rich.console import Console
     from rich.live import Live
+
+    from prism.iris.monitor.dashboard import HistoryBuffer, render_dashboard
 
     console = Console()
     history = HistoryBuffer()
@@ -185,6 +185,8 @@ def _run_compare() -> None:
 
 async def _run_compare_async() -> None:
     """Async implementation of compare mode."""
+    from prism.iris.monitor.scorer import compare_snapshots
+
     typer.echo("Taking snapshot A...", err=True)
     snapshot_a = await collect_snapshot()
     typer.echo(f"  Score: {snapshot_a.score.overall} ({snapshot_a.grade})", err=True)

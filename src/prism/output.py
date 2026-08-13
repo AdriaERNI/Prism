@@ -6,19 +6,33 @@ Shared by both CLI commands and the MCP ``@logged_tool`` decorator.
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
 import typer
 
-from prism.settings import settings
+if TYPE_CHECKING:
+    pass  # prism.settings is only needed for type-checking hints.
 
 VALID_FORMATS = ("json", "toon")
 
 # Module-level format state set by the CLI global callback and read by commands.
-_output_format: str = settings.prism_output_format
+_output_format: str | None = None  # initialised lazily on first read
+
+
+def _default_output_format() -> str:
+    """Resolve the configured default output format on first use."""
+    global _output_format
+    if _output_format is None:
+        from prism.settings import settings
+
+        _output_format = settings.prism_output_format
+    return _output_format
 
 
 def get_output_format() -> str:
     """Return the active output format (``json`` or ``toon``)."""
+    if _output_format is None:
+        return _default_output_format()
     return _output_format
 
 

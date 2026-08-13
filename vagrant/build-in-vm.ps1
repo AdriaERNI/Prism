@@ -68,7 +68,7 @@ if ($irisLibs -and (Test-Path $irisLibs)) {
   $addBinary = @("--add-binary", "$irisLibs;intersystems_irispython.libs")
 }
 
-uv run pyinstaller --noconfirm --onefile --name prism --clean `
+uv run pyinstaller --noconfirm --onedir --name prism --clean `
   --paths src `
   --hidden-import prism `
   --hidden-import prism.cli `
@@ -82,8 +82,7 @@ uv run pyinstaller --noconfirm --onefile --name prism --clean `
   --collect-submodules fastmcp `
   --copy-metadata fastmcp `
   --copy-metadata python-dotenv `
-  --copy-metadata toons `
-  --collect-all fakeredis `
+  --noupx `
   --collect-submodules lupa `
   --collect-binaries lupa `
   --version-file version-info.py `
@@ -91,21 +90,19 @@ uv run pyinstaller --noconfirm --onefile --name prism --clean `
   main.py 2>&1 | Out-Host
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: PyInstaller failed"; exit 1 }
 
-if (-not (Test-Path C:\build\prism\dist\prism.exe)) {
-  Write-Host "ERROR: exe not found after build"
+# --onedir output: prism.exe + _internal/ live in a folder named prism\.
+if (-not (Test-Path C:\build\prism\dist\prism\prism.exe)) {
+  Write-Host "ERROR: exe not found after onedir build"
   exit 1
 }
 
-# Rename exe to include version
-Rename-Item C:\build\prism\dist\prism.exe "prism-$ver.exe"
-Write-Host "Build successful: prism-$ver.exe"
+Write-Host "Build successful (onedir): prism\$ver\prism.exe"
 
 Write-Host "Building Inno Setup installer..."
 Write-Host "Installer version: $ver"
 
 $issContent = Get-Content C:\build\prism\prism.iss -Raw
 $issContent = $issContent -replace 'C:\\vagrant', 'C:\build\prism'
-$issContent = $issContent -replace 'Source: "prism-', 'Source: "dist\prism-'
 Set-Content -Path C:\build\prism\prism-build.iss -Value $issContent
 
 & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=$ver" "/DAppVerNumeric=$numericVer.0" C:\build\prism\prism-build.iss 2>&1 | Out-Host

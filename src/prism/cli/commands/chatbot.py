@@ -22,7 +22,22 @@ from typing import Any
 
 import typer
 
-from prism.settings import save_config, settings
+# prism.settings is imported lazily inside functions to avoid pulling
+# pydantic_settings (~85 ms) into cold start for unrelated commands.
+# ``settings`` and ``save_config`` are also exposed at module level via
+# ``__getattr__`` so tests can monkeypatch them without triggering the
+# import at CLI startup time.
+
+_settings_refs: dict[str, object] = {}
+
+
+def __getattr__(name: str) -> object:
+    if name in ("settings", "save_config"):
+        from prism import settings as _settings_mod
+
+        return getattr(_settings_mod, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 _ANSI_RESET = "\x1b[0m"
 _ANSI_BOLD = "\x1b[1m"
@@ -39,6 +54,8 @@ _CLEAR_COMMANDS = {"clear", "/clear", "/reset"}
 
 def _print_banner() -> None:
     """Print the startup banner."""
+    from prism.settings import settings
+
     version = _get_version()
     typer.echo(
         f"{_ANSI_CYAN}{_ANSI_BOLD}Prism {_ANSI_RESET}"
@@ -84,6 +101,10 @@ def _save_config_from_flags(
     skills_path: str | None,
 ) -> bool:
     """Persist any provided flags to config.json. Returns True if anything was saved."""
+    # Use module-level save_config (resolved lazily via __getattr__)
+    # so tests can patch prism.cli.commands.chatbot.save_config.
+    import prism.cli.commands.chatbot as _self
+
     updates: dict[str, object] = {}
     if api_url is not None:
         updates["chatbot_api_url"] = api_url.rstrip("/")
@@ -95,7 +116,7 @@ def _save_config_from_flags(
         updates["chatbot_skills_path"] = skills_path
 
     if updates:
-        save_config(updates)
+        _self.save_config(updates)
         return True
     return False
 
@@ -182,6 +203,8 @@ def chatbot(
     2. Environment variables (CHATBOT_API_URL, CHATBOT_API_KEY, CHATBOT_MODEL, CHATBOT_SKILLS_PATH)
     3. config.json (written by: prism config --chatbot-api-url <url> ...)
     """
+    from prism.settings import settings
+
     # Resolve effective values for display
     effective_api_url = api_url or settings.chatbot_api_url
     effective_api_key = api_key or settings.chatbot_api_key
