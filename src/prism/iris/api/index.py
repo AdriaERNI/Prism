@@ -5,12 +5,17 @@ The index includes class hierarchies, methods, properties, SQL projections,
 imports, and dependencies — without fetching full source files. This lets AI agents
 understand a large IRIS codebase using a fraction of the tokens needed to
 read every document.
+
+The index also exposes a lightweight directed graph (``edges`` / ``r_edges`` /
+``degree``) so consumers can answer subclass, impact and reachability queries
+without paying for a full source scan.
 """
 
 from __future__ import annotations
 
 import asyncio
 import re
+from collections import deque
 from dataclasses import dataclass, field
 
 from prism.iris.sdk.http import api_url, client, parse_json
@@ -28,7 +33,7 @@ _FILTER_PREFIX_RE = re.compile(r"^[A-Za-z%][A-Za-z0-9._]*$")
 
 
 def _validate_filter_prefix(prefix: str) -> str:
-    """Validate that *prefix* is a safe IRIS class-name prefix for LIKE clauses.
+    """Validate that *prefix* is a safe IRIS class-name prefix for prefix filters.
 
     Raises ``ValueError`` if *prefix* contains characters outside the
     allowlist (e.g. quotes, semicolons, SQL wildcards used as first char).
@@ -36,6 +41,57 @@ def _validate_filter_prefix(prefix: str) -> str:
     if not isinstance(prefix, str) or not prefix or not _FILTER_PREFIX_RE.match(prefix):
         raise ValueError(f"invalid filter prefix: {prefix!r}")
     return prefix
+
+
+# ── System-class exclusion ────────────────────────────────────────────────
+#
+# The class filters used to be written with unanchored LIKE patterns
+# ('\%', '%SYS.%', '%Library.%', '%Api.%'), which had two bugs:
+#
+#   * '\%' alone matched nothing (no ESCAPE clause), so ~4,700 %-prefixed
+#     system classes were KEPT despite the intent to drop them; and
+#   * the leading '%' in '%SYS.%' / '%Library.%' / '%Api.%' is a wildcard,
+#     so the pattern meant "contains anywhere" and silently DROPPED user
+#     classes such as AppLibrary.BaseObject.
+#
+# Anchoring with %STARTSWITH fixes both directions: it matches the class-name
+# prefix exactly and needs no escape clause. The predicate is defined once and
+# reused by every query so the copies cannot drift apart.
+
+
+_SYSTEM_EXCLUDE = (
+    "NOT ({col} %STARTSWITH '%') "
+    "AND NOT ({col} %STARTSWITH 'SYS.') "
+    "AND NOT ({col} %STARTSWITH 'Api.')"
+)
+
+
+def _system_exclude(col: str) -> str:
+    """SQL predicate excluding system classes from *col* (a class-name column).
+
+    Excludes everything under ``%`` (which covers ``%Library``, ``%SYS``,
+    ``%Api``) plus any bare ``SYS.`` / ``Api.`` -prefixed names.
+    """
+    return _SYSTEM_EXCLUDE.format(col=col)
+
+
+def _class_filter(include_system: bool, filter_prefix: str | None) -> str:
+    """Build the SQL WHERE clause (or ``''``) for build_index queries.
+
+    Excludes system classes unless *include_system*, and optionally restricts
+    to *filter_prefix*. The clause filters on the column alias ``Name`` (the
+    inner class-select's column), so it can be embedded directly in the
+    ``Parent->Name IN (SELECT Name FROM ...)`` subqueries too.
+    """
+    clauses: list[str] = []
+    if not include_system:
+        clauses.append(_system_exclude("Name"))
+    if filter_prefix:
+        _validate_filter_prefix(filter_prefix)
+        clauses.append(f"Name %STARTSWITH '{filter_prefix}'")
+    if not clauses:
+        return ""
+    return "WHERE " + " AND ".join(clauses)
 
 
 # ── Data structures ──────────────────────────────────────────────────────
@@ -79,51 +135,94 @@ class ClassInfo:
         return result
 
 
-# ── Index queries ──────────────────────────────────────────────────────
+# ── Graph / parsing helpers ───────────────────────────────────────────────
 
 
-_CLASSES_QUERY = """SELECT
-  Name, Super, ClassType, SqlTableName, Description
-FROM %Dictionary.ClassDefinition
-WHERE Name NOT LIKE '\\%' AND Name NOT LIKE '%SYS.%'
-  AND Name NOT LIKE '%Library.%' AND Name NOT LIKE '%Api.%'
-ORDER BY Name"""
+def _split_supers(super_str: str) -> list[str]:
+    """Split a ``Super`` string (a comma-separated list) into individual names."""
+    return [s.strip() for s in (super_str or "").split(",") if s.strip()]
 
-_METHODS_QUERY = """SELECT
-  Parent->Name AS parent, Name, ReturnType, Description
-FROM %Dictionary.MethodDefinition
-WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%'
-  AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'
-ORDER BY Parent->Name, Name"""
 
-_PROPERTIES_QUERY = """SELECT
-  Parent->Name AS parent, Name, Type
-FROM %Dictionary.PropertyDefinition
-WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%'
-  AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'
-ORDER BY Parent->Name, Name"""
+def _extract_signature_types(formal_spec: str) -> list[str]:
+    """Return non-system type names referenced in a method ``FormalSpec``.
 
-_PARAMETERS_QUERY = """SELECT
-  Parent->Name AS parent, Name, Default
-FROM %Dictionary.ParameterDefinition
-WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%'
-  AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'
-ORDER BY Parent->Name, Name"""
+    FormalSpec is a comma-separated parameter list, e.g.
+    ``"pArg1 As %String, pArg2 As MyApp.Model = 1"``.  We pull every
+    ``As <Type>`` token and keep types that are not ``%``-prefixed (they are
+    the ones that can be application-class references and thus real edges).
+    """
+    types: list[str] = []
+    for m in re.finditer(r"\bAs\s+([%A-Za-z][\w.]*)", formal_spec or ""):
+        t = m.group(1).rstrip(".")
+        if not t.startswith("%"):
+            types.append(t)
+    return types
 
-_SQLPROCS_QUERY = """SELECT
-  Parent->Name AS parent, Name
-FROM %Dictionary.MethodDefinition
-WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%'
-  AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'
-  AND SqlProc = 1
-ORDER BY Parent->Name, Name"""
 
-_IMPORTS_QUERY = """SELECT
-  Parent->Name AS parent, Name
-FROM %Dictionary.ImportDefinition
-WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%'
-  AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'
-ORDER BY Parent->Name, Name"""
+def _edge_maps(
+    class_map: dict[str, ClassInfo],
+) -> tuple[dict[str, list[str]], dict[str, list[str]], dict[str, int]]:
+    """Build forward/reverse edge maps and a degree map from the class set.
+
+    Edges are directed *usage* edges ``from -> to`` meaning "class *from*
+    references class *to*". Sources:
+
+      * superclass list (``Class extends Base``)
+      * property types (``Property Foo As MyApp.Model``)
+      * method signature types (``Method Bar(p As MyApp.Model)``)
+
+    Edges only ever point at classes that are actually in the index, so
+    ``-> %Persistent`` style edges to excluded system classes are omitted.
+    """
+    edges: dict[str, list[str]] = {}
+    r_edges: dict[str, list[str]] = {}
+
+    def _add(frm: str, to: str) -> None:
+        if frm in class_map and to in class_map and frm != to and to not in edges.get(frm, []):
+            edges.setdefault(frm, []).append(to)
+            r_edges.setdefault(to, []).append(frm)
+
+    for ci in class_map.values():
+        for sup in _split_supers(ci.super):
+            _add(ci.name, sup)
+        for p in ci.properties:
+            t = p["type"].strip()
+            if t and not t.startswith("%"):
+                _add(ci.name, t)
+        for m in ci.methods:
+            for sig_t in m.get("signature_types", []):
+                _add(ci.name, sig_t)
+
+    degree = {
+        cls: len(edges.get(cls, [])) + len(r_edges.get(cls, []))
+        for cls in set(edges) | set(r_edges)
+    }
+    return edges, r_edges, degree
+
+
+def reachable(edges: dict[str, list[str]], start: str, max_hops: int = 3) -> dict[str, int]:
+    """BFS over the forward edge map from *start*, up to *max_hops*.
+
+    Returns ``{reachable_class: shortest_distance}`` (including *start* at
+    distance 0 when it has edges). Use for reachability / n-hop impact and
+    shortest-path questions against an ``edges`` map.
+    """
+    if start not in edges or max_hops <= 0:
+        return {start: 0} if start in edges else {}
+    dist = {start: 0}
+    q: deque[str] = deque([start])
+    while q:
+        node = q.popleft()
+        if dist[node] >= max_hops:
+            continue
+        for nb in edges.get(node, []):
+            if nb not in dist:
+                dist[nb] = dist[node] + 1
+                q.append(nb)
+    return dist
+
+
+# ── Index build ──────────────────────────────────────────────────────────
 
 
 async def _run_query(
@@ -159,30 +258,23 @@ async def build_index(
         filter_prefix: Only include classes starting with this prefix.
 
     Returns:
-        Index dict with class summaries, statistics, and dependency map.
+        Index dict with class summaries, statistics, a dependency map, and
+        graph maps (``edges``, ``r_edges``, ``degree``).
     """
-    # Adjust queries based on options
-    class_filter = ""
-    if not include_system:
-        # Exclude system classes (names starting with %)
-        class_filter = (
-            "WHERE Name NOT LIKE '\\%%' AND Name NOT LIKE '%SYS.%' "
-            "AND Name NOT LIKE '%Library.%' AND Name NOT LIKE '%Api.%'"
-        )
-    if filter_prefix:
-        _validate_filter_prefix(filter_prefix)
-        prefix_filter = f"Name LIKE '{filter_prefix}%'"
-        if class_filter:
-            class_filter += f" AND {prefix_filter}"
-        else:
-            class_filter = f"WHERE {prefix_filter}"
+    # Build the class filter once and reuse it across all six queries so the
+    # system-exclusion predicate cannot drift apart between them.
+    where = _class_filter(include_system, filter_prefix)
 
-    classes_q = f"SELECT Name, Super, ClassType, SqlTableName, Description FROM %Dictionary.ClassDefinition {class_filter} ORDER BY Name"
-    methods_q = f"SELECT Parent->Name AS parent, Name, ReturnType FROM %Dictionary.MethodDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) ORDER BY Parent->Name, Name"
-    props_q = f"SELECT Parent->Name AS parent, Name, Type FROM %Dictionary.PropertyDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) ORDER BY Parent->Name, Name"
-    params_q = f"SELECT Parent->Name AS parent, Name, Default FROM %Dictionary.ParameterDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) ORDER BY Parent->Name, Name"
-    sqlprocs_q = f"SELECT Parent->Name AS parent, Name FROM %Dictionary.MethodDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) AND SqlProc = 1 ORDER BY Parent->Name, Name"
-    imports_q = f"SELECT Parent->Name AS parent, Name FROM %Dictionary.ImportDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {class_filter}) ORDER BY Parent->Name, Name"
+    classes_q = f"SELECT Name, Super, ClassType, SqlTableName, Description FROM %Dictionary.ClassDefinition {where} ORDER BY Name"
+    methods_q = (
+        "SELECT Parent->Name AS parent, Name, ReturnType, FormalSpec "
+        f"FROM %Dictionary.MethodDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {where}) "
+        "ORDER BY Parent->Name, Name"
+    )
+    props_q = f"SELECT Parent->Name AS parent, Name, Type FROM %Dictionary.PropertyDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {where}) ORDER BY Parent->Name, Name"
+    params_q = f"SELECT Parent->Name AS parent, Name, Default FROM %Dictionary.ParameterDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {where}) ORDER BY Parent->Name, Name"
+    sqlprocs_q = f"SELECT Parent->Name AS parent, Name FROM %Dictionary.MethodDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {where}) AND SqlProc = 1 ORDER BY Parent->Name, Name"
+    imports_q = f"SELECT Parent->Name AS parent, Name FROM %Dictionary.ImportDefinition WHERE Parent->Name IN (SELECT Name FROM %Dictionary.ClassDefinition {where}) ORDER BY Parent->Name, Name"
 
     # Run all queries in parallel
     (
@@ -215,7 +307,7 @@ async def build_index(
             description=row.get("Description", "") or "",
         )
 
-    # Attach methods
+    # Attach methods (incl. FormalSpec for signature-type edges)
     for row in methods_raw:
         parent = row.get("parent", "")
         if parent in class_map:
@@ -223,6 +315,7 @@ async def build_index(
                 {
                     "name": row.get("Name", ""),
                     "return_type": row.get("ReturnType", "") or "",
+                    "signature_types": _extract_signature_types(row.get("FormalSpec", "") or ""),
                 }
             )
 
@@ -265,8 +358,11 @@ async def build_index(
     total_sql_procs = sum(len(ci.sql_procedures) for ci in class_map.values())
     total_imports = sum(len(ci.imports) for ci in class_map.values())
 
-    # Build dependency map (class -> superclass)
+    # Build dependency map (class -> superclass) for backward compatibility
     dependency_map = {ci.name: ci.super for ci in class_map.values() if ci.super}
+
+    # Build graph maps
+    edges, r_edges, degree = _edge_maps(class_map)
 
     return {
         "namespace": namespace or "USER",
@@ -280,6 +376,9 @@ async def build_index(
         },
         "classes": classes,
         "dependencies": dependency_map,
+        "edges": edges,
+        "r_edges": r_edges,
+        "degree": degree,
     }
 
 
@@ -292,26 +391,28 @@ async def index_summary(
 
     Useful for agents to quickly understand the scope of a codebase.
     """
+    # Reuse the shared system-exclusion predicate (on the parent class column).
+    excl = _system_exclude("Parent->Name")
     class_count = await _run_query(
-        "SELECT COUNT(*) AS cnt FROM %Dictionary.ClassDefinition WHERE Name NOT LIKE '\\%' AND Name NOT LIKE '%SYS.%' AND Name NOT LIKE '%Library.%' AND Name NOT LIKE '%Api.%'",
+        f"SELECT COUNT(*) AS cnt FROM %Dictionary.ClassDefinition WHERE {_system_exclude('Name')}",
         namespace,
         target_host,
         target_port,
     )
     method_count = await _run_query(
-        "SELECT COUNT(*) AS cnt FROM %Dictionary.MethodDefinition WHERE Parent->Name NOT LIKE '\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'",
+        f"SELECT COUNT(*) AS cnt FROM %Dictionary.MethodDefinition WHERE {excl}",
         namespace,
         target_host,
         target_port,
     )
     prop_count = await _run_query(
-        "SELECT COUNT(*) AS cnt FROM %Dictionary.PropertyDefinition WHERE Parent->Name NOT LIKE '\\\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%'",
+        f"SELECT COUNT(*) AS cnt FROM %Dictionary.PropertyDefinition WHERE {excl}",
         namespace,
         target_host,
         target_port,
     )
     sqlproc_count = await _run_query(
-        "SELECT COUNT(*) AS cnt FROM %Dictionary.MethodDefinition WHERE Parent->Name NOT LIKE '\\\\%' AND Parent->Name NOT LIKE '%SYS.%' AND Parent->Name NOT LIKE '%Library.%' AND Parent->Name NOT LIKE '%Api.%' AND SqlProc = 1",
+        f"SELECT COUNT(*) AS cnt FROM %Dictionary.MethodDefinition WHERE {excl} AND SqlProc = 1",
         namespace,
         target_host,
         target_port,

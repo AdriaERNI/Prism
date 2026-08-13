@@ -28,6 +28,10 @@ class TestIndexCodeLive:
         assert "statistics" in data
         assert "classes" in data
         assert "dependencies" in data
+        # New graph maps (Tier 0)
+        assert "edges" in data
+        assert "r_edges" in data
+        assert "degree" in data
 
         stats = data["statistics"]
         assert "classes" in stats
@@ -67,6 +71,18 @@ class TestIndexCodeLive:
         for cls_name, superclass in deps.items():
             assert isinstance(cls_name, str)
             assert isinstance(superclass, str)
+
+    async def test_index_reachability_live(self, live):
+        """index_reachability returns a reachable set from a known class."""
+        result = await live.call_tool(
+            "index_reachability",
+            {"class_name": "Test", "max_hops": 2},
+        )
+        data = json.loads(result.content[0].text)
+        assert data["start"] == "Test"
+        assert data["max_hops"] == 2
+        assert data["direction"] == "reverse"
+        assert isinstance(data["reachable"], list)
 
     async def test_index_summary_is_smaller_than_full(self, live):
         """Summary output is smaller than full index."""
