@@ -88,9 +88,40 @@ Includes `%Library.*`, `%SYS.*`, `%Api.*` and other system classes.
   ],
   "dependencies": {
     "MyApp.Model": "%Persistent"
+  },
+  "edges": {
+    "MyApp.Child": ["MyApp.Base"]
+  },
+  "r_edges": {
+    "MyApp.Base": ["MyApp.Child"]
+  },
+  "degree": {
+    "MyApp.Base": 1
   }
 }
 ```
+
+### Graph maps
+
+Besides `dependencies` (class → superclass string), the index now exposes a
+real directed *use* graph:
+
+- **`edges`** — forward map `from → [to...]`: class *from* references class *to*
+  via a superclass link, a property type, or a method-signature type.
+- **`r_edges`** — reverse map `to → [from...]`: which classes reference *to*.
+  This is the impact-analysis direction.
+- **`degree`** — `in + out` edge count per class ("most connected classes").
+
+Edges only point at classes that are actually in the index, so references to
+excluded system classes (`%Persistent`, `%Library.*`, etc.) are omitted.
+
+### Exclusion correctness
+
+System classes are excluded with anchored `%STARTSWITH` predicates (not the
+old unanchored `LIKE` patterns). This excludes every `%`-prefixed class
+(`%Library`, `%SYS`, `%Api`) plus bare `SYS.` / `Api.` prefixes — and no longer
+silently drops user classes whose names merely contain `Library.`, `SYS.` or
+`Api.`.
 
 ## Token efficiency
 

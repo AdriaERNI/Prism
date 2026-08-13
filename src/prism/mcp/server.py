@@ -81,6 +81,9 @@ inline. Supports `head`, `tail`, `from_line`/`to_line` for slicing.
 Returns class hierarchies, methods, properties, SQL projections, imports, \
 and dependencies without fetching full source. Use summary_only=True for \
 quick counts or filter_prefix to scope to a package.
+- **index_reachability** — walk the class dependency graph from a class \
+(impact analysis: what depends on this class, by default). Returns reachable \
+classes with shortest-path distances, up to max_hops.
 - **run_tests** — run unit tests for a %UnitTest.TestCase class.
 - **list_tests** — discover test classes and their Test* methods.
 - **get_test_results** — view historical test results.
@@ -223,6 +226,9 @@ inline. Supports `head`, `tail`, `from_line`/`to_line` for slicing.
 Returns class hierarchies, methods, properties, SQL projections, and \
 dependencies without fetching full source. Use `summary_only=True` for \
 quick counts or `filter_prefix` to scope to a package.
+- **index_reachability** — walk the class dependency graph from a class \
+(impact analysis: what depends on this class, by default). Returns reachable \
+classes with shortest-path distances, up to max_hops.
 - **run_tests** — run unit tests for a %UnitTest.TestCase class.
 - **list_tests** — discover test classes and their Test* methods.
 - **get_test_results** — view historical test results.
