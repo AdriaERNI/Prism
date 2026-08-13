@@ -60,7 +60,9 @@ def _validate_filter_prefix(prefix: str) -> str:
 
 
 _SYSTEM_EXCLUDE = (
-    "{col} NOT %STARTSWITH '%' AND {col} NOT %STARTSWITH 'SYS.' AND {col} NOT %STARTSWITH 'Api.'"
+    "NOT ({col} %STARTSWITH '%') "
+    "AND NOT ({col} %STARTSWITH 'SYS.') "
+    "AND NOT ({col} %STARTSWITH 'Api.')"
 )
 
 
