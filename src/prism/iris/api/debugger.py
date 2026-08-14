@@ -510,7 +510,7 @@ async def stop_session(session_id: str) -> dict:
 
     try:
         await session.conn.send_command("stop")
-    except (DbgpError, Exception):
+    except Exception:
         pass
 
     await manager.close(session_id)

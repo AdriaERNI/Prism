@@ -288,12 +288,8 @@ class SQLController:
         if any_error:
             result.error = first_error
 
-        # N2: Always invoke callback — even on cancel — so UI is restored
-        if self._cancel_requested:
-            # Still put result in queue so _poll() picks it up and
-            # calls the callback to restore toolbar/status bar
-            pass
-
+        # Always enqueue the result — even on cancel — so _poll() invokes
+        # the callback and the UI (toolbar/status bar) is restored.
         self._queue.put(result)
 
     def _run_query(self, query: str, namespace: str | None) -> None:
@@ -339,8 +335,8 @@ class SQLController:
                 pass
             loop.close()
 
-        # N2: Always put result in queue — even on cancel — so _poll()
-        # picks it up and calls the callback to restore toolbar/status bar.
+        # Always enqueue the result — even on cancel — so _poll() picks it
+        # up and calls the callback to restore the toolbar/status bar.
         # The cancelled result is still valid (just might be partial).
         self._queue.put(result)
 

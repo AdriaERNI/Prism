@@ -294,7 +294,7 @@ async def _fetch_bodies(
     return {name: src for name, src in results if src is not None}
 
 
-def _to_call_graph_dict(cg, class_map: dict) -> dict:
+def _to_call_graph_dict(cg) -> dict:
     """Convert a :class:`CallGraph` into a compact, JSON-serialisable dict."""
     methods_with_calls = sum(1 for k in cg.r_call_edges if "." in k)
     return {
@@ -463,7 +463,7 @@ async def build_index(
     if include_call_graph:
         sources = await _fetch_bodies(list(class_map), namespace, target_host, target_port)
         cg = build_call_graph(class_map, sources)
-        result["call_graph"] = _to_call_graph_dict(cg, class_map)
+        result["call_graph"] = _to_call_graph_dict(cg)
 
     return result
 
