@@ -120,9 +120,13 @@ excluded system classes (`%Persistent`, `%Library.*`, etc.) are omitted.
 
 System classes are excluded with anchored `%STARTSWITH` predicates (not the
 old unanchored `LIKE` patterns). This excludes every `%`-prefixed class
-(`%Library`, `%SYS`, `%Api`) plus bare `SYS.` / `Api.` prefixes — and no longer
-silently drops user classes whose names merely contain `Library.`, `SYS.` or
-`Api.`.
+(`%Library`, `%SYS`, `%Api`), bare `SYS.` / `Api.` prefixes, and InterSystems'
+reserved non-`%` system packages — the Ensemble framework (`Ens.`, `EnsLib.`,
+`EnsPortal.`, `Ensemble.`), the CSP dashboard (`CSPX.`), and the SQL schema
+views (`INFORMATION.`). These ship in every IRIS instance's `USER` namespace and
+would otherwise inflate the index with ~1,500 non-user classes. The anchored
+predicates no longer silently drop user classes whose names merely contain
+`Library.`, `SYS.` or `Api.`.
 
 ## Method-level call graph (`--call-graph`)
 

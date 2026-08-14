@@ -315,7 +315,17 @@ def _scan_body(
             # resolve the concrete method call
             owner = _find_method_owner(method, target, class_map)
             if owner is None:
-                _count_unresolved(cg, src_class, src_method)
+                if target in class_map:
+                    # Receiver is an in-index class, but the method is
+                    # inherited from an out-of-index (system) superclass
+                    # (e.g. ##class(X).%OpenId() where %OpenId is declared on
+                    # %Persistent). The receiver is still determinable, so
+                    # attribute the edge to it rather than counting the call
+                    # unresolved — otherwise the most common persistence
+                    # idioms are invisible to "who calls X?".
+                    _emit(cg, class_map, src_class, src_method, target, method, pattern)
+                else:
+                    _count_unresolved(cg, src_class, src_method)
             else:
                 _emit(cg, class_map, src_class, src_method, owner, method, pattern)
             # continue chaining only past constructor args
