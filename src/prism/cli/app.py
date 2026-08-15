@@ -22,7 +22,17 @@ from prism.cli.commands.documents import (
     put_doc,
 )
 from prism.cli.commands.gui import gui
-from prism.cli.commands.index import index as index_cmd
+from prism.cli.commands.index import (
+    index as index_cmd,
+)
+from prism.cli.commands.index import (
+    index_impact,
+    index_node,
+    index_path,
+    index_refs,
+    index_search,
+    index_status,
+)
 from prism.cli.commands.install import install
 from prism.cli.commands.monitor import monitor
 from prism.cli.commands.serve import serve
@@ -88,6 +98,12 @@ app.command(name="info")(info)
 app.command(name="test")(test)
 app.command(name="list-tests")(list_tests)
 app.command(name="index")(index_cmd)
+app.command(name="index-search")(index_search)
+app.command(name="index-node")(index_node)
+app.command(name="index-refs")(index_refs)
+app.command(name="index-impact")(index_impact)
+app.command(name="index-path")(index_path)
+app.command(name="index-status")(index_status)
 app.command(name="serve")(serve)
 app.command(name="setup")(install)
 app.command(name="gui")(gui)

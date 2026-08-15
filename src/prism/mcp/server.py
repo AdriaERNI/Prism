@@ -84,6 +84,16 @@ quick counts or filter_prefix to scope to a package.
 - **index_reachability** — walk the class dependency graph from a class \
 (impact analysis: what depends on this class, by default). Returns reachable \
 classes with shortest-path distances, up to max_hops.
+- **index_search** — search IRIS symbol names (classes, methods, properties, \
+SQL tables) server-side via fast %Dictionary SQL. Exact + %STARTSWITH prefix \
+matches, optionally restricted by kind.
+- **index_node** — focused full picture of one class: methods+signatures, \
+properties, supers, children, callers, callees, code references and degree.
+- **index_refs** — which classes reference a class in their method bodies.
+- **index_impact** — transitive blast radius of a method (who transitively \
+calls it, via r_call_edges + r_edges).
+- **index_path** — shortest method-to-method path in the call graph (BFS).
+- **index_status** — index-cache freshness/count/age for a scope, with refresh.
 - **run_tests** — run unit tests for a %UnitTest.TestCase class.
 - **list_tests** — discover test classes and their Test* methods.
 - **get_test_results** — view historical test results.
@@ -229,6 +239,16 @@ quick counts or `filter_prefix` to scope to a package.
 - **index_reachability** — walk the class dependency graph from a class \
 (impact analysis: what depends on this class, by default). Returns reachable \
 classes with shortest-path distances, up to max_hops.
+- **index_search** — search IRIS symbol names (classes, methods, properties, \
+SQL tables) server-side via fast %Dictionary SQL. Exact + %STARTSWITH prefix \
+matches, optionally restricted by kind.
+- **index_node** — focused full picture of one class: methods+signatures, \
+properties, supers, children, callers, callees, code references and degree.
+- **index_refs** — which classes reference a class in their method bodies.
+- **index_impact** — transitive blast radius of a method (who transitively \
+calls it, via r_call_edges + r_edges).
+- **index_path** — shortest method-to-method path in the call graph (BFS).
+- **index_status** — index-cache freshness/count/age for a scope, with refresh.
 - **run_tests** — run unit tests for a %UnitTest.TestCase class.
 - **list_tests** — discover test classes and their Test* methods.
 - **get_test_results** — view historical test results.
