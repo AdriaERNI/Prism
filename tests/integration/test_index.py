@@ -133,22 +133,48 @@ class TestIndexCodeLive:
         # reverse: who calls Test.Callee.Run
         assert "Test.Caller.Go" in cg["r_call_edges"].get("Test.Callee.Run", [])
 
-    async def test_index_search_live(self, live):
+    async def test_index_search_live(self, live, workspace):
         """index_search finds symbols server-side via %Dictionary SQL."""
+        # Create a class, then search for it — self-contained (works on any
+        # IRIS, including the fresh CI instance).
+        (workspace / "Test.SearchTarget.cls").write_text(
+            "Class Test.SearchTarget Extends %RegisteredObject {\n"
+            "Method Ping() {\n  Quit $$$OK\n}\n"
+            "}\n"
+        )
+        await live.call_tool(
+            "put_document",
+            {"name": "Test.SearchTarget.cls", "path": "Test.SearchTarget.cls"},
+        )
+
         result = await live.call_tool(
-            "index_search", {"query": "HCC.SQL", "kind": "class", "limit": 5}
+            "index_search", {"query": "Test.SearchTarget", "kind": "class", "limit": 5}
         )
         data = json.loads(result.content[0].text)
         assert data["count"] > 0
-        assert any(r["kind"] == "class" for r in data["results"])
+        assert any(r["symbol"] == "Test.SearchTarget" for r in data["results"])
 
-    async def test_index_node_live(self, live):
-        """index_node returns the full picture of a known class."""
-        result = await live.call_tool("index_node", {"class_name": "HCC.SQL.Document"})
+    async def test_index_node_live(self, live, workspace):
+        """index_node returns the full picture of a class we just created."""
+        (workspace / "Test.SearchTarget.cls").write_text(
+            "Class Test.SearchTarget Extends %RegisteredObject {\n"
+            "Method Ping() {\n  Quit $$$OK\n}\n"
+            "Method Run() {\n  Quit $$$OK\n}\n"
+            "}\n"
+        )
+        await live.call_tool(
+            "put_document",
+            {"name": "Test.SearchTarget.cls", "path": "Test.SearchTarget.cls"},
+        )
+
+        result = await live.call_tool(
+            "index_node", {"class_name": "Test.SearchTarget"}
+        )
         data = json.loads(result.content[0].text)
-        assert data["name"] == "HCC.SQL.Document"
+        assert data["name"] == "Test.SearchTarget"
         # has methods/properties/supers from metadata
         assert "methods" in data
+        assert any("Ping" in m for m in data["methods"])
         assert "supers" in data
 
     async def test_index_status_live(self, live):
