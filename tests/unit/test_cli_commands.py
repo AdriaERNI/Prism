@@ -469,10 +469,9 @@ class TestIndexFeatureCommands:
         assert "refresh" in result.output
 
     def test_index_search_calls_search_symbols(self):
-        from prism.iris.api import index as index_api
-
-        with patch.object(
-            index_api, "search_symbols", new=AsyncMock(return_value={"count": 1, "results": []})
+        with patch(
+            "prism.cli.commands.index.search_symbols",
+            new=AsyncMock(return_value={"count": 1, "results": []}),
         ):
             result = runner.invoke(app, ["index-search", "GetX"])
         assert result.exit_code == 0
