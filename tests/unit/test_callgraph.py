@@ -275,3 +275,74 @@ class TestReverseEdges:
         cg = _cg(a, b, sources={"A": src})
         # B.Run is called by A.Go — the high-value reverse direction
         assert "A.Go" in cg.r_call_edges["B.Run"]
+
+
+# ── Graph queries: index_impact / index_path helpers ──────────────────────
+
+
+class TestImpactAnalysis:
+    """Transitive reverse reachability over the merged call/structural maps."""
+
+    def test_basic_reverse_chain(self):
+        r_call = {"C.m": ["B.m"], "B.m": ["A.m"]}
+        r_edges = {}
+        out = callgraph.impact_analysis(r_call, r_edges, "C.m")
+        assert out["start"] == "C.m"
+        assert out["hops"] == {"C.m": 0, "B.m": 1, "A.m": 2}
+        assert out["count"] == 2
+        assert out["truncated"] is False
+
+    def test_max_hops_truncates(self):
+        r_call = {"C.m": ["B.m"], "B.m": ["A.m"]}
+        out = callgraph.impact_analysis(r_call, {}, "C.m", max_hops=1)
+        assert out["hops"] == {"C.m": 0, "B.m": 1}
+        assert out["truncated"] is True
+
+    def test_merges_structural_reverse_edges(self):
+        r_call = {"B.m": ["A.m"]}
+        r_edges = {"B": ["A"]}
+        out = callgraph.impact_analysis(r_call, r_edges, "B.m")
+        # A.m (caller) and A (structural) both depend on B.m
+        assert "A.m" in out["hops"]
+        assert "A" in out["hops"]
+
+    def test_empty_maps(self):
+        out = callgraph.impact_analysis({}, {}, "Nope.m")
+        assert out["hops"] == {"Nope.m": 0}
+        assert out["count"] == 0
+
+
+class TestShortestPath:
+    """BFS shortest path over the merged call graph (predecessor tracking)."""
+
+    def _index_maps(self):
+        call_edges = {
+            "A.m": [{"to": "B.m", "pattern": 1}],
+            "B.m": [{"to": "C.m", "pattern": 1}],
+        }
+        r_call_edges = {
+            "B.m": ["A.m"],
+            "C.m": ["B.m"],
+        }
+        r_edges = {}
+        return call_edges, r_call_edges, r_edges
+
+    def test_direct_path(self):
+        ce, rc, re = self._index_maps()
+        out = callgraph.shortest_path(ce, rc, re, "A.m", "C.m")
+        assert out["found"] is True
+        assert out["path"] == ["A.m", "B.m", "C.m"]
+        assert out["length"] == 2
+        assert out["hops"] == "A.m -> B.m -> C.m"
+
+    def test_missing_node(self):
+        ce, rc, re = self._index_maps()
+        out = callgraph.shortest_path(ce, rc, re, "A.m", "Z.m")
+        assert out["found"] is False
+        assert out["path"] == []
+        assert out["length"] == -1
+
+    def test_bad_endpoints(self):
+        out = callgraph.shortest_path({}, {}, {}, "", "C.m")
+        assert out["found"] is False
+        assert out["length"] == -1

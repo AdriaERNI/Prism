@@ -132,3 +132,29 @@ class TestIndexCodeLive:
         assert any(e["to"] == "Test.Callee.Run" and e["pattern"] == 1 for e in caller_edges)
         # reverse: who calls Test.Callee.Run
         assert "Test.Caller.Go" in cg["r_call_edges"].get("Test.Callee.Run", [])
+
+    async def test_index_search_live(self, live):
+        """index_search finds symbols server-side via %Dictionary SQL."""
+        result = await live.call_tool(
+            "index_search", {"query": "HCC.SQL", "kind": "class", "limit": 5}
+        )
+        data = json.loads(result.content[0].text)
+        assert data["count"] > 0
+        assert any(r["kind"] == "class" for r in data["results"])
+
+    async def test_index_node_live(self, live):
+        """index_node returns the full picture of a known class."""
+        result = await live.call_tool("index_node", {"class_name": "HCC.SQL.Document"})
+        data = json.loads(result.content[0].text)
+        assert data["name"] == "HCC.SQL.Document"
+        # has methods/properties/supers from metadata
+        assert "methods" in data
+        assert "supers" in data
+
+    async def test_index_status_live(self, live):
+        """index_status reports cache state for the USER namespace."""
+        result = await live.call_tool("index_status", {})
+        data = json.loads(result.content[0].text)
+        assert "classes" in data and data["classes"] > 0
+        assert "fresh" in data
+        assert "cached" in data

@@ -450,3 +450,86 @@ class TestChatbotCommand:
             _save_config_from_flags("https://api.test/v1/", None, None, None)
             saved = mock_save.call_args[0][0]
             assert saved["chatbot_api_url"] == "https://api.test/v1"
+
+
+# ── index-* commands ──────────────────────────────────────────────────────
+
+
+class TestIndexFeatureCommands:
+    """CLI registration and basic invocation of the new index-* commands."""
+
+    def test_index_search_help(self):
+        result = runner.invoke(app, ["index-search", "--help"])
+        assert result.exit_code == 0
+        assert "query" in result.output
+
+    def test_index_status_help(self):
+        result = runner.invoke(app, ["index-status", "--help"])
+        assert result.exit_code == 0
+        assert "refresh" in result.output
+
+    def test_index_search_calls_search_symbols(self):
+        from prism.iris.api import index as index_api
+
+        with patch.object(
+            index_api, "search_symbols", new=AsyncMock(return_value={"count": 1, "results": []})
+        ):
+            result = runner.invoke(app, ["index-search", "GetX"])
+        assert result.exit_code == 0
+        assert "count" in result.output
+
+    def test_index_node_calls_get_index_and_class_node(self):
+        idx = {"cached": True, "classes": [], "call_graph": {}}
+        with (
+            patch("prism.cli.commands.index.get_index", new=AsyncMock(return_value=idx)),
+            patch("prism.cli.commands.index.class_node", return_value={"name": "A"}),
+        ):
+            result = runner.invoke(app, ["index-node", "A"])
+        assert result.exit_code == 0
+        assert '"name": "A"' in result.output
+
+    def test_index_refs_calls_class_refs(self):
+        with (
+            patch(
+                "prism.cli.commands.index.get_index",
+                new=AsyncMock(return_value={"cached": True, "classes": []}),
+            ),
+            patch(
+                "prism.cli.commands.index.class_refs",
+                return_value={"count": 0, "referenced_by": []},
+            ),
+        ):
+            result = runner.invoke(app, ["index-refs", "A"])
+        assert result.exit_code == 0
+        assert "referenced_by" in result.output
+
+    def test_index_impact_calls_method_impact(self):
+        idx = {"cached": True, "classes": [], "call_graph": {}}
+        with (
+            patch("prism.cli.commands.index.get_index", new=AsyncMock(return_value=idx)),
+            patch("prism.cli.commands.index.method_impact", return_value={"count": 2, "hops": {}}),
+        ):
+            result = runner.invoke(app, ["index-impact", "A.go"])
+        assert result.exit_code == 0
+        assert "hops" in result.output
+
+    def test_index_path_calls_method_path(self):
+        idx = {"cached": True, "classes": [], "call_graph": {}}
+        with (
+            patch("prism.cli.commands.index.get_index", new=AsyncMock(return_value=idx)),
+            patch("prism.cli.commands.index.method_path", return_value={"found": True, "path": []}),
+        ):
+            result = runner.invoke(app, ["index-path", "A.go", "B.run"])
+        assert result.exit_code == 0
+        assert "found" in result.output
+
+    def test_index_status_calls_api(self):
+        with (
+            patch(
+                "prism.cli.commands.index.api_index_status",
+                new=AsyncMock(return_value={"classes": 5, "fresh": True}),
+            ),
+        ):
+            result = runner.invoke(app, ["index-status", "--prefix", "A"])
+        assert result.exit_code == 0
+        assert "fresh" in result.output

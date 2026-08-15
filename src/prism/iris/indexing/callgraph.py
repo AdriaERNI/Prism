@@ -40,6 +40,7 @@ Design notes
 from __future__ import annotations
 
 import re
+from collections import deque
 from dataclasses import dataclass, field
 
 # ── Comment stripping ────────────────────────────────────────────────────────
@@ -483,3 +484,154 @@ def build_call_graph(class_map: dict, sources: dict[str, str]) -> CallGraph:
         for method_name, formal_spec, body in _extract_methods(source):
             _scan_body(cg, class_map, class_name, method_name, body, formal_spec)
     return cg
+
+
+# ── Graph queries layered over the call/class maps ─────────────────────────
+#
+# The call-graph dict produced by build_index (call_edges / r_call_edges /
+# code_refs / r_code_refs) is a flat adjacency structure. These helpers answer
+# the multi-node questions that the flat maps alone don't: the blast radius of
+# a method (transitive reverse reachability) and shortest method-to-method
+# paths (BFS with predecessor tracking). Both are pure functions over the maps
+# merged with the class-level dependency maps so that index_impact /
+# index_path stay fast — no IRIS round-trips once the index exists.
+
+
+def _merge_graph(edges: dict, r_edges: dict) -> dict[str, list[str]]:
+    """Merge forward and reverse edge maps into one undirected-neighbour map.
+
+    The union of ``call_edges`` and ``r_call_edges`` gives every node its
+    callers and callees in a single adjacency for pathfinding. Values are
+    deduplicated.
+    """
+    merged: dict[str, list[str]] = {}
+    for k, v in edges.items():
+        merged.setdefault(k, [])
+        for nb in v:
+            nb_key = nb.get("to") if isinstance(nb, dict) else nb
+            if nb_key and nb_key not in merged[k]:
+                merged[k].append(nb_key)
+    for k, v in r_edges.items():
+        merged.setdefault(k, [])
+        for nb in v:
+            if nb not in merged[k]:
+                merged[k].append(nb)
+    return merged
+
+
+def impact_analysis(
+    r_call_edges: dict,
+    r_edges: dict,
+    start: str,
+    max_hops: int | None = None,
+) -> dict:
+    """Transitive reverse reachability from *start* — the blast radius.
+
+    Walks *both* reverse maps in parallel: ``r_call_edges`` (who calls this
+    method) and ``r_edges`` (which classes reference this class structurally).
+    Returns a dict with:
+
+    * ``start`` — the seed node.
+    * ``hops`` — ``{node: shortest_distance}`` (distance 0 = *start* itself).
+    * ``count`` — number of distinct transitive dependents (excludes *start*).
+    * ``truncated`` — ``True`` when *max_hops* stopped the walk early.
+
+    *start* may be ``'Class.method'`` (method-level, traversed over the call
+    graph) or a bare ``'Class'`` (class-level, traversed over the structural
+    reverse edges). All edge directions point *towards* the dependents, so a
+    path ``x -> start`` means ``x`` depends on ``start``.
+
+    When *start* is a method key, its owner class node is seeded as a second
+    root so the structural reverse edges (classes that reference the owning
+    class) participate in the same walk.
+    """
+    reverse = dict(r_call_edges)
+    for k, v in r_edges.items():
+        prev = reverse.setdefault(k, [])
+        for nb in v:
+            if nb not in prev:
+                prev.append(nb)
+
+    roots = [start]
+    owner_cls = start.rsplit(".", 1)[0] if "." in start else None
+    if owner_cls and owner_cls != start and owner_cls in reverse:
+        # Only seed the owner class when it has structural reverse edges, so
+        # a bare method never drags its (non-dependent) class into the result.
+        roots.append(owner_cls)
+
+    dist = dict.fromkeys(roots, 0)
+    q: deque[str] = deque(roots)
+    truncated = False
+    while q:
+        node = q.popleft()
+        if max_hops is not None and dist[node] >= max_hops:
+            truncated = True
+            continue
+        for nb in reverse.get(node, []):
+            if nb not in dist:
+                dist[nb] = dist[node] + 1
+                q.append(nb)
+
+    count = sum(1 for n in dist if n != start)
+    return {
+        "start": start,
+        "hops": dist,
+        "count": count,
+        "truncated": truncated,
+    }
+
+
+def shortest_path(
+    call_edges: dict,
+    r_call_edges: dict,
+    r_edges: dict,
+    source: str,
+    target: str,
+) -> dict:
+    """Shortest method-to-method path via BFS with predecessor tracking.
+
+    Traverses the merged undirected graph — every call edge and structural
+    reverse edge — so a path may move from method nodes to class nodes and
+    back. Returns a dict with ``found``, ``path`` (node list from *source* to
+    *target*), ``length`` (edge count, or -1 when not found) and ``hops`` (the
+    ``''.``-joined path for display). Empty when either endpoint is unknown.
+    """
+    if not source or not target:
+        return {"found": False, "path": [], "length": -1, "hops": ""}
+
+    graph = _merge_graph(call_edges, r_call_edges)
+    for k, v in r_edges.items():
+        graph.setdefault(k, [])
+        for nb in v:
+            if nb not in graph[k]:
+                graph[k].append(nb)
+    if source not in graph or target not in graph:
+        return {"found": False, "path": [], "length": -1, "hops": ""}
+
+    prev: dict[str, str | None] = {source: None}
+    q: deque[str] = deque([source])
+    while q:
+        node = q.popleft()
+        if node == target:
+            break
+        for nb in graph.get(node, []):
+            if nb not in prev:
+                prev[nb] = node
+                q.append(nb)
+
+    if target not in prev:
+        return {"found": False, "path": [], "length": -1, "hops": ""}
+
+    path: list[str] = []
+    cur: str | None = target
+    while cur is not None:
+        path.append(cur)
+        cur = prev.get(cur)
+    path.reverse()
+
+    return {
+        "found": True,
+        "path": path,
+        "length": len(path) - 1 if path else -1,
+        "hops": " -> ".join(path),
+    }

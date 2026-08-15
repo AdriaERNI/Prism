@@ -739,3 +739,43 @@ class TestCallGraphFlag:
                     e["to"] == "MyApp.Repo.Run" and e["pattern"] == 1
                     for e in edges.get("MyApp.Service.Go", [])
                 )
+
+
+class TestNewIndexToolsRegistered:
+    """index_search / index_node / index_refs / index_impact / index_path /
+    index_status are registered on the MCP server."""
+
+    async def test_new_index_tools_registered(self):
+        from fastmcp import Client
+
+        from prism.mcp.server import create_mcp
+
+        mcp = create_mcp()
+        client = Client(mcp)
+        async with client:
+            tools = await client.list_tools()
+            names = {t.name for t in tools}
+            for name in (
+                "index_search",
+                "index_node",
+                "index_refs",
+                "index_impact",
+                "index_path",
+                "index_status",
+            ):
+                assert name in names, name
+
+    async def test_new_index_tools_mentioned_in_instructions(self):
+        from prism.mcp.server import create_mcp
+
+        mcp = create_mcp()
+        instructions = mcp.instructions or ""
+        for name in (
+            "index_search",
+            "index_node",
+            "index_refs",
+            "index_impact",
+            "index_path",
+            "index_status",
+        ):
+            assert name in instructions
