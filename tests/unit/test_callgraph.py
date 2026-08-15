@@ -73,6 +73,22 @@ class TestPattern1ClassCall:
         # but the class-level reference is still recorded
         assert "%Library.String" in cg.code_refs["A"]
 
+    def test_inherited_method_on_inindex_receiver_resolves_to_receiver(self):
+        """##class(X).%OpenId() where the method lives on an out-of-index super
+        (%Persistent) still resolves to X — the receiver is determinable."""
+        x = _cls("X", methods=["SetEncounter"], props=[])
+        base = _cls("My.Base", methods=[])
+        # X extends My.Base (in index) and %Persistent (not in index)
+        x.super = "My.Base,%Persistent"
+        src = (
+            "Class X Extends %Persistent {\nMethod Go() {\n  Set o = ##class(X).%OpenId(42)\n}\n}\n"
+        )
+        cg = _cg(x, base, sources={"X": src})
+        # %OpenId is not declared on X or My.Base — but X is in-index, so the
+        # edge resolves to X.%OpenId (inherited from out-of-index %Persistent).
+        assert _edge(cg, "X.Go", "X.%OpenId") == 1
+        assert cg.unresolved.get("X.Go", 0) == 0
+
 
 # ── Pattern 2: ..Method( ────────────────────────────────────────────────────
 

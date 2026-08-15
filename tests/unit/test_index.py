@@ -256,12 +256,28 @@ class TestExclusionFilter:
         # The % prefix and SYS./Api. prefixes must all be present, wrapped in
         # NOT (...).  IRIS returns an EMPTY result set for the bare
         # "col NOT %STARTSWITH X" prefix form, so the whole expression must be
-        # negated with parentheses:  NOT (col %STARTSWITH X).
+        # negated in parentheses.
         assert "NOT (Name %STARTSWITH '%')" in pred
         assert "NOT (Name %STARTSWITH 'SYS.')" in pred
         assert "NOT (Name %STARTSWITH 'Api.')" in pred
         # guard against regressing to the broken prefix form
         assert "Name NOT %STARTSWITH" not in pred
+
+    def test_system_exclude_covers_non_percent_system_packages(self):
+        """IRIS ships non-% system packages (Ensemble, CSP dashboard, SQL
+        schemas) that must be excluded too — they are not user code."""
+        pred = index_api._system_exclude("Name")
+        for pkg in (
+            "Ens.",
+            "EnsLib.",
+            "EnsPortal.",
+            "Ensemble.",
+            "CSPX.",
+            "INFORMATION.",
+        ):
+            assert f"NOT (Name %STARTSWITH '{pkg}')" in pred, pkg
+        # all negated forms, not the broken prefix form
+        assert "Name NOT %STARTSWITH 'Ens'" not in pred
 
     def test_system_exclude_covers_library_and_backslash_breakage(self):
         """The old '\\%' row (which matched nothing) is gone; %Library is covered

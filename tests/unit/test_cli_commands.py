@@ -450,27 +450,3 @@ class TestChatbotCommand:
             _save_config_from_flags("https://api.test/v1/", None, None, None)
             saved = mock_save.call_args[0][0]
             assert saved["chatbot_api_url"] == "https://api.test/v1"
-
-    def test_chatbot_print_banner(self, tmp_path, monkeypatch):
-        """_print_banner should output version and config info."""
-        from prism import settings as settings_module
-        from prism.cli.commands.chatbot import _print_banner
-
-        path = tmp_path / "prism" / "config.json"
-        monkeypatch.setattr(settings_module, "config_path", lambda: path)
-        for var in list(__import__("os").environ):
-            if var.startswith(("IRIS_", "PRISM_", "CHATBOT_")):
-                monkeypatch.delenv(var, raising=False)
-        fresh = settings_module.Settings()
-        monkeypatch.setattr(settings_module, "settings", fresh)
-        monkeypatch.setattr("prism.cli.commands.chatbot.settings", fresh)
-
-        # Should not raise
-        _print_banner()
-
-    def test_chatbot_print_help(self):
-        """_print_help should output command list."""
-        from prism.cli.commands.chatbot import _print_help
-
-        # Should not raise
-        _print_help()

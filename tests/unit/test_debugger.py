@@ -578,28 +578,21 @@ class TestListProcesses:
 
         assert result == []
 
-    async def test_list_processes_system_param(self):
+    @pytest.mark.parametrize(
+        ("system", "expected"),
+        [(True, "1"), (False, "0")],
+    )
+    async def test_list_processes_system_param(self, system, expected):
         json_data = {"result": {"content": []}}
         mock_client = AsyncMock()
         mock_client.get = AsyncMock(return_value=_mock_httpx_response(json_data))
 
         with patch("prism.iris.api.debugger.client", return_value=mock_client):
-            await list_processes(system=True)
+            await list_processes(system=system)
 
-        # Verify the system=1 param was passed
+        # Verify the system param mapping (True -> "1", False -> "0")
         call_args = mock_client.get.call_args
-        assert call_args[1]["params"]["system"] == "1"
-
-    async def test_list_processes_system_false_param(self):
-        json_data = {"result": {"content": []}}
-        mock_client = AsyncMock()
-        mock_client.get = AsyncMock(return_value=_mock_httpx_response(json_data))
-
-        with patch("prism.iris.api.debugger.client", return_value=mock_client):
-            await list_processes(system=False)
-
-        call_args = mock_client.get.call_args
-        assert call_args[1]["params"]["system"] == "0"
+        assert call_args[1]["params"]["system"] == expected
 
     async def test_list_processes_missing_fields(self):
         """Processes with missing fields should use defaults."""

@@ -152,6 +152,57 @@ class TestPreflightSuccess:
             mock_settings.iris_workspace = ""
             preflight.preflight_check()
 
+    def test_version_falls_back_to_unknown(self):
+        """Server response with no version still succeeds (logs 'unknown')."""
+        from unittest.mock import MagicMock, patch
+
+        import httpx
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"result": {"content": {"namespaces": ["USER"]}}}
+        mock_response.raise_for_status = MagicMock()
+
+        with (
+            patch("prism.iris.sdk.preflight.httpx.get", return_value=mock_response),
+            patch("prism.iris.sdk.preflight.settings") as mock_settings,
+            patch("prism.iris.sdk.preflight.logger") as mock_logger,
+            patch("prism.iris.sdk.preflight.base_url", return_value="http://iris:52773"),
+            patch("prism.iris.sdk.preflight.auth", return_value=httpx.BasicAuth("u", "p")),
+        ):
+            mock_settings.iris_namespace = "USER"
+            mock_settings.iris_workspace = ""
+            preflight.preflight_check()
+            # Version omitted -> logged as 'unknown'
+            logged = " ".join(str(c) for c in mock_logger.info.call_args_list)
+            assert "unknown" in logged
+
+    def test_correct_url_and_timeout(self):
+        """preflight_check hits the /api/atelier/ endpoint with a 10s timeout."""
+        from unittest.mock import MagicMock, patch
+
+        import httpx
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "result": {"content": {"version": "2024.1", "namespaces": []}}
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with (
+            patch("prism.iris.sdk.preflight.httpx.get", return_value=mock_response) as mock_get,
+            patch("prism.iris.sdk.preflight.settings") as mock_settings,
+            patch("prism.iris.sdk.preflight.logger"),
+            patch("prism.iris.sdk.preflight.base_url", return_value="http://iris:52773"),
+            patch("prism.iris.sdk.preflight.auth", return_value=httpx.BasicAuth("u", "p")),
+        ):
+            mock_settings.iris_namespace = "USER"
+            mock_settings.iris_workspace = ""
+            preflight.preflight_check()
+            call_args = mock_get.call_args
+            url = call_args[0][0]
+            assert "/api/atelier/" in url
+            assert call_args[1].get("timeout") == 10.0
+
 
 class TestPreflightNamespaceValidation:
     """Namespace validation logic."""
@@ -189,6 +240,36 @@ class TestPreflightNamespaceValidation:
             # Should echo an error about the namespace
             echo_args = " ".join(str(c) for c in mock_echo.call_args)
             assert "NONEXISTENT" in echo_args
+
+    def test_namespace_found_passes(self):
+        """If configured namespace is in the server's list, no exit."""
+        from unittest.mock import MagicMock, patch
+
+        import httpx
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "result": {
+                "content": {
+                    "version": "IRIS 2023.1",
+                    "namespaces": ["USER", "SAMPLES"],
+                }
+            }
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with (
+            patch("prism.iris.sdk.preflight.httpx.get", return_value=mock_response),
+            patch("prism.iris.sdk.preflight.settings") as mock_settings,
+            patch("prism.iris.sdk.preflight.logger"),
+            patch("prism.iris.sdk.preflight.base_url", return_value="http://iris:52773"),
+            patch("prism.iris.sdk.preflight.auth", return_value=httpx.BasicAuth("u", "p")),
+            patch("prism.iris.sdk.preflight.sys.exit") as mock_exit,
+        ):
+            mock_settings.iris_namespace = "SAMPLES"
+            mock_settings.iris_workspace = ""
+            preflight.preflight_check()
+            mock_exit.assert_not_called()
 
 
 class TestPreflightErrorPaths:

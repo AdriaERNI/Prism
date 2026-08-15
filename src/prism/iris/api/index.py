@@ -61,10 +61,29 @@ def _validate_filter_prefix(prefix: str) -> str:
 # reused by every query so the copies cannot drift apart.
 
 
+# ObjectScript packages reserved by InterSystems for system classes. These are
+# shipped with every IRIS instance and are NOT user code, but unlike the
+# `%`-prefixed system classes they do not carry a `%` marker. The Ensemble
+# packages (Ens/EnsLib/EnsPortal/Ensemble), the CSP dashboard (CSPX), and the
+# SQL schemas (INFORMATION_SCHEMA as INFORMATION) all appear in an ordinary
+# USER namespace's %Dictionary.ClassDefinition, and without excluding them
+# they pollute the index (statistics.classes, edges, call graph). Measured on
+# a 2025.3 Community instance: ~1,570 such classes leaked into what should be
+# a user-only index.
+#
+# `Ens` covers `Ens.*`; `EnsLib.*`, `EnsPortal.*`, `Ensemble.*` are separate
+# first-level packages and need their own prefixes (for example Ensemble
+# production framework vs its library and portal UI).
 _SYSTEM_EXCLUDE = (
     "NOT ({col} %STARTSWITH '%') "
     "AND NOT ({col} %STARTSWITH 'SYS.') "
-    "AND NOT ({col} %STARTSWITH 'Api.')"
+    "AND NOT ({col} %STARTSWITH 'Api.') "
+    "AND NOT ({col} %STARTSWITH 'Ens.') "
+    "AND NOT ({col} %STARTSWITH 'EnsLib.') "
+    "AND NOT ({col} %STARTSWITH 'EnsPortal.') "
+    "AND NOT ({col} %STARTSWITH 'Ensemble.') "
+    "AND NOT ({col} %STARTSWITH 'CSPX.') "
+    "AND NOT ({col} %STARTSWITH 'INFORMATION.')"
 )
 
 
@@ -72,7 +91,9 @@ def _system_exclude(col: str) -> str:
     """SQL predicate excluding system classes from *col* (a class-name column).
 
     Excludes everything under ``%`` (which covers ``%Library``, ``%SYS``,
-    ``%Api``) plus any bare ``SYS.`` / ``Api.`` -prefixed names.
+    ``%Api``), bare ``SYS.`` / ``Api.`` names, and InterSystems' reserved
+    non-``%`` system packages (``Ens*``, ``EnsLib.*``, ``EnsPortal.*``,
+    ``Ensemble.*``, ``CSPX.*``, ``INFORMATION.*``).
     """
     return _SYSTEM_EXCLUDE.format(col=col)
 
@@ -273,7 +294,7 @@ async def _fetch_bodies(
     return {name: src for name, src in results if src is not None}
 
 
-def _to_call_graph_dict(cg, class_map: dict) -> dict:
+def _to_call_graph_dict(cg) -> dict:
     """Convert a :class:`CallGraph` into a compact, JSON-serialisable dict."""
     methods_with_calls = sum(1 for k in cg.r_call_edges if "." in k)
     return {
@@ -442,7 +463,7 @@ async def build_index(
     if include_call_graph:
         sources = await _fetch_bodies(list(class_map), namespace, target_host, target_port)
         cg = build_call_graph(class_map, sources)
-        result["call_graph"] = _to_call_graph_dict(cg, class_map)
+        result["call_graph"] = _to_call_graph_dict(cg)
 
     return result
 
