@@ -167,9 +167,7 @@ class TestIndexCodeLive:
             {"name": "Test.SearchTarget.cls", "path": "Test.SearchTarget.cls"},
         )
 
-        result = await live.call_tool(
-            "index_node", {"class_name": "Test.SearchTarget"}
-        )
+        result = await live.call_tool("index_node", {"class_name": "Test.SearchTarget"})
         data = json.loads(result.content[0].text)
         assert data["name"] == "Test.SearchTarget"
         # has methods/properties/supers from metadata
