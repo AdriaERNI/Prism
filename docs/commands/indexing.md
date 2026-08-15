@@ -181,6 +181,38 @@ It is the only way to judge how complete the graph is.
   targets) and the receiver type to be determinable. Recheck `unresolved`
   counts when judging completeness.
 
+## Find who calls a method (`index-callers`)
+
+The `--call-graph` index answers "who calls `Class.Method`?" in bulk (the
+`r_call_edges` map). `prism index-callers` is the lightweight, focused way to
+ask that one question — it builds the same call graph but returns only the
+edges for a single method:
+
+```bash
+# Who calls MyApp.Person.Save? (impact analysis before renaming/deleting)
+prism index-callers MyApp.Person.Save
+
+# What does Main.Run call?
+prism index-callers MyApp.Main.Run --direction forward
+```
+
+| Option | Description |
+|--------|-------------|
+| `method` | The method as `Class.method` (positional, required). |
+| `-d, --direction` | `reverse` = who calls this (default); `forward` = what it calls. |
+| `-m, --max` | Maximum callers/callees to return (default 50). |
+| `--prefix` | Only index classes with this prefix. |
+| `--system` | Include system classes in the index. |
+| `-n, --namespace` | IRIS namespace to index. |
+
+Each forward result carries the `pattern` (1-7) that produced it, giving a
+confidence distinction (patterns 1-4 syntactically certain; 5-7 heuristic).
+Callers are only visible when the calling class is inside the index — so a
+`--prefix` that narrows the class set also narrows which callers are found.
+
+This is the method-granularity sibling of `index_reachability` (which works on
+classes). Both are exposed as MCP tools (`index_callers`, `index_reachability`).
+
 ## Token efficiency
 
 The index uses `%Dictionary` SQL metadata — the IRIS compiler's own metadata

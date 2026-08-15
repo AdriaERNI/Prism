@@ -468,6 +468,63 @@ async def build_index(
     return result
 
 
+async def index_callers(
+    method: str,
+    namespace: str | None = None,
+    include_system: bool = False,
+    filter_prefix: str | None = None,
+    direction: str = "reverse",
+    max_callers: int = 50,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> dict:
+    """Answer 'who calls this method?' (reverse) or 'what does it call?' (forward).
+
+    Builds the method-level call graph (the opt-in Tier 2 pass) and returns the
+    focused edges for *method* only — the token-efficient equivalent of
+    ``index_reachability`` but at the *method* granularity. ``method`` is the
+    ``Class.method`` key (e.g. ``MyApp.Person.Save``).
+
+    ``direction="reverse"`` returns the callers of *method* (from
+    ``r_call_edges`` — "who calls me", the impact direction). ``"forward"``
+    returns what *method* itself calls (from ``call_edges``). Each result edge
+    carries the ObjectScript ``pattern`` (1-7) that produced it, so callers can
+    apply a confidence distinction.
+
+    Note: resolution requires the calling class to be inside the index, so a
+    ``filter_prefix`` that narrows the class set also narrows which callers are
+    found. ``max_callers`` caps the returned list (cheapest callers first).
+    """
+    if direction not in ("reverse", "forward"):
+        raise ValueError("direction must be 'reverse' or 'forward'")
+
+    index = await build_index(
+        namespace=namespace,
+        include_system=include_system,
+        filter_prefix=filter_prefix,
+        include_call_graph=True,
+        target_host=target_host,
+        target_port=target_port,
+    )
+    cg = index.get("call_graph", {})
+    if direction == "reverse":
+        full = cg.get("r_call_edges", {}).get(method, [])
+        results = sorted(full)[:max_callers]
+    else:
+        full = cg.get("call_edges", {}).get(method, [])
+        results = sorted(full, key=lambda e: (e.get("pattern", 9), e.get("to", "")))[:max_callers]
+
+    return {
+        "method": method,
+        "direction": direction,
+        "query": "who calls this" if direction == "reverse" else "what does this call",
+        "total": len(full),
+        "results": results,
+        "namespace": index.get("namespace"),
+        "note": "Callers are only visible when the calling class is in the index; filter_prefix narrows which callers are found.",
+    }
+
+
 async def index_summary(
     namespace: str | None = None,
     target_host: str | None = None,

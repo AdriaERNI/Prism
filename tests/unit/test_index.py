@@ -739,3 +739,129 @@ class TestCallGraphFlag:
                     e["to"] == "MyApp.Repo.Run" and e["pattern"] == 1
                     for e in edges.get("MyApp.Service.Go", [])
                 )
+
+
+class TestIndexCallers:
+    """index_callers answers 'who calls method X' (reverse) / 'what it calls' (forward).
+
+    Uses the same mock-handler pattern as TestCallGraphFlag but exercises the
+    focused index_callers API + MCP tool.
+    """
+
+    @staticmethod
+    def _classes_data():
+        return [
+            {
+                "Name": "MyApp.Service",
+                "Super": "",
+                "ClassType": "",
+                "SqlTableName": "",
+                "Description": "",
+            },
+            {
+                "Name": "MyApp.Repo",
+                "Super": "",
+                "ClassType": "",
+                "SqlTableName": "",
+                "Description": "",
+            },
+        ]
+
+    @staticmethod
+    def _methods_data():
+        return [
+            {"parent": "MyApp.Service", "Name": "Go", "ReturnType": "%Status", "FormalSpec": ""},
+            {"parent": "MyApp.Repo", "Name": "Run", "ReturnType": "%Status", "FormalSpec": ""},
+        ]
+
+    @staticmethod
+    def _bodies():
+        return {
+            "MyApp.Service.cls": (
+                "Class MyApp.Service Extends %RegisteredObject {\n"
+                "Method Go() {\n  Do ##class(MyApp.Repo).Run()\n}\n"
+                "}\n"
+            ),
+            "MyApp.Repo.cls": (
+                "Class MyApp.Repo Extends %RegisteredObject {\nMethod Run() {\n  Quit $$$OK\n}\n}\n"
+            ),
+        }
+
+    async def test_index_callers_api_reverse(self):
+        """index_callers API returns who calls a method (reverse)."""
+        from prism.iris.api import documents
+
+        handler = TestCallGraphFlag._make_handler(
+            self._classes_data(), self._methods_data(), self._bodies()
+        )
+        with (
+            patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)),
+            patch.object(documents, "client", lambda *a, **kw: mock_client(handler)),
+        ):
+            result = await index_api.index_callers("MyApp.Repo.Run")
+        assert result["method"] == "MyApp.Repo.Run"
+        assert result["direction"] == "reverse"
+        assert result["total"] == 1
+        assert "MyApp.Service.Go" in result["results"]
+
+    async def test_index_callers_api_forward(self):
+        """index_callers API returns what a method calls (forward), with pattern."""
+        from prism.iris.api import documents
+
+        handler = TestCallGraphFlag._make_handler(
+            self._classes_data(), self._methods_data(), self._bodies()
+        )
+        with (
+            patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)),
+            patch.object(documents, "client", lambda *a, **kw: mock_client(handler)),
+        ):
+            result = await index_api.index_callers("MyApp.Service.Go", direction="forward")
+        assert result["direction"] == "forward"
+        assert result["total"] == 1
+        assert result["results"][0]["to"] == "MyApp.Repo.Run"
+        assert result["results"][0]["pattern"] == 1
+
+    async def test_index_callers_no_callers_returns_empty(self):
+        """A method nobody calls returns total 0 with an empty list."""
+        from prism.iris.api import documents
+
+        handler = TestCallGraphFlag._make_handler(
+            self._classes_data(), self._methods_data(), self._bodies()
+        )
+        with (
+            patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)),
+            patch.object(documents, "client", lambda *a, **kw: mock_client(handler)),
+        ):
+            result = await index_api.index_callers("MyApp.Repo.Nobody")
+        assert result["total"] == 0
+        assert result["results"] == []
+
+    async def test_index_callers_registered_as_mcp_tool(self):
+        """index_callers is auto-discovered and callable via the MCP client."""
+        import json
+
+        from fastmcp import Client
+
+        from prism.iris.api import documents
+        from prism.mcp.server import create_mcp
+
+        handler = TestCallGraphFlag._make_handler(
+            self._classes_data(), self._methods_data(), self._bodies()
+        )
+        mcp = create_mcp()
+        client = Client(mcp)
+        async with client:
+            tools = [t.name for t in await client.list_tools()]
+            assert "index_callers" in tools
+            with (
+                patch.object(index_api, "client", lambda *a, **kw: mock_client(handler)),
+                patch.object(documents, "client", lambda *a, **kw: mock_client(handler)),
+            ):
+                result = await client.call_tool(
+                    "index_callers",
+                    {"method": "MyApp.Repo.Run", "max_results": 5},
+                )
+                data = json.loads(result.content[0].text)
+                assert data["method"] == "MyApp.Repo.Run"
+                assert data["total"] == 1
+                assert "MyApp.Service.Go" in data["results"]

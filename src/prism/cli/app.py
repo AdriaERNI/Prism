@@ -23,6 +23,7 @@ from prism.cli.commands.documents import (
 )
 from prism.cli.commands.gui import gui
 from prism.cli.commands.index import index as index_cmd
+from prism.cli.commands.index import index_callers as index_callers_cmd
 from prism.cli.commands.install import install
 from prism.cli.commands.monitor import monitor
 from prism.cli.commands.serve import serve
@@ -88,6 +89,7 @@ app.command(name="info")(info)
 app.command(name="test")(test)
 app.command(name="list-tests")(list_tests)
 app.command(name="index")(index_cmd)
+app.command(name="index-callers")(index_callers_cmd)
 app.command(name="serve")(serve)
 app.command(name="setup")(install)
 app.command(name="gui")(gui)

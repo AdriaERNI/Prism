@@ -27,6 +27,7 @@ session the CLI can't hold open.
 | `get_test_results` | — | **(MCP only.)** Returns `{runs: [{run_id, run_time, duration, test_class, status}], count}`. |
 | `index_code` | [`prism index`](../commands/indexing.md) | Builds a compact index of all classes using `%Dictionary` SQL metadata. Returns `{namespace, statistics, classes, dependencies, edges, r_edges, degree}`. Also accepts `include_call_graph=True` to add a method-level call graph (`call_edges`, `r_call_edges`, `code_refs`, `unresolved`) — the slow opt-in Tier 2 pass. Token-efficient alternative to reading every source file (93% reduction). |
 | `index_reachability` | — | **(MCP only.)** Walks the class dependency graph from a class. Returns `{start, max_hops, direction, reachable: [[class, distance]...]}`. Default `direction="reverse"` (what depends on this class — impact analysis); pass `direction="forward"` for what this class depends on. Edges come from superclass, property-type and method-signature-type links. |
+| `index_callers` | [`prism index-callers`](../commands/indexing.md#find-who-calls-a-method) | **(MCP only.)** Builds the method-level call graph and answers "who calls this method?" (default `direction="reverse"`, from `r_call_edges`) or "what does this method call?" (`direction="forward"`, from `call_edges`). Method key is `Class.method`. Each forward edge carries the ObjectScript `pattern` (1-7). Callers are only visible when their class is in the index. |
 | `monitor_system` | [`prism monitor`](../commands/monitor.md) | Fetches live metrics from IRIS `/api/monitor`, computes a 0–100 load score with per-category sub-scores (CPU, memory, disk, process), and returns a snapshot with grade, key metrics, and alert count. Use two snapshots to compare instances — lower score wins. |
 | `list_files` | — | **(MCP only.)** Lists files in the `IRIS_WORKSPACE` directory. Returns `{files: [{name, size, modified}], count}`. |
 | `read_file` | — | **(MCP only.)** Reads a file from the `IRIS_WORKSPACE` directory. Returns `{name, content, found}`. |
@@ -41,9 +42,9 @@ session the CLI can't hold open.
 | `debug_breakpoints` | — | **(MCP only.)** |
 | `debug_stop` | — | **(MCP only.)** |
 
-13 tools are always registered (including `index_code`, `index_reachability` and `monitor_system`).
+14 tools are always registered (including `index_code`, `index_callers`, `index_reachability` and `monitor_system`).
 5 workspace-gated tools (`put_document`, `put_and_compile`, `list_files`,
-`read_file`, `run_shell`) are added when `IRIS_WORKSPACE` is set — 18 total.
+`read_file`, `run_shell`) are added when `IRIS_WORKSPACE` is set — 19 total.
 9 debug-gated tools are added when `IRIS_DEBUG_ENABLED=true` — up to 27 total
 with both workspace and debug enabled.
 

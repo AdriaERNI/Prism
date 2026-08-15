@@ -132,3 +132,53 @@ class TestIndexCodeLive:
         assert any(e["to"] == "Test.Callee.Run" and e["pattern"] == 1 for e in caller_edges)
         # reverse: who calls Test.Callee.Run
         assert "Test.Caller.Go" in cg["r_call_edges"].get("Test.Callee.Run", [])
+
+    async def test_index_callers_live(self, live, workspace):
+        """index_callers answers 'who calls this method' against live IRIS."""
+        (workspace / "Test.Caller.cls").write_text(
+            "Class Test.Caller Extends %RegisteredObject {\n"
+            "Method Go() {\n"
+            "  Do ##class(Test.Callee).Run()\n"
+            "}\n"
+            "}\n"
+        )
+        (workspace / "Test.Callee.cls").write_text(
+            "Class Test.Callee Extends %RegisteredObject {\nMethod Run() {\n  Quit $$$OK\n}\n}\n"
+        )
+        await live.call_tool(
+            "put_document",
+            {"name": "Test.Caller.cls", "path": "Test.Caller.cls"},
+        )
+        await live.call_tool(
+            "put_document",
+            {"name": "Test.Callee.cls", "path": "Test.Callee.cls"},
+        )
+
+        # Reverse: who calls Test.Callee.Run?
+        result = await live.call_tool(
+            "index_callers",
+            {
+                "method": "Test.Callee.Run",
+                "filter_prefix": "Test.Call",
+                "max_results": 5,
+            },
+        )
+        data = json.loads(result.content[0].text)
+        assert data["method"] == "Test.Callee.Run"
+        assert data["direction"] == "reverse"
+        assert "Test.Caller.Go" in data["results"]
+
+        # Forward: what does Test.Caller.Go call?
+        result = await live.call_tool(
+            "index_callers",
+            {
+                "method": "Test.Caller.Go",
+                "direction": "forward",
+                "filter_prefix": "Test.Call",
+                "max_results": 5,
+            },
+        )
+        data = json.loads(result.content[0].text)
+        assert data["direction"] == "forward"
+        assert any(e["to"] == "Test.Callee.Run" for e in data["results"])
+        assert all(e["pattern"] == 1 for e in data["results"])

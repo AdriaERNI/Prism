@@ -10,6 +10,7 @@ from typing import Annotated
 from pydantic import Field
 
 from prism.iris.api.index import build_index, index_summary, reachable
+from prism.iris.api.index import index_callers as api_index_callers
 from prism.mcp._decorator import logged_tool
 
 
@@ -222,3 +223,106 @@ async def index_reachability(
         "direction": direction,
         "reachable": sorted(dist.items(), key=lambda kv: (kv[1], kv[0])),
     }
+
+
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
+async def index_callers(
+    method: Annotated[
+        str,
+        Field(
+            description="The method to query as 'Class.method' (e.g. 'MyApp.Person.Save'). "
+            "Class must be in the index (see include_system / filter_prefix).",
+            min_length=1,
+            max_length=255,
+        ),
+    ],
+    direction: Annotated[
+        str,
+        Field(
+            description="Direction of the query. 'reverse' answers 'who calls this method?' "
+            "(callers of the method — the impact direction for deleting/renaming it). "
+            "'forward' answers 'what does this method call?' (its callees). "
+            "Default: 'reverse'.",
+        ),
+    ] = "reverse",
+    max_results: Annotated[
+        int,
+        Field(
+            description="Maximum number of callers/callees to return. Default: 50.",
+            ge=1,
+            le=500,
+        ),
+    ] = 50,
+    namespace: Annotated[
+        str | None,
+        Field(
+            description="IRIS namespace to index. Defaults to configured namespace.",
+            min_length=1,
+            max_length=64,
+        ),
+    ] = None,
+    include_system: Annotated[
+        bool,
+        Field(description="Include system classes in the index. Default: false."),
+    ] = False,
+    filter_prefix: Annotated[
+        str | None,
+        Field(
+            description="Only index classes starting with this prefix (e.g. 'MyApp'). "
+            "Note: callers are only visible when their class is in the index.",
+            min_length=1,
+            max_length=255,
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(
+            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            "Uses the configured default if omitted."
+        ),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
+) -> dict:
+    """Answer 'who calls this method?' (or 'what does this method call?').
+
+    **Runs on: IRIS server** (remote — builds the method-level call graph by
+    reading method bodies, then returns only the focused edges for *method*).
+
+    This is the method-granularity sibling of ``index_reachability`` (which works
+    on classes). It builds the call graph (the slow, opt-in Tier 2 pass) and then
+    answers one focused question — essential before changing, renaming or
+    deleting a method. The default ``direction`` is ``reverse``: who calls this
+    method (the impact direction). Pass ``direction=\"forward\"`` for what this
+    method itself calls.
+
+    Example:
+        # Who calls MyApp.Person.Save? (impact analysis before renaming)
+        index_callers(method=\"MyApp.Person.Save\")
+
+        # What does Main.Run call?
+        index_callers(method=\"MyApp.Main.Run\", direction=\"forward\")
+    """
+    return await api_index_callers(
+        method=method,
+        namespace=namespace,
+        include_system=include_system,
+        filter_prefix=filter_prefix,
+        direction=direction,
+        max_callers=max_results,
+        target_host=target_host,
+        target_port=target_port,
+    )
