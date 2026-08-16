@@ -4,6 +4,7 @@ Mock-based (httpx.MockTransport) — no live IRIS needed. Follows the
 ``tests/unit/test_index.py`` conventions for the handler/rows pattern.
 """
 
+import asyncio
 from unittest.mock import patch
 
 import httpx
@@ -334,3 +335,48 @@ class TestIndexStatusAPI:
             assert status["cached"] is True
             assert status["fresh"] is True
             assert "age_seconds" in status
+
+
+class TestFetchBodiesNoHang:
+    """A stalled document fetch must not block the call-graph build.
+
+    Regression for the 'prism never finishes the call graph' report on large
+    namespaces: _fetch_bodies used a bare asyncio.gather with no concurrency
+    bound and no overall timeout, so ONE stuck get_document hung the whole
+    build forever. It now bounds concurrency and degrades on timeout.
+    """
+
+    async def test_stalled_fetch_times_out_gracefully(self):
+        """A single never-resolving get_document returns partial/empty, not a hang."""
+        class_names = [f"Pkg.C{n}" for n in range(100)]
+        calls = {"n": 0}
+
+        async def stalled_get_document(*a, **kw):
+            calls["n"] += 1
+            if calls["n"] == 50:
+                await asyncio.Event().wait()  # simulate a request that never resolves
+            return {"result": {"content": ["Class X {", "Method Go(){ Do ##class(Y).Run() }", "}"]}}
+
+        with (
+            patch.object(index_api, "get_document", side_effect=stalled_get_document),
+            patch.object(index_api, "_FETCH_BODIES_TIMEOUT", 0.5),
+        ):
+            t0 = asyncio.get_event_loop().time()
+            result = await index_api._fetch_bodies(class_names, "USER", None, None)
+            elapsed = asyncio.get_event_loop().time() - t0
+
+        # Must return (bounded) rather than hang forever; elapsed < ~2s proves
+        # the timeout guard fired instead of an infinite gather.
+        assert isinstance(result, dict)
+        assert elapsed < 2.0
+
+    async def test_fetch_skips_failed_docs(self):
+        """A raising get_document is skipped (name, None), not fatal."""
+        class_names = ["Pkg.A", "Pkg.B"]
+
+        async def failing_doc(*a, **kw):
+            raise RuntimeError("simulated HTTP failure")
+
+        with patch.object(index_api, "get_document", side_effect=failing_doc):
+            result = await index_api._fetch_bodies(class_names, "USER", None, None)
+        assert result == {}

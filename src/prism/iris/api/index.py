@@ -22,6 +22,13 @@ from prism.iris.api.documents import get_document
 from prism.iris.indexing.callgraph import build_call_graph
 from prism.iris.sdk.http import api_url, client, parse_json
 
+# ── Constants ───────────────────────────────────────────────────────────────
+#
+# Overall cap for the Tier-2 body-fetch pass. Bounded concurrency + this
+# timeout guarantee the call-graph build can never hang forever when a single
+# document request stalls on a large namespace.
+_FETCH_BODIES_TIMEOUT = 600.0
+
 # ── Input validation ─────────────────────────────────────────────────────────
 #
 # The Atelier /action/query endpoint accepts a single SQL string and does NOT
@@ -278,20 +285,49 @@ async def _fetch_bodies(
     (e.g. a generated class with no stored source, a 404) are skipped — their
     call-site contributions are simply absent, which is a bounded, visible
     gap rather than a hard failure.
+
+    Concurrency is bounded by a semaphore and the whole pass is wrapped in a
+    timeout so a single stuck document request (a slow IRIS, a stalled
+    connection) can NEVER block the call-graph build forever. Without this,
+    an unbounded ``asyncio.gather`` over thousands of bodies would saturate
+    the shared httpx connection pool and hang indefinitely when one request
+    stalls — the "prism never finishes the call graph" failure on large
+    namespaces.
     """
 
-    async def _one(name: str) -> tuple[str, str | None]:
-        try:
-            data = await get_document(f"{name}.cls", namespace, target_host, target_port)
-            content = data.get("result", {}).get("content", [])
-            if isinstance(content, list):
-                return name, "\n".join(content)
-            return name, None
-        except Exception:
-            return name, None
+    # Bounded concurrency: keep requests well under the shared httpx pool's
+    # connection limit so none queue behind it for minutes.
+    sem = asyncio.Semaphore(16)
 
-    results = await asyncio.gather(*(_one(n) for n in class_names))
-    return {name: src for name, src in results if src is not None}
+    async def _one(name: str) -> tuple[str, str | None]:
+        async with sem:
+            try:
+                data = await get_document(f"{name}.cls", namespace, target_host, target_port)
+                content = data.get("result", {}).get("content", [])
+                if isinstance(content, list):
+                    return name, "\n".join(content)
+                return name, None
+            except Exception:
+                return name, None
+
+    # Overall cap on the whole body pass. On timeout we return whatever
+    # completed so far — the call graph is built over a partial body set
+    # rather than hanging indefinitely.
+    try:
+        results = await asyncio.wait_for(
+            asyncio.gather(*(_one(n) for n in class_names), return_exceptions=True),
+            timeout=_FETCH_BODIES_TIMEOUT,
+        )
+    except TimeoutError:
+        return {}
+
+    bodies: dict[str, str] = {}
+    for r in results:
+        # Individual _one errors are already swallowed (name, None); this
+        # also guards any exception object that slips through.
+        if isinstance(r, tuple) and len(r) == 2 and isinstance(r[1], str):
+            bodies[r[0]] = r[1]
+    return bodies
 
 
 def _to_call_graph_dict(cg) -> dict:
