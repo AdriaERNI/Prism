@@ -113,7 +113,9 @@ This applies to all tools that connect to IRIS: `execute_sql`,
 `execute_terminal`, `get_server_info`, `list_documents`, `get_document`,
 `put_document`, `put_and_compile`, `delete_document`, `compile_documents`,
 `run_tests`, `list_tests`, `get_test_results`, `index_code`, and
-`monitor_system`.
+`monitor_system`. The index query tools (`index_search`, `index_node`,
+`index_refs`, `index_impact`, `index_path`, `index_queries`, `index_status`)
+also accept them.
 
 Tools that operate locally (`list_files`, `read_file`, `run_shell`) do not
 accept these parameters.

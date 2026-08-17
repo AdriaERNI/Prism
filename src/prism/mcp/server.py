@@ -93,6 +93,8 @@ properties, supers, children, callers, callees, code references and degree.
 - **index_impact** — transitive blast radius of a method (who transitively \
 calls it, via r_call_edges + r_edges).
 - **index_path** — shortest method-to-method path in the call graph (BFS).
+- **index_queries** — run one of five named queries: callers_of_method, \
+callers_high_fanin, method_calls_outbound, class_references, find_path.
 - **index_status** — index-cache freshness/count/age for a scope, with refresh.
 - **run_tests** — run unit tests for a %UnitTest.TestCase class.
 - **list_tests** — discover test classes and their Test* methods.
@@ -248,6 +250,8 @@ properties, supers, children, callers, callees, code references and degree.
 - **index_impact** — transitive blast radius of a method (who transitively \
 calls it, via r_call_edges + r_edges).
 - **index_path** — shortest method-to-method path in the call graph (BFS).
+- **index_queries** — run one of five named queries: callers_of_method, \
+callers_high_fanin, method_calls_outbound, class_references, find_path.
 - **index_status** — index-cache freshness/count/age for a scope, with refresh.
 - **run_tests** — run unit tests for a %UnitTest.TestCase class.
 - **list_tests** — discover test classes and their Test* methods.
