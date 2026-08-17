@@ -98,4 +98,7 @@ jobs:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
-        run: uv run pytest tests/integration/ -v --tb=short --continue-on-collection-errors
+        # Big-project index tests (marker `bigproject`) are run separately in
+        # index-validation.yml with a large project preloaded — exclude them
+        # from the fast integration suite.
+        run: uv run pytest tests/integration/ -m "not bigproject" -v --tb=short --continue-on-collection-errors
