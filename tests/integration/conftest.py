@@ -30,6 +30,9 @@ ALL_TEST_DOCS = [
     "Test.MCPSampleTest.cls",
     "Test.MCPFailingTest.cls",
     "Test.MCPBgHelper.cls",
+    "Test.QryCaller.cls",
+    "Test.QryMiddle.cls",
+    "Test.QryLeaf.cls",
 ]
 
 # Helper classes auto-deployed by MCP tools — cleaned up separately

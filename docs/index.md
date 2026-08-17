@@ -34,8 +34,8 @@ Prism ships a single executable that you can run in two modes:
     prism serve
     ```
 
-    The server listens on `http://localhost:3000/mcp` and exposes 11
-    always-on tools covering the same operations, plus 2 workspace-gated
+    The server listens on `http://localhost:3000/mcp` and exposes 21
+    always-on tools covering the same operations, plus 5 workspace-gated
     tools and 9 interactive-debugger tools that have no CLI equivalent.
 
 ## Install

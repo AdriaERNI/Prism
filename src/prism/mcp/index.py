@@ -20,6 +20,7 @@ from prism.iris.api.index import (
     method_path,
     reachable,
     refresh_index,
+    run_index_query,
     search_symbols,
 )
 from prism.iris.api.index import (
@@ -821,6 +822,167 @@ async def index_status(
         }
 
     return await api_index_status(
+        namespace=namespace,
+        include_system=include_system,
+        filter_prefix=filter_prefix,
+        target_host=target_host,
+        target_port=target_port,
+    )
+
+
+# ── index_queries ─────────────────────────────────────────────────────────
+
+
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
+async def index_queries(
+    query: Annotated[
+        str,
+        Field(
+            description="Which named query to run: 'callers_of_method', "
+            "'callers_high_fanin', 'method_calls_outbound', 'class_references' "
+            "or 'find_path'.",
+            min_length=1,
+            max_length=64,
+        ),
+    ],
+    method: Annotated[
+        str | None,
+        Field(
+            description="For callers_of_method / method_calls_outbound: the "
+            "method key as 'Class.Method' (e.g. 'MyApp.Service.Run').",
+            min_length=1,
+            max_length=255,
+        ),
+    ] = None,
+    class_name: Annotated[
+        str | None,
+        Field(
+            description="For class_references: the class name to find body "
+            "references to (e.g. 'MyApp.Model').",
+            min_length=1,
+            max_length=255,
+        ),
+    ] = None,
+    source: Annotated[
+        str | None,
+        Field(
+            description="For find_path: the start 'Class.method' or class name.",
+            min_length=1,
+            max_length=255,
+        ),
+    ] = None,
+    target: Annotated[
+        str | None,
+        Field(
+            description="For find_path: the end 'Class.method' or class name.",
+            min_length=1,
+            max_length=255,
+        ),
+    ] = None,
+    top_n: Annotated[
+        int,
+        Field(
+            description="For callers_high_fanin: how many top methods to return. Default: 20.",
+            ge=1,
+            le=200,
+        ),
+    ] = 20,
+    limit: Annotated[
+        int,
+        Field(
+            description="For callers_of_method / method_calls_outbound: maximum "
+            "number of results. Default: 100.",
+            ge=1,
+            le=1000,
+        ),
+    ] = 100,
+    namespace: Annotated[
+        str | None,
+        Field(
+            description="IRIS namespace. Defaults to configured namespace.",
+            min_length=1,
+            max_length=64,
+        ),
+    ] = None,
+    include_system: Annotated[
+        bool,
+        Field(description="Include system classes in the index. Default: false."),
+    ] = False,
+    filter_prefix: Annotated[
+        str | None,
+        Field(
+            description="Only index classes starting with this prefix (e.g. 'MyApp').",
+            min_length=1,
+            max_length=255,
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(description="IRIS server hostname or IP address. Uses the default if omitted."),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port. Uses the default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
+) -> dict:
+    """Run one of the five named index queries.
+
+    **Runs on: IRIS server + local cache** (reads the already-built index; the
+    call-graph maps come from the cached Tier-2 build).
+
+    The five named queries, all over the built method-level call graph:
+
+    * ``callers_of_method`` — list the methods that call ``Class.method``
+      (direct callers, from the reverse call map).
+    * ``callers_high_fanin`` — the methods with the most callers (top-N).
+    * ``method_calls_outbound`` — what ``Class.method`` calls (direct callees,
+      each with its call-form ``pattern`` 1-7).
+    * ``class_references`` — which classes reference a class in method bodies.
+    * ``find_path`` — the shortest method-to-method path (BFS).
+
+    These are stable, focused, single-hop query shapes; the heavier transitive
+    tools (``index_impact``, ``index_path``) remain available for blast-radius
+    and path questions.
+
+    Note: callers/callees are only visible when the *caller class* is inside
+    the indexed scope — a ``filter_prefix`` that excludes a calling class will
+    hide its edges.
+
+    Examples:
+        # Who calls HCC.DocRepository.Patient.Load?
+        index_queries(query="callers_of_method", method="HCC.DocRepository.Patient.Load")
+
+        # The 10 methods with the most callers
+        index_queries(query="callers_high_fanin", top_n=10)
+
+        # What HCC.SQL.Tools.BuildPyConfig calls
+        index_queries(query="method_calls_outbound", method="HCC.SQL.Tools.BuildPyConfig.Run")
+
+        # Which classes reference HCC.Interface.Setting
+        index_queries(query="class_references", class_name="HCC.Interface.Setting")
+
+        # Shortest path between two methods
+        index_queries(query="find_path", source="HCC.Demo", target="HCC.Interface.Setting")
+    """
+    return await run_index_query(
+        query=query,
+        method=method,
+        class_name=class_name,
+        source=source,
+        target=target,
+        top_n=top_n,
+        limit=limit,
         namespace=namespace,
         include_system=include_system,
         filter_prefix=filter_prefix,

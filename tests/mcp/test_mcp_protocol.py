@@ -29,7 +29,7 @@ TIMEOUT = 30.0
 # Expected tool names (must match the names registered by discover_tools()).
 # These are the function names as decorated with @logged_tool.
 # Workspace (put_document, compile_documents, delete_document) and debugger
-# tools are disabled by default -> 11 tools expected.
+# tools are disabled by default -> 21 tools expected.
 EXPECTED_TOOLS = {
     "list_documents",
     "get_document",
@@ -42,6 +42,7 @@ EXPECTED_TOOLS = {
     "index_refs",
     "index_impact",
     "index_path",
+    "index_queries",
     "index_status",
     "get_server_info",
     "execute_sql",
@@ -49,6 +50,8 @@ EXPECTED_TOOLS = {
     "list_tests",
     "get_test_results",
     "run_tests",
+    "run_shell",
+    "monitor_system",
 }
 
 
@@ -74,6 +77,7 @@ SAFE_TOOL_ARGS = {
     "index_refs": {"class_name": "__PrismMissing__.None"},
     "index_impact": {"method": "__PrismMissing__.None.Run"},
     "index_path": {"source": "__PrismMissing__.None.Run", "target": "__PrismMissing__.None.Stop"},
+    "index_queries": {"query": "bogus"},
     "index_status": {},
     "get_server_info": {},
     "list_tests": {"filter": "%UnitTest"},

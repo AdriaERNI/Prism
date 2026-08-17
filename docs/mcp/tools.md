@@ -27,6 +27,13 @@ session the CLI can't hold open.
 | `get_test_results` | — | **(MCP only.)** Returns `{runs: [{run_id, run_time, duration, test_class, status}], count}`. |
 | `index_code` | [`prism index`](../commands/indexing.md) | Builds a compact index of all classes using `%Dictionary` SQL metadata. Returns `{namespace, statistics, classes, dependencies, edges, r_edges, degree}`. Also accepts `include_call_graph=True` to add a method-level call graph (`call_edges`, `r_call_edges`, `code_refs`, `unresolved`) — the slow opt-in Tier 2 pass. Token-efficient alternative to reading every source file (93% reduction). |
 | `index_reachability` | — | **(MCP only.)** Walks the class dependency graph from a class. Returns `{start, max_hops, direction, reachable: [[class, distance]...]}`. Default `direction="reverse"` (what depends on this class — impact analysis); pass `direction="forward"` for what this class depends on. Edges come from superclass, property-type and method-signature-type links. |
+| `index_search` | [`prism index-search`](../commands/indexing.md) | Searches IRIS symbol names (classes, methods, properties, SQL tables) server-side via fast `%Dictionary` SQL. Exact + `%STARTSWITH` prefix, `kind`/`limit` params, ranking class > method > property > table. Returns `{query, count, results: [{kind, symbol, owner, detail}]}`. |
+| `index_node` | [`prism index-node`](../commands/indexing.md) | Focused full picture of one class: methods+signatures, properties, supers, children, callers (from the reverse call graph), callees, body code references and degree. Pure assembly of the already-built index. Returns `{name, methods, properties, callers, callees, ...}`. |
+| `index_refs` | [`prism index-refs`](../commands/indexing.md) | Which classes reference a class in their method bodies (the `r_code_refs` map). Returns `{target, found, count, referenced_by}`. |
+| `index_impact` | [`prism index-impact`](../commands/indexing.md) | Transitive blast radius of a method or class (who transitively calls it) over `r_call_edges` + structural `r_edges`. Returns `{start, hops, count, truncated, methods}`. |
+| `index_path` | [`prism index-path`](../commands/indexing.md) | Shortest method-to-method path in the call graph (BFS with predecessor tracking). Returns `{found, path, length, hops}`. |
+| `index_queries` | [`prism index-queries`](../commands/indexing.md) | Runs one of five named queries over the call graph: `callers_of_method`, `callers_high_fanin`, `method_calls_outbound`, `class_references`, `find_path`. Takes a `query` name plus the query's params. Returns a per-query result shape. |
+| `index_status` | [`prism index-status`](../commands/indexing.md) | Reports index-cache freshness/count/age for a scope (via the `TimeChanged` fingerprint), with `refresh=True` to force a rebuild. Returns `{namespace, target, classes, fresh, cached, age_seconds}`. |
 | `monitor_system` | [`prism monitor`](../commands/monitor.md) | Fetches live metrics from IRIS `/api/monitor`, computes a 0–100 load score with per-category sub-scores (CPU, memory, disk, process), and returns a snapshot with grade, key metrics, and alert count. Use two snapshots to compare instances — lower score wins. |
 | `list_files` | — | **(MCP only.)** Lists files in the `IRIS_WORKSPACE` directory. Returns `{files: [{name, size, modified}], count}`. |
 | `read_file` | — | **(MCP only.)** Reads a file from the `IRIS_WORKSPACE` directory. Returns `{name, content, found}`. |
@@ -41,10 +48,11 @@ session the CLI can't hold open.
 | `debug_breakpoints` | — | **(MCP only.)** |
 | `debug_stop` | — | **(MCP only.)** |
 
-13 tools are always registered (including `index_code`, `index_reachability` and `monitor_system`).
+21 tools are always registered (including `index_code`, `index_reachability`,
+`index_queries` and `monitor_system`).
 5 workspace-gated tools (`put_document`, `put_and_compile`, `list_files`,
-`read_file`, `run_shell`) are added when `IRIS_WORKSPACE` is set — 18 total.
-9 debug-gated tools are added when `IRIS_DEBUG_ENABLED=true` — up to 27 total
+`read_file`, `run_shell`) are added when `IRIS_WORKSPACE` is set — 25 total.
+9 debug-gated tools are added when `IRIS_DEBUG_ENABLED=true` — up to 34 total
 with both workspace and debug enabled.
 
 ## Workspace-gated tools

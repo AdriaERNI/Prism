@@ -532,3 +532,41 @@ class TestIndexFeatureCommands:
             result = runner.invoke(app, ["index-status", "--prefix", "A"])
         assert result.exit_code == 0
         assert "fresh" in result.output
+
+    def test_index_queries_help(self):
+        """index-queries --help shows the query modes."""
+        result = runner.invoke(app, ["index-queries", "--help"])
+        assert result.exit_code == 0
+        assert "callers_of_method" in result.output
+        assert "find_path" in result.output
+
+    def test_index_queries_calls_run_index_query(self):
+        """index-queries forwards query + params to run_index_query."""
+        with patch(
+            "prism.cli.commands.index.run_index_query",
+            new=AsyncMock(
+                return_value={
+                    "query": "callers_of_method",
+                    "method": "A.go",
+                    "total": 2,
+                    "callers": ["B.run", "C.stop"],
+                    "cached": True,
+                }
+            ),
+        ) as m:
+            result = runner.invoke(app, ["index-queries", "callers_of_method", "--method", "A.go"])
+        assert result.exit_code == 0
+        m.assert_awaited_once_with(
+            "callers_of_method",
+            method="A.go",
+            class_name=None,
+            source=None,
+            target=None,
+            top_n=20,
+            limit=100,
+            namespace=None,
+            include_system=False,
+            filter_prefix=None,
+        )
+        assert '"total": 2' in result.output
+        assert "B.run" in result.output

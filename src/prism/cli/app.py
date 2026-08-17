@@ -29,6 +29,7 @@ from prism.cli.commands.index import (
     index_impact,
     index_node,
     index_path,
+    index_queries,
     index_refs,
     index_search,
     index_status,
@@ -103,6 +104,7 @@ app.command(name="index-node")(index_node)
 app.command(name="index-refs")(index_refs)
 app.command(name="index-impact")(index_impact)
 app.command(name="index-path")(index_path)
+app.command(name="index-queries")(index_queries)
 app.command(name="index-status")(index_status)
 app.command(name="serve")(serve)
 app.command(name="setup")(install)

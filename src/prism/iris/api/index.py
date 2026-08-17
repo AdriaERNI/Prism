@@ -1094,3 +1094,193 @@ async def refresh_index(
     cache_put(ns, target, fingerprint, index)
     index["cached"] = False
     return index
+
+
+# ── Named index queries (index_queries facade) ────────────────────────────
+#
+# Five first-class, named queries over the built index. They reuse the
+# materialised call-graph maps (r_call_edges / call_edges / r_code_refs) and
+# the graph functions in indexing/callgraph.py — pure assembly, no extra IRIS
+# round-trips once the index (with the optional call graph) has been built.
+#
+# Every handler takes (index, **kw) and reads its own params from kw, so the
+# async dispatcher can pass all named parameters uniformly.
+
+_QUERY_NAMES = frozenset(
+    {
+        "callers_of_method",
+        "callers_high_fanin",
+        "method_calls_outbound",
+        "class_references",
+        "find_path",
+    }
+)
+
+
+def _cg_map(index: dict, name: str) -> dict:
+    """Read map *name* from the call-graph section, with a top-level fallback."""
+    cg = index.get("call_graph", {}) or {}
+    return cg.get(name, {}) or index.get(name, {}) or {}
+
+
+def query_callers_of_method(index: dict, **kw: object) -> dict:
+    """Who calls ``Class.Method``? (direct callers from ``r_call_edges``)."""
+    method = str(kw.get("method") or "")
+    callers = sorted(set(_cg_map(index, "r_call_edges").get(method, [])))
+    limit = max(1, int(kw.get("limit", 100)))
+    return {
+        "query": "callers_of_method",
+        "method": method,
+        "callers": callers[:limit],
+        "total": len(callers),
+        "truncated": len(callers) > limit,
+    }
+
+
+def query_callers_high_fanin(index: dict, **kw: object) -> dict:
+    """Methods with the most direct callers, ranked descending (top-N)."""
+    r_call_edges = _cg_map(index, "r_call_edges")
+    ranked = sorted(
+        ((m, len(set(cs))) for m, cs in r_call_edges.items() if cs),
+        key=lambda kv: (-kv[1], kv[0]),
+    )
+    top_n = max(1, int(kw.get("top_n", 20)))
+    return {
+        "query": "callers_high_fanin",
+        "top_n": top_n,
+        "results": [{"method": method, "callers": count} for method, count in ranked[:top_n]],
+    }
+
+
+def query_method_calls_outbound(index: dict, **kw: object) -> dict:
+    """What does ``Class.Method`` call? (direct callees from ``call_edges``)."""
+    method = str(kw.get("method") or "")
+    raw = _cg_map(index, "call_edges").get(method, []) or []
+    callees = [
+        (
+            {"to": e.get("to"), "pattern": e.get("pattern")}
+            if isinstance(e, dict)
+            else {"to": e, "pattern": None}
+        )
+        for e in raw
+        if (e.get("to") if isinstance(e, dict) else e)
+    ]
+    callees.sort(key=lambda c: str(c.get("to", "")))
+    limit = max(1, int(kw.get("limit", 100)))
+    total = len(callees)
+    return {
+        "query": "method_calls_outbound",
+        "method": method,
+        "callees": callees[:limit],
+        "total": total,
+        "truncated": total > limit,
+    }
+
+
+def query_class_references(index: dict, **kw: object) -> dict:
+    """Which classes reference *class_name* in their method bodies? (``r_code_refs``)."""
+    class_name = str(kw.get("class_name") or "")
+    refs = sorted(set(_cg_map(index, "r_code_refs").get(class_name, [])))
+    return {
+        "query": "class_references",
+        "class_name": class_name,
+        "referenced_by": refs,
+        "count": len(refs),
+    }
+
+
+def query_find_path(index: dict, **kw: object) -> dict:
+    """Shortest method-to-method path (BFS over the merged call graph)."""
+    from prism.iris.indexing.callgraph import shortest_path
+
+    cg = index.get("call_graph", {}) or {}
+    source = str(kw.get("source") or "")
+    target = str(kw.get("target") or "")
+    path = shortest_path(
+        cg.get("call_edges", {}) or {},
+        cg.get("r_call_edges", {}) or {},
+        index.get("r_edges", {}) or {},
+        source,
+        target,
+    )
+    return {"query": "find_path", "source": source, "target": target, **path}
+
+
+_QUERY_HANDLERS = {
+    "callers_of_method": query_callers_of_method,
+    "callers_high_fanin": query_callers_high_fanin,
+    "method_calls_outbound": query_method_calls_outbound,
+    "class_references": query_class_references,
+    "find_path": query_find_path,
+}
+
+
+async def run_index_query(
+    query: str,
+    method: str | None = None,
+    class_name: str | None = None,
+    source: str | None = None,
+    target: str | None = None,
+    top_n: int = 20,
+    limit: int = 100,
+    namespace: str | None = None,
+    include_system: bool = False,
+    filter_prefix: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> dict:
+    """Run one of the five named index queries.
+
+    The index is resolved through :func:`get_index` with
+    ``include_call_graph=True`` so the call-graph maps (``r_call_edges``,
+    ``call_edges``, ``r_code_refs``) are present and SQLite-cached. An
+    unknown *query* name returns an ``error`` dict instead of raising.
+
+    Note: callers/callees are only visible when the *caller class* is inside
+    the indexed scope — a ``filter_prefix`` that excludes a calling class will
+    hide its edges.
+    """
+    handler = _QUERY_HANDLERS.get(query)
+    if handler is None:
+        return {
+            "query": query,
+            "error": f"unknown query {query!r}; expected one of: {', '.join(sorted(_QUERY_NAMES))}",
+        }
+
+    # Per-query required parameters. The MCP tool schema makes every param
+    # optional because each query needs a different subset, so a missing
+    # required param for the *selected* query is a user error that should be
+    # surfaced explicitly — not silently treated as "empty / not found".
+    required: dict[str, tuple[str, ...]] = {
+        "callers_of_method": ("method",),
+        "callers_high_fanin": (),
+        "method_calls_outbound": ("method",),
+        "class_references": ("class_name",),
+        "find_path": ("source", "target"),
+    }
+    missing = [p for p in required[query] if not locals().get(p)]
+    if missing:
+        return {
+            "query": query,
+            "error": f"{query} requires parameter(s): {', '.join(missing)}",
+        }
+
+    index = await get_index(
+        namespace=namespace,
+        include_system=include_system,
+        filter_prefix=filter_prefix,
+        include_call_graph=True,
+        target_host=target_host,
+        target_port=target_port,
+    )
+    result = handler(
+        index,
+        method=method,
+        class_name=class_name,
+        source=source,
+        target=target,
+        top_n=top_n,
+        limit=limit,
+    )
+    result["cached"] = index.get("cached", False)
+    return result

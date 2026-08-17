@@ -16,6 +16,7 @@ from prism.iris.api.index import (
     method_impact,
     method_path,
     refresh_index,
+    run_index_query,
     search_symbols,
 )
 from prism.iris.api.index import (
@@ -243,7 +244,54 @@ def index_path(
     typer.echo(format_output(result, get_output_format()))
 
 
-# ── index-status ──────────────────────────────────────────────────────────
+# ── index-queries ─────────────────────────────────────────────────────────
+
+
+def index_queries(
+    query: str = typer.Argument(
+        ...,
+        help="Named query: callers_of_method, callers_high_fanin, "
+        "method_calls_outbound, class_references, find_path.",
+    ),
+    method: str = typer.Option(
+        "", "--method", "-m", help="'Class.method' for callers_of_method / method_calls_outbound."
+    ),
+    class_name: str = typer.Option("", "--class", "-c", help="Class for class_references."),
+    source: str = typer.Option("", "--source", "-s", help="Start 'Class.method' for find_path."),
+    target: str = typer.Option("", "--target", "-t", help="End 'Class.method' for find_path."),
+    top_n: int = typer.Option(20, "--top-n", min=1, max=200, help="Top-N for callers_high_fanin."),
+    limit: int = typer.Option(
+        100,
+        "--limit",
+        "-l",
+        min=1,
+        max=1000,
+        help="Max results for callers_of_method / method_calls_outbound.",
+    ),
+    prefix: str = typer.Option("", "--prefix", help="Only index classes with this prefix."),
+    system: bool = typer.Option(False, "--system", help="Include system classes."),
+    namespace: str = typer.Option("", "--namespace", "-n", help="IRIS namespace."),
+) -> None:
+    """Run one of the five named index queries over the built call graph."""
+    try:
+        result = asyncio.run(
+            run_index_query(
+                query,
+                method=method or None,
+                class_name=class_name or None,
+                source=source or None,
+                target=target or None,
+                top_n=top_n,
+                limit=limit,
+                namespace=namespace or None,
+                include_system=system,
+                filter_prefix=prefix or None,
+            )
+        )
+    except Exception as exc:
+        handle_command_error(exc)
+
+    typer.echo(format_output(result, get_output_format()))
 
 
 def index_status(

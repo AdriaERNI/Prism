@@ -193,6 +193,65 @@ Package Manager, 179 classes):
 | API calls | ~170 | 5 | **97%** |
 | Time | ~30s | 0.64s | **47×** |
 
+## Named queries (`prism index-queries`)
+
+Build the method-level call graph (or reuse the cached Tier-2 index), then run
+one of **five named queries** against it. This is the stable public contract
+for the common call-graph questions; the heavier transitive tools
+(`index-impact`, `index-path`) remain available when you need blast radius or a
+full path.
+
+```bash
+prism index-queries <query> [OPTIONS]
+```
+
+| Query | Input | Returns |
+|-------|-------|---------|
+| `callers_of_method` | `--method Class.Method` | `{method, callers: [...], total, truncated}` — the methods that call it (direct) |
+| `callers_high_fanin` | `--top-n N` (default 20) | `{results: [{method, callers}...]}` — methods with the most callers, ranked descending |
+| `method_calls_outbound` | `--method Class.Method` | `{method, callees: [{to, pattern}...], total, truncated}` — what a method calls, with its call-form pattern (1-7) |
+| `class_references` | `--class ClassName` | `{class_name, referenced_by: [...], count}` — which classes reference the class in method bodies |
+| `find_path` | `--source A --target B` | `{source, target, found, path, length, hops}` — shortest method-to-method path (BFS) |
+
+All five require the call-graph maps, so they build the index with the
+optional Tier-2 pass (SQLite-cached for subsequent calls). Like every index
+CLI, they accept `--prefix`, `--system` and `--namespace`.
+
+Example:
+
+```bash
+# Who calls HCC.DocRepository.Patient.Load?
+prism index-queries callers_of_method --method HCC.DocRepository.Patient.Load
+
+# The 10 methods with the most callers
+prism index-queries callers_high_fanin --top-n 10
+
+# What does HCC.SQL.Tools.GenerateSample call?
+prism index-queries method_calls_outbound --method HCC.SQL.Tools.GenerateSample
+
+# Which classes reference HCC.Interface.Setting in their bodies?
+prism index-queries class_references --class HCC.Interface.Setting
+
+# Shortest path between two methods
+prism index-queries find_path --source HCC.Demo --target HCC.Interface.Setting
+```
+
+> **Note on scope.** Callers and callees are only visible when the *caller
+> class* is inside the indexed scope. A `--prefix` that excludes a calling
+> class will hide its edges — recheck `unresolved` counts when judging
+> completeness.
+
+## Other index subcommands
+
+| Command | Purpose |
+|---------|---------|
+| `prism index-search <term>` | Server-side `%Dictionary` SQL symbol search (class/method/property/table names). |
+| `prism index-node <Class>` | Full picture of one class: methods+signatures, props, supers, callers, callees, code refs, degree. |
+| `prism index-refs <Class>` | Which classes reference a class in their method bodies. |
+| `prism index-impact <Class.method>` | Transitive blast radius (who transitively calls it). |
+| `prism index-path <A.method> <B.method>` | Shortest method-to-method path (BFS). |
+| `prism index-status` | Index-cache freshness/count/age for the scope, with `--refresh`. |
+
 ## Related
 
 - [MCP tool reference](../mcp/tools.md) — the `index_code` MCP tool

@@ -1,0 +1,79 @@
+name: Index Validation
+
+# Validates the full `prism index` surface (every index tool + the five
+# named queries) against a large real ObjectScript project loaded into a
+# fresh Docker IRIS. This is the big-project CI run — deliberately a
+# separate workflow so normal PR CI (test-linux.yml) stays fast.
+#
+# Strategy (mirrors scripts/hcc_loader.py):
+#   1. start IRIS Community 2025.3,
+#   2. load the zzllkk2003/hcc project (~2,344 classes) via the Atelier API,
+#   3. run the big-project pytest module (correctness + spot-checks),
+#   4. run the standalone bench script (median-of-3 timing report).
+#
+# Gates on pull_request/push to `development` and on the umbrella branch so
+# index performance/correctness at scale is verified on every landing path.
+
+on:
+  pull_request:
+    branches: [development]
+  push:
+    branches: [development, index-optimizations]
+  workflow_dispatch:
+
+jobs:
+  index-validation:
+    name: Big-project index validation
+    runs-on: ubuntu-latest
+    services:
+      iris:
+        image: intersystemsdc/iris-community:2025.3
+        ports:
+          - 52773:52773
+          - 1972:1972
+        env:
+          IRIS_USERNAME: _SYSTEM
+          IRIS_PASSWORD: SYS
+        options: >-
+          --health-cmd "/irisHealth.sh"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 20
+          --health-start-period 90s
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Load hcc into IRIS (big-project fixture)
+        env:
+          IRIS_BASE_URL: http://localhost:52773
+          IRIS_USERNAME: _SYSTEM
+          IRIS_PASSWORD: SYS
+        run: python scripts/hcc_loader.py
+
+      - name: Run big-project index validation (pytest)
+        env:
+          IRIS_BASE_URL: http://localhost:52773
+          IRIS_USERNAME: _SYSTEM
+          IRIS_PASSWORD: SYS
+        run: uv run pytest tests/integration/test_index_big_project.py -v --tb=short -m bigproject
+
+      - name: Run big-project index bench (median-3 timings)
+        env:
+          IRIS_BASE_URL: http://localhost:52773
+          IRIS_USERNAME: _SYSTEM
+          IRIS_PASSWORD: SYS
+        run: python scripts/index_big_bench.py --runs 3
