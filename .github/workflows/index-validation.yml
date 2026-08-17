@@ -62,7 +62,7 @@ jobs:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
-        run: python scripts/hcc_loader.py
+        run: uv run python scripts/hcc_loader.py
 
       - name: Run big-project index validation (pytest)
         env:
@@ -76,4 +76,4 @@ jobs:
           IRIS_BASE_URL: http://localhost:52773
           IRIS_USERNAME: _SYSTEM
           IRIS_PASSWORD: SYS
-        run: python scripts/index_big_bench.py --runs 3
+        run: uv run python scripts/index_big_bench.py --runs 3
