@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "prism"
+name = "iris-prism"
 version = "0.2.1-beta2"
 description = "Prism lets AI see through IRIS — MCP server for SQL, documents, compilation, debugging, testing, and ObjectScript execution"
 readme = "README.md"

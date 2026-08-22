@@ -419,6 +419,6 @@ Each release includes:
 |----------|----------|-------------|
 | `prism.exe` | Windows | Standalone PyInstaller binary (~36 MB) |
 | `prism-X.Y.Z-setup.exe` | Windows | Inno Setup installer with Prism branding |
-| `prism-X.Y.Z-py3-none-any.whl` | Cross-platform | Python wheel (`pip install prism`) |
+| `iris_prism-X.Y.Z-py3-none-any.whl` | Cross-platform | Python wheel (`pip install iris-prism`) |
 
 [gitflow]: https://nvie.com/posts/a-successful-git-branching-model/

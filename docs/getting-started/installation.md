@@ -59,7 +59,7 @@ uv run prism info
 ### Install with pip
 
 ```bash
-pip install prism
+pip install iris-prism
 
 # Verify
 prism --help
