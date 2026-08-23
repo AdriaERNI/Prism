@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo.svg" width="200" alt="Prism Logo" />
+  <img src="https://raw.githubusercontent.com/AdriaERNI/Prism/main/docs/assets/logo-256.png" width="200" alt="Prism Logo" />
   
   # Prism
   
