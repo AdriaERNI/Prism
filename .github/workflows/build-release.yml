@@ -366,9 +366,7 @@ jobs:
        contains(github.event.inputs.tag, '-beta.'))
     needs: release
     runs-on: ubuntu-latest
-    environment: pypi
     permissions:
-      id-token: write   # trusted publishing (OpenID Connect)
       contents: read
     steps:
       - name: Checkout
