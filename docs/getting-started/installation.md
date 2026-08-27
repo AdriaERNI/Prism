@@ -56,14 +56,16 @@ uv run prism --help
 uv run prism info
 ```
 
-### Install with pip
+### Install from source (not yet on PyPI)
 
 ```bash
-pip install prism
+git clone https://github.com/AdriaERNI/Prism.git
+cd Prism
+uv sync
 
 # Verify
-prism --help
-prism info
+uv run prism --help
+uv run prism info
 ```
 
 ### TOON output format

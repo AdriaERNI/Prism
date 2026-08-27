@@ -97,7 +97,7 @@ src/prism/
 ├── mcp/                # MCP tools with @logged_tool decorator
 │   ├── _decorator.py   # logged_tool implementation
 │   ├── server.py       # FastMCP server with auto-discovery
-│   └── *.py            # One module per tool domain (13 always + 5 gated + 9 debug)
+│   └── *.py            # One module per tool domain (20 always + 5 gated + 9 debug)
 ├── chatbot/            # AI agent that orchestrates MCP tools via LLM
 │   ├── agent.py        # LLM-powered tool-use loop (OpenAI-compatible API)
 │   └── skills.py       # Markdown skill folder reader/loader
@@ -116,10 +116,10 @@ Tools are registered conditionally based on settings:
 
 | Category | Count | Condition |
 |----------|-------|-----------|
-| Always-on | 13 | Always registered (including `index_code`, `index_reachability` and `monitor_system`) |
+| Always-on | 20 | Always registered (including `index_code`, `index_reachability` and `monitor_system`) |
 | Workspace-gated | 5 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`, `list_files`, `read_file`, `run_shell`) |
 | Debug-gated | 9 | `IRIS_DEBUG_ENABLED=true` (`debug_*` tools) |
-| **Maximum** | **27** | Both workspace + debug enabled |
+| **Maximum** | **34** | Both workspace + debug enabled |
 
 ### Settings (28 fields)
 

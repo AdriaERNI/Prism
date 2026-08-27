@@ -81,10 +81,13 @@ uv sync
 uv run prism --help
 ```
 
-Or install via pip:
+Or install from source (not yet published on PyPI):
 
 ```bash
-pip install prism
+git clone https://github.com/AdriaERNI/Prism.git
+cd Prism
+uv sync
+# then run with: uv run prism --help
 ```
 
 See the [installation guide](https://adriaerni.github.io/Prism/getting-started/installation/)
@@ -276,7 +279,7 @@ Download the latest Windows installer or standalone exe from
 |----------|-------------|
 | `prism-X.Y.Z-setup.exe` | Windows installer (Inno Setup, adds to PATH) |
 | `prism.exe` | Standalone Windows binary (PyInstaller) |
-| `prism-X.Y.Z-py3-none-any.whl` | Python wheel (`pip install prism`) |
+| `prism-X.Y.Z-py3-none-any.whl` | Python wheel (build via `uv build`; not on PyPI yet) |
 
 See the [release guide](https://adriaerni.github.io/Prism/releases/) for the
 full release workflow, branch model, hotfix procedure, and CI pipeline details.
