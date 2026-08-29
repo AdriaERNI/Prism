@@ -60,21 +60,8 @@
     <assertion>Return value contains a "documents" list; every entry has type "CLS" or the list is empty.</assertion>
   </question>
 
-  <!-- 5. index_code — summary only -->
-  <question id="5" category="index" difficulty="easy">
-    <prompt>Give me a quick overview of all classes in the namespace.</prompt>
-    <invoke tool="index_code">
-      <arguments>
-        <summary_only>true</summary_only>
-      </arguments>
-    </invoke>
-    <expected_key>total_classes</expected_key>
-    <expected_type>int</expected_type>
-    <assertion>Return value contains an integer class count key (total_classes or count).</assertion>
-  </question>
-
   <!-- 6. execute_sql — simple SELECT -->
-  <question id="6" category="sql" difficulty="easy">
+  <question id="5" category="sql" difficulty="easy">
     <prompt>Run a SELECT query that returns a single row: select 1 as One.</prompt>
     <invoke tool="execute_sql">
       <arguments>
@@ -87,7 +74,7 @@
   </question>
 
   <!-- 7. execute_sql — count rows from a system table -->
-  <question id="7" category="sql" difficulty="medium">
+  <question id="6" category="sql" difficulty="medium">
     <prompt>How many rows are in the %Schema.GlobalInfo table? Use execute_sql.</prompt>
     <invoke tool="execute_sql">
       <arguments>
@@ -100,7 +87,7 @@
   </question>
 
   <!-- 8. list_tests — discover test classes -->
-  <question id="8" category="testing" difficulty="easy">
+  <question id="7" category="testing" difficulty="easy">
     <prompt>Are there any %UnitTest.TestCase classes on this server?</prompt>
     <invoke tool="list_tests">
       <arguments/>
@@ -111,7 +98,7 @@
   </question>
 
   <!-- 9. get_test_results — recent history -->
-  <question id="9" category="testing" difficulty="easy">
+  <question id="8" category="testing" difficulty="easy">
     <prompt>Show the 5 most recent test runs.</prompt>
     <invoke tool="get_test_results">
       <arguments>
@@ -121,20 +108,6 @@
     <expected_key>runs</expected_key>
     <expected_type>list</expected_type>
     <assertion>Return value contains a "runs" list with at most 5 entries.</assertion>
-  </question>
-
-  <!-- 10. index_code — filter by prefix -->
-  <question id="10" category="index" difficulty="medium">
-    <prompt>Index only the %Library classes (system classes) and report the count.</prompt>
-    <invoke tool="index_code">
-      <arguments>
-        <filter_prefix>%Library</filter_prefix>
-        <include_system>true</include_system>
-      </arguments>
-    </invoke>
-    <expected_key>classes</expected_key>
-    <expected_type>list</expected_type>
-    <assertion>Return value contains a "classes" list; every class name starts with "%Library".</assertion>
   </question>
 
 </evaluation>

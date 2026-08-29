@@ -75,7 +75,7 @@ class TestTargetParamsInSchemas:
     def test_all_iris_tools_have_target_params(self, discovered_tools):
         """Every IRIS-targeting tool should have target_host and target_port."""
         # Local-only tools that don't target IRIS
-        local_tools = {"run_shell", "list_files", "read_file", "index_code"}
+        local_tools = {"run_shell", "list_files", "read_file"}
         for tool in discovered_tools:
             if tool.name in local_tools:
                 continue

@@ -61,7 +61,6 @@ uv run pytest tests/unit/ -v
 - `test_debugger.py` — Debug session lifecycle, stepping, breakpoints, variable inspection
 - `test_gui_sql.py` — GUI SQL controller and query execution logic
 - `test_gui_widgets.py` — GUI widget unit tests (tree, editor, results table, toolbar)
-- `test_index.py` — Code indexing tool and CLI
 - `test_settings.py` — Settings loading precedence (env > .env > config.json > defaults)
 - `test_output.py` — Output format support (JSON, TOON)
 - `test_pyinstaller_compat.py` — PyInstaller frozen build compatibility checks
@@ -157,7 +156,6 @@ IRIS_BASE_URL=http://localhost:52773 uv run pytest tests/integration/ -v
 - `test_debugger.py` — Debug start/stop, stepping, breakpoints, variable inspection, process discovery
 - `test_debugger_extra.py` — Extended debugger scenarios (skips if XDebug unavailable)
 - `test_e2e.py` — Full create-compile-insert-select roundtrip, SQL procs, embedded objects
-- `test_index.py` — Code indexing against a live IRIS namespace
 - `test_server_info.py` — Server version, namespaces
 - `test_background.py` — Background-capable tools
 

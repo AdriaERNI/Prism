@@ -88,7 +88,7 @@ def _build_system_prompt(tools_summary: str, skills_text: str) -> str:
         "Tools run in one of two places — always check the tool's description:\n",
         "- **IRIS server tools** (``execute_sql``, ``execute_terminal``, ``get_document``,",
         "  ``list_documents``, ``delete_document``, ``compile_documents``, ``run_tests``,",
-        "  ``list_tests``, ``get_test_results``, ``get_server_info``, ``index_code``,",
+        "  ``list_tests``, ``get_test_results``, ``get_server_info``,",
         "  ``debug_*``): These run on the remote IRIS server via REST API or WebSocket.",
         "  They query databases, manage server-side source code, run ObjectScript, etc.\n",
         "- **Local host tools** (``run_shell``, ``read_file``, ``list_files``): These run",

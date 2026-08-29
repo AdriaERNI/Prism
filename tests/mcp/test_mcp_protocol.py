@@ -29,20 +29,12 @@ TIMEOUT = 30.0
 # Expected tool names (must match the names registered by discover_tools()).
 # These are the function names as decorated with @logged_tool.
 # Workspace (put_document, compile_documents, delete_document) and debugger
-# tools are disabled by default -> 11 tools expected.
+# tools are disabled by default -> 12 tools expected.
 EXPECTED_TOOLS = {
     "list_documents",
     "get_document",
     "compile_documents",
     "delete_document",
-    "index_code",
-    "index_reachability",
-    "index_search",
-    "index_node",
-    "index_refs",
-    "index_impact",
-    "index_path",
-    "index_status",
     "get_server_info",
     "execute_sql",
     "execute_terminal",
@@ -67,14 +59,6 @@ SAFE_TOOL_ARGS = {
     "get_document": {"name": "%Library.SQLConnection.cls"},
     "compile_documents": {"documents": []},
     "delete_document": {"name": "NonExistent.Class.cls"},
-    "index_code": {"summary_only": True},
-    "index_reachability": {"class_name": "__PrismMissing__.None", "max_hops": 1},
-    "index_search": {"query": "ZzMissing", "kind": "class", "limit": 5},
-    "index_node": {"class_name": "__PrismMissing__.None"},
-    "index_refs": {"class_name": "__PrismMissing__.None"},
-    "index_impact": {"method": "__PrismMissing__.None.Run"},
-    "index_path": {"source": "__PrismMissing__.None.Run", "target": "__PrismMissing__.None.Stop"},
-    "index_status": {},
     "get_server_info": {},
     "list_tests": {"filter": "%UnitTest"},
     "get_test_results": {},
@@ -416,7 +400,7 @@ def run_tests(url: str = DEFAULT_URL) -> int:
     )
 
     success_count = 0
-    for tool_name in ["get_server_info", "list_tests", "index_code"]:
+    for tool_name in ["get_server_info", "list_tests"]:
         data = s.call("tools/call", {"name": tool_name, "arguments": {}})
         if data and ("result" in data or "error" in data):
             success_count += 1
