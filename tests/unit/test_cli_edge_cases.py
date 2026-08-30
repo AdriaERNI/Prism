@@ -8,13 +8,27 @@ robustness expected from professional CLI tools like Docker.
 from __future__ import annotations
 
 import json
+import os
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
+from prism import settings as settings_module
 from prism.cli.app import app
 
 runner = CliRunner()
+
+
+@pytest.fixture
+def tmp_config(tmp_path, monkeypatch):
+    """Redirect config_path() to a tmp file and clear IRIS_*/PRISM_* env vars."""
+    path = tmp_path / "prism" / "config.json"
+    monkeypatch.setattr(settings_module, "config_path", lambda: path)
+    for var in list(os.environ):
+        if var.startswith(("IRIS_", "PRISM_")):
+            monkeypatch.delenv(var, raising=False)
+    return path
 
 
 # ── Output format validation ─────────────────────────────────────────
@@ -213,6 +227,11 @@ class TestConfigValidation:
         result = runner.invoke(app, ["config", "--terminal-method", "invalid"])
         assert result.exit_code == 1
         assert "invalid terminal method" in result.output.lower()
+
+    def test_terminal_method_ws_alias_normalised_to_websocket(self, tmp_config):
+        result = runner.invoke(app, ["config", "--terminal-method", "ws"])
+        assert result.exit_code == 0
+        assert "websocket" in result.output.lower()
 
     def test_reset_unknown_key_errors(self):
         result = runner.invoke(app, ["config", "--reset", "nonexistent_key"])
