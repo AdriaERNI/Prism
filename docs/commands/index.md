@@ -51,12 +51,6 @@ prism <command> --help
 | [`prism list-tests`](testing.md#list-tests) | Discover `%UnitTest.TestCase` classes and their `Test*` methods. |
 | [`prism test`](testing.md#test) | Run a unit test class (or a single method). |
 
-### Code indexing
-
-| Command | Summary |
-|---------|---------|
-| [`prism index`](indexing.md) | Build a compact index of all classes in a namespace. Token-efficient alternative to reading every source file. |
-
 ### MCP server
 
 | Command | Summary |
@@ -89,7 +83,7 @@ Several options appear on multiple commands. They all behave the same way:
 | Option | Long / Short | Applies to | Meaning |
 |--------|--------------|-----------|---------|
 | `--format` | — | **Global** (before the subcommand) | Output format: `json` (default) or `toon`. Example: `prism --format toon sql "SELECT 1"`. |
-| `--namespace` | `-n` | `sql`, `terminal`, `ws`, `compile`, `get-doc`, `list-docs`, `put-doc`, `delete-doc`, `test`, `list-tests`, `index` | Target IRIS namespace. Defaults to `IRIS_NAMESPACE` from your settings. |
+| `--namespace` | `-n` | `sql`, `terminal`, `ws`, `compile`, `get-doc`, `list-docs`, `put-doc`, `delete-doc`, `test`, `list-tests` | Target IRIS namespace. Defaults to `IRIS_NAMESPACE` from your settings. |
 | `--timeout` | `-t` | `terminal`, `ws` | Command timeout in seconds. Default `30.0`. |
 | `--port` | `-p` | `serve`, `setup` | Port for the MCP server. Default `3000`. |
 | `--flags` | — | `compile` | IRIS compiler flags (default `cuk`, from `IRIS_COMPILE_FLAGS`). |

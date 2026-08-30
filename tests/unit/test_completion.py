@@ -94,7 +94,6 @@ class TestCommandCompletion:
             "info",
             "test",
             "list-tests",
-            "index",
             "serve",
             "setup",
             "cast",

@@ -1,7 +1,7 @@
 # prism setup
 
 Register the Prism MCP server in external AI tools so they can use Prism's
-MCP tools (SQL, terminal, documents, testing, code indexing, and more).
+MCP tools (SQL, terminal, documents, testing, and more).
 
 ## Synopsis
 

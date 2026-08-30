@@ -23,7 +23,6 @@
 - **Terminal** — Execute ObjectScript via native (SuperServer) or WebSocket backend
 - **Debugging** — Interactive step-through debugger with breakpoints, variable inspection, and stack traces
 - **Testing** — Run `%UnitTest` test classes, list test methods, view historical results
-- **Code Indexing** — Build a compact, token-efficient index of all classes using `%Dictionary` metadata
 - **Monitoring** — Live IRIS resource dashboard with CPU, memory, disk, process load scoring, and real-time sparkline graphs
 - **MCP Server** — Expose all tools to AI assistants (Claude Code, Claude Desktop, Cursor, GitHub Copilot)
 - **Chatbot** — AI agent that orchestrates Prism's MCP tools via natural language, connecting to any OpenAI-compatible LLM
@@ -106,7 +105,6 @@ for more details.
 | `prism monitor` | Live IRIS resource monitoring dashboard |
 | `prism test` | Run unit test classes |
 | `prism list-tests` | Discover test classes |
-| `prism index` | Build a compact class index |
 | `prism config` | View or edit settings |
 | `prism cast` | Run custom commands from Git repos |
 | `prism serve` | Start the MCP server |

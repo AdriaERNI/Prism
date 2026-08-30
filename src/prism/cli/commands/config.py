@@ -199,7 +199,7 @@ def config(
         None, "--compile-flags", help="Default compiler flags (e.g. cuk)"
     ),
     terminal_method: str | None = typer.Option(
-        None, "--terminal-method", help="Terminal backend: native or websocket"
+        None, "--terminal-method", help="Terminal backend: native, websocket (or 'ws')"
     ),
     terminal_max_output: int | None = typer.Option(
         None, "--terminal-max-output", help="Max chars of terminal output"
@@ -309,10 +309,13 @@ def config(
     if "iris_terminal_method" in updates:
         method_val = str(updates["iris_terminal_method"]).strip().lower()
         valid_methods = ("native", "websocket")
+        # Accept 'ws' as an alias for 'websocket'
+        if method_val == "ws":
+            method_val = "websocket"
         if method_val not in valid_methods:
             typer.echo(
                 f"Error: Invalid terminal method '{updates['iris_terminal_method']}'. "
-                f"Supported methods: {', '.join(valid_methods)}.",
+                f"Supported methods: {', '.join(valid_methods)} (or 'ws').",
                 err=True,
             )
             raise typer.Exit(code=1)
