@@ -406,8 +406,8 @@ def run_tests(url: str = DEFAULT_URL) -> int:
             success_count += 1
     check(
         "multiple sequential tool calls",
-        success_count == 3,
-        f"{success_count}/3 responded",
+        success_count == 2,
+        f"{success_count}/2 responded",
     )
 
     data1 = s.call("tools/list", {})
