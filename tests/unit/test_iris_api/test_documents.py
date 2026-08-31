@@ -130,7 +130,12 @@ class TestPutDocument:
 
     async def test_rejected_upload_embedded_status_raises(self):
         """IRIS rejects the PUT but returns HTTP 200 with error in result.status."""
-        body = {"result": {"name": "MyApp.inc", "status": "ERROR #16021: Illegal Header Line: #define X"}}
+        body = {
+            "result": {
+                "name": "MyApp.inc",
+                "status": "ERROR #16021: Illegal Header Line: #define X",
+            }
+        }
 
         def handler(request):
             return json_response(body)
