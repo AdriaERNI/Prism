@@ -71,6 +71,12 @@ class TestSaveAndLoadContent:
         with pytest.raises(FileNotFoundError, match="Write the file"):
             load_content(missing)
 
+    def test_strips_utf8_bom(self, tmp_path):
+        """A BOM-prefixed file (common on Windows editors) must load clean."""
+        file_path = tmp_path / "BOM.cls"
+        file_path.write_bytes(b"\xef\xbb\xbfClass MyApp.BOM\n{\n}")
+        assert load_content(file_path) == ["Class MyApp.BOM", "{", "}"]
+
 
 class TestValidateDocName:
     @pytest.mark.parametrize(

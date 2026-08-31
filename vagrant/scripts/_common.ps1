@@ -128,22 +128,24 @@ function Invoke-Prism {
     $proc = New-Object System.Diagnostics.Process
     $proc.StartInfo = $psi
 
-    # Read stdout/stderr synchronously with ReadToEnd. Async event handlers
-    # (BeginOutputReadLine) race the process exit and drop the last lines for
-    # fast-exiting commands like `prism --help`; ReadToEnd blocks until EOF
-    # and cannot lose data. prism's output is small, so a 4 KB pipe cannot
-    # fill and deadlock the child before we drain it.
+    # Drain stdout/stderr CONCURRENTLY with the process: start async reads
+    # BEFORE waiting, then join them after exit. Reading only AFTER
+    # WaitForExit deadlocks on large output (e.g. `list-docs` emits ~1 MB):
+    # the child fills the pipe buffer and blocks on write, the parent never
+    # drains it, and the child never exits. ReadToEndAsync drains the pipe
+    # on a thread-pool thread while we wait, and cannot lose data.
     try {
         [void]$proc.Start()
+        $outTask = $proc.StandardOutput.ReadToEndAsync()
+        $errTask = $proc.StandardError.ReadToEndAsync()
         if (-not $proc.WaitForExit($script:PrismTimeoutSec * 1000)) {
             $timedOut = $true
             try { $proc.Kill() } catch {}
             $proc.WaitForExit(5000) | Out-Null
         }
-        # Read after exit: the streams are at EOF, so ReadToEnd returns
-        # immediately with everything the process wrote.
-        $stdout   = $proc.StandardOutput.ReadToEnd()
-        $stderr   = $proc.StandardError.ReadToEnd()
+        # Streams are at EOF once the process exits; join the reads.
+        $stdout   = $outTask.Result
+        $stderr   = $errTask.Result
         $exitCode = $proc.ExitCode
         if ($timedOut) {
             $stderr = "Invoke-Prism timed out after $($script:PrismTimeoutSec)s on: $exe $($Arguments -join ' ')`n$stderr"

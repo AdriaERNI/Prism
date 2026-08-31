@@ -59,4 +59,4 @@ def load_content(path: Path) -> list[str]:
             f"File not found in workspace: {path.name}. "
             f"Write the file to the workspace before calling put_document."
         )
-    return path.read_text().split("\n")
+    return path.read_text(encoding="utf-8-sig").split("\n")

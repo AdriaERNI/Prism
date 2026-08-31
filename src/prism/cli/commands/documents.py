@@ -86,7 +86,7 @@ def put_doc(
         sys.exit(1)
 
     try:
-        content = file.read_text(encoding="utf-8").splitlines()
+        content = file.read_text(encoding="utf-8-sig").splitlines()
     except UnicodeDecodeError:
         typer.echo(
             f"Error: Could not read {file} as UTF-8 text. Prism only supports text files.",
