@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from prism.iris.api import documents as docs_api
-from prism.iris.api.documents import DocumentNotFound
+from prism.iris.api.documents import DocumentNotFound, DocumentPutError
 from tests.unit.test_iris_api.conftest import json_response, mock_client, text_response
 
 
@@ -127,6 +127,42 @@ class TestPutDocument:
         with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(ValueError, match="invalid JSON"):
                 await docs_api.put_document("MyApp.cls", ["line"])
+
+    async def test_rejected_upload_embedded_status_raises(self):
+        """IRIS rejects the PUT but returns HTTP 200 with error in result.status."""
+        body = {"result": {"name": "MyApp.inc", "status": "ERROR #16021: Illegal Header Line: #define X"}}
+
+        def handler(request):
+            return json_response(body)
+
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
+            with pytest.raises(DocumentPutError, match="ERROR #16021"):
+                await docs_api.put_document("MyApp.inc", ["#define X"])
+
+    async def test_rejected_upload_top_level_errors_raises(self):
+        """IRIS puts the error in status.errors instead."""
+        body = {
+            "status": {"errors": [{"error": "ERROR #5001: compile failed"}]},
+            "result": {},
+        }
+
+        def handler(request):
+            return json_response(body)
+
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
+            with pytest.raises(DocumentPutError, match="ERROR #5001"):
+                await docs_api.put_document("MyApp.cls", ["line"])
+
+    async def test_ok_status_is_not_error(self):
+        """A successful put with status 'ok'/'created' must not raise."""
+        body = {"result": {"name": "MyApp.cls", "status": "created"}}
+
+        def handler(request):
+            return json_response(body)
+
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
+            result = await docs_api.put_document("MyApp.cls", ["line"])
+        assert result["result"]["status"] == "created"
 
 
 class TestDeleteDocument:
