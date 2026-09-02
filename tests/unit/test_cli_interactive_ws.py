@@ -270,7 +270,7 @@ class TestWsSingleCommand:
             called["timeout"] = timeout
             called["initial_command"] = initial_command
 
-        with patch("prism.cli.interactive.run_interactive", side_effect=fake_run_interactive):
+        with patch("prism.cli.commands.terminal.run_interactive", side_effect=fake_run_interactive):
             result = runner.invoke(app, ["ws", "set x=42", "--interactive"])
 
         assert result.exit_code == 0
@@ -285,7 +285,7 @@ class TestWsSingleCommand:
             called["timeout"] = timeout
             called["initial_command"] = initial_command
 
-        with patch("prism.cli.interactive.run_interactive", side_effect=fake_run_interactive):
+        with patch("prism.cli.commands.terminal.run_interactive", side_effect=fake_run_interactive):
             result = runner.invoke(app, ["ws"])
 
         assert result.exit_code == 0
@@ -300,7 +300,7 @@ class TestWsSingleCommand:
             called["namespace"] = namespace
             called["initial_command"] = initial_command
 
-        with patch("prism.cli.interactive.run_interactive", side_effect=fake_run_interactive):
+        with patch("prism.cli.commands.terminal.run_interactive", side_effect=fake_run_interactive):
             result = runner.invoke(app, ["ws", "-n", "SAMPLES"])
 
         assert result.exit_code == 0
@@ -313,7 +313,7 @@ class TestWsSingleCommand:
         def fake_run_interactive(namespace, timeout, initial_command):
             called["timeout"] = timeout
 
-        with patch("prism.cli.interactive.run_interactive", side_effect=fake_run_interactive):
+        with patch("prism.cli.commands.terminal.run_interactive", side_effect=fake_run_interactive):
             result = runner.invoke(app, ["ws", "-t", "5"])
 
         assert result.exit_code == 0

@@ -77,17 +77,7 @@ class TestSqlEdgeCases:
 
 
 class TestTerminalEdgeCases:
-    """Terminal and ws commands should validate input."""
-
-    def test_empty_terminal_command_errors(self):
-        result = runner.invoke(app, ["terminal", ""])
-        assert result.exit_code == 1
-        assert "cannot be empty" in result.output.lower()
-
-    def test_whitespace_terminal_command_errors(self):
-        result = runner.invoke(app, ["terminal", "   "])
-        assert result.exit_code == 1
-        assert "cannot be empty" in result.output.lower()
+    """ws command should validate input and handle empty/interactive."""
 
     def test_empty_ws_command_enters_interactive(self):
         """Empty ws command enters interactive mode (not an error)."""

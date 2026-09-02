@@ -74,9 +74,9 @@ def _reset_http_client():
     http_mod._override_clients.clear()
 
 
-@pytest.fixture(params=["native", "ws"])
+@pytest.fixture(params=["ws"])
 def terminal_method(request):
-    """Parametrize tests to run with both terminal backends."""
+    """Parametrize tests with the WebSocket terminal backend (ws only)."""
     method = request.param
     with patch.object(settings, "iris_terminal_method", method):
         yield method

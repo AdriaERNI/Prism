@@ -14,7 +14,7 @@ session the CLI can't hold open.
 | MCP tool | Corresponding CLI | Notes |
 |----------|-------------------|-------|
 | `execute_sql` | [`prism sql`](../commands/sql.md) | MCP shape is `{"rows": [...], "count": N}` (flattened), CLI shows the raw Atelier envelope. |
-| `execute_terminal` | [`prism terminal`](../commands/terminal.md) (native) or [`prism ws`](../commands/terminal.md) | MCP picks backend via `IRIS_TERMINAL_METHOD`. CLI lets you pick per-invocation. |
+| `execute_terminal` | [`prism ws`](../commands/terminal.md) (WebSocket terminal) | MCP uses the WebSocket terminal; no ObjectScript helper is uploaded and the SuperServer ("superport") is not used. |
 | `get_server_info` | [`prism info`](../commands/info.md) | MCP returns simplified `{version, api, namespaces}` (flattened, not raw Atelier envelope). |
 | `list_documents` | [`prism list-docs`](../commands/documents.md#list-docs) | MCP returns `{documents: [{name, type, modified, database}], count}` (flattened). |
 | `get_document` | [`prism get-doc`](../commands/documents.md#get-doc) | MCP version supports slicing via `head`, `tail`, `from_line`, `to_line`. Returns `{name, content, found, ...}` — `found: false` for missing docs (no exception). |

@@ -144,6 +144,6 @@ check for `$Char(0)` and convert to a real empty string when needed.
 ## Related
 
 - [`prism compile`](compile.md) — compile classes before querying them.
-- [`prism terminal`](terminal.md) — when SQL isn't enough.
+- [`prism ws`](terminal.md) — when SQL isn't enough.
 - MCP tool: `execute_sql` (returns a simpler `{"rows", "count"}` shape —
   see [MCP tools](../mcp/tools.md)).

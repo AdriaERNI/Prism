@@ -60,17 +60,17 @@ See [`prism config`](../commands/config.md) for all flags.
 | `IRIS_USERNAME` | `_SYSTEM` | Authentication username |
 | `IRIS_PASSWORD` | `SYS` | Authentication password |
 | `IRIS_NAMESPACE` | `USER` | Default namespace for all operations |
-| `IRIS_SUPERSERVER_PORT` | `1972` | Port used by `prism terminal` (native driver) |
+| `IRIS_SUPERSERVER_PORT` | `1972` | SuperServer port. Not used by the terminal — the terminal uses the WebSocket terminal (`prism ws`). |
 
 ## Terminal method
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `IRIS_TERMINAL_METHOD` | `native` | Which backend the MCP `execute_terminal` tool uses: `native` (irisnative via SuperServer, parallel-capable) or `ws` (Atelier WebSocket, useful when only the HTTP port is reachable) |
+| `IRIS_TERMINAL_METHOD` | `ws` | Which backend the MCP `execute_terminal` tool uses. Always `ws` — the Atelier WebSocket terminal. No ObjectScript helper is uploaded and the SuperServer ("superport") is not used. |
 | `IRIS_TERMINAL_MAX_OUTPUT_CHARS` | `100000` | Maximum characters of terminal output before truncation. When exceeded, the response includes `output_truncated: true` and `output_omitted_chars: <count>` |
 
-The CLI bypasses this switch: `prism terminal` always uses the native
-driver, `prism ws` always uses the WebSocket.
+The terminal uses the WebSocket terminal only: `prism ws` and the MCP
+`execute_terminal` tool both use the Atelier WebSocket terminal.
 
 ## Output
 

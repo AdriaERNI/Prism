@@ -72,11 +72,12 @@ prism compile MyApp.Hello.cls
 
 ## 5. Call the method
 
-Run the new method from the terminal. `prism terminal` talks to the
-IRIS SuperServer (default port `1972`) via the native driver:
+Run the new method from the terminal. `prism ws` talks to IRIS over the
+Atelier WebSocket terminal (no ObjectScript helper upload, no SuperServer
+"superport"):
 
 ```powershell
-prism terminal 'Write ##class(MyApp.Hello).Greet(""Prism"")'
+prism ws 'Write ##class(MyApp.Hello).Greet("Prism")'
 ```
 
 Output:
