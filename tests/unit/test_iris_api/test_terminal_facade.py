@@ -93,10 +93,8 @@ class TestFacadeDispatch:
 
     async def test_ws_method_sanitizes_output(self):
         """Output control chars/ANSI are sanitized via the WebSocket path."""
-        ws = _make_ws(
-            _standard_messages([{"type": "output", "text": "ok\x00bad\x07"}])
-        )
-        with (_patch_cookies(), _patch_connect(ws)):
+        ws = _make_ws(_standard_messages([{"type": "output", "text": "ok\x00bad\x07"}]))
+        with _patch_cookies(), _patch_connect(ws):
             result = await execute_command("test")
 
         assert result["output"] == "okbad"
