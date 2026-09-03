@@ -31,7 +31,7 @@ prism <command> --help
 | Command | Summary |
 |---------|---------|
 | [`prism sql`](sql.md) | Run an InterSystems SQL query. |
-| [`prism terminal`](terminal.md#native) | Run an ObjectScript command via the SuperServer (native driver). |
+| [`prism ws`](terminal.md#websocket) | Run an ObjectScript command via the WebSocket terminal. |
 | [`prism ws`](terminal.md#websocket) | Run an ObjectScript command via the Atelier WebSocket. |
 
 ### Documents

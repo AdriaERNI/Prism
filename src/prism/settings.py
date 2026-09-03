@@ -72,7 +72,10 @@ class Settings(BaseSettings):
     iris_api_prefix: str = "api/atelier/v8"
     iris_compile_flags: str = "cuk"
     iris_superserver_port: int = 1972
-    iris_terminal_method: str = "native"
+    # Terminal execution method. "ws" uses the Atelier WebSocket terminal
+    # (no ObjectScript helper upload, no SuperServer/native path). We do not
+    # upload our own ObjectScript (MCP.Terminal) or use the superport.
+    iris_terminal_method: str = "ws"
     iris_terminal_max_output_chars: int = 100_000
 
     # Testing

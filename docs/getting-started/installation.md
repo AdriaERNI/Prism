@@ -96,9 +96,9 @@ Linux: `pip uninstall prism` or remove the cloned directory.
 ## Prerequisites
 
 The only runtime requirement is a reachable IRIS instance with the
-Atelier REST API enabled. The SuperServer port (default `1972`) should
-also be reachable for the native `prism terminal` command; if it isn't,
-`prism ws` uses the Atelier WebSocket instead.
+Atelier REST API enabled. The terminal uses the Atelier WebSocket terminal
+(`prism ws`); it does NOT upload an ObjectScript helper and does NOT use
+the SuperServer ("superport") port.
 
 ## Next steps
 
