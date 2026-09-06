@@ -88,8 +88,64 @@ Source: "{#AppSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 ; The exe is a CLI tool accessed via PATH, not a GUI app launched from a menu
 
 [Code]
+{ --------------------------------------------------------------------------- }
+{ Microsoft Store return-code mapping (EXE exit codes, all values unique).    }
+{                                                                             }
+{   Scenario                       EXE code   Basis                            }
+{   Installation successful            0      Inno documented (run to          }
+{                                            completion)                       }
+{   Installation already in progress   1      Inno documented (Setup fails to  }
+{                                            initialize - second instance      }
+{                                            blocked by the single-instance     }
+{                                            mutex)                            }
+{   Installation cancelled by user     2      Inno documented (user clicked    }
+{                                            Cancel before install started)    }
+{   Miscellaneous install failure      4      Inno documented (fatal error     }
+{                                            during the actual installation)   }
+{   Disk space is full                 7      Inno documented (cannot          }
+{                                            continue: prepare-to-install      }
+{                                            determined insufficient space)    }
+{   Reboot required                    8      Inno documented (cannot          }
+{                                            continue; system restart needed)   }
+{   Application already exists       100      custom (returned by              }
+{                                            GetCustomSetupExitCode below)     }
+{   Network failure                 101      custom hook (reserved — set by   }
+{                                            your own failure checks if used)  }
+{   Package rejected                102      custom hook (reserved — set by   }
+{                                            your own failure checks if used)  }
+{                                                                             }
+{   Reference: https://jrsoftware.org/ishelp/topic_setupexitcodes.htm         }
+{                                                                             }
+{ Inno returns 0/1/2/4/7/8 automatically on the corresponding conditions.     }
+{ 100/101/102 are custom codes reported via GetCustomSetupExitCode, which    }
+{ Inno calls only when Setup ran to completion and the exit code would       }
+{ otherwise be 0. Windows exit codes are unsigned 32-bit values, so never   }
+{ set a negative code here.                                                   }
+{                                                                             }
+{ Declaration order matters: Inno's Pascal Script is single-pass and has no  }
+{ forward references, so every helper is defined before its first use.       }
+{ --------------------------------------------------------------------------- }
+var
+  CustomErrorCode: Integer;        { 0 -> success; 101/102 reserved for hooks }
+  WasPreviouslyInstalled: Boolean; { snapshot taken in InitializeSetup        }
+
+{ Application already exists? A previous install record (the uninstall key   }
+{ Inno wrote under "Uninstall\<AppId>", i.e. Prism_is1) is present.         }
+function DetectApplicationExists(): Boolean;
+var
+  S: String;
+begin
+  Result := RegQueryStringValue(
+    HKLM,
+    'SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Prism_is1',
+    'DisplayName', S);
+end;
+
 function InitializeSetup(): Boolean;
 begin
+  { Take the "already installed?" snapshot BEFORE Setup writes anything,     }
+  { because Inno creates the uninstall key during the installation itself.   }
+  WasPreviouslyInstalled := DetectApplicationExists();
   Result := True;
 end;
 
@@ -136,4 +192,14 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
     EnvRemovePath(ExpandConstant('{app}'));
+end;
+
+{ Report the scenario once Setup has run to completion. Inno calls this      }
+{ only when the exit code would otherwise be 0, so returning a non-zero      }
+{ value here is how the custom codes reach the Microsoft Store mapping.      }
+function GetCustomSetupExitCode: Integer;
+begin
+  Result := CustomErrorCode;  { 0 -> Installation successful }
+  if WasPreviouslyInstalled then
+    Result := 100;            { Application already exists on the device }
 end;
