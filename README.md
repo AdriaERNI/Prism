@@ -94,7 +94,6 @@ for more details.
 | Command | Description |
 |---------|-------------|
 | `prism sql` | Run an SQL query |
-| `prism terminal` | Run ObjectScript via native SuperServer |
 | `prism ws` | Run ObjectScript via WebSocket |
 | `prism put-doc` | Upload a file to IRIS |
 | `prism get-doc` | Fetch a document from IRIS |

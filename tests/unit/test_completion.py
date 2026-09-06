@@ -84,7 +84,6 @@ class TestCommandCompletion:
         expected = {
             "config",
             "sql",
-            "terminal",
             "ws",
             "compile",
             "get-doc",

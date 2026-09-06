@@ -213,29 +213,14 @@ async def execute_command(
     target_host: str | None = None,
     target_port: int | None = None,
 ) -> dict:
-    """Run an ObjectScript command, dispatching based on IRIS_TERMINAL_METHOD.
+    """Run an ObjectScript command via the Atelier WebSocket terminal.
 
-    When ``native``, uses irisnative via SuperServer (parallel-capable).
-    When ``ws``, uses the Atelier WebSocket terminal.
+    The terminal always uses the WebSocket terminal (``execute_command_ws``).
+    It does NOT upload our own ObjectScript helper (MCP.Terminal) and does
+    NOT use the native SuperServer ("superport") path.
 
     Returns ``{"namespace": ..., "command": ..., "output": ..., "prompt": ...}``.
     """
-    ns = _resolve_namespace(namespace)
-
-    if settings.iris_terminal_method == "native":
-        from prism.iris.sdk import terminal as native_terminal
-
-        # Signal progress before blocking executor call so the MCP transport
-        # keeps the response stream alive while irisnative is working.
-        if on_output is not None:
-            await on_output("")
-
-        result = await native_terminal.execute_command(
-            command,
-            ns,
-            timeout,
-            target_host=target_host,
-        )
-        return _finalize_result(result)
-
-    return await execute_command_ws(command, ns, timeout, on_output, target_host, target_port)
+    return await execute_command_ws(
+        command, namespace, timeout, on_output, target_host, target_port
+    )

@@ -27,7 +27,7 @@ from prism.cli.commands.monitor import monitor
 from prism.cli.commands.serve import serve
 from prism.cli.commands.server_info import info
 from prism.cli.commands.sql import sql
-from prism.cli.commands.terminal import terminal, ws
+from prism.cli.commands.terminal import ws
 from prism.cli.commands.testing import list_tests, test
 from prism.output import set_output_format
 
@@ -76,7 +76,6 @@ def _callback(
 
 
 app.command(name="sql")(sql)
-app.command(name="terminal")(terminal)
 app.command(name="ws")(ws)
 app.command(name="compile")(compile_cmd)
 app.command(name="get-doc")(get_doc)

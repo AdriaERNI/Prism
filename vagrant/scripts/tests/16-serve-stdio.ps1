@@ -15,43 +15,56 @@ function Invoke-PrismStdio {
     param([string[]] $Lines)
 
     $exe = Get-PrismExe
-    $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName               = $exe
-    $psi.Arguments              = 'serve --transport stdio'
-    $psi.UseShellExecute        = $false
-    $psi.RedirectStandardInput  = $true
-    $psi.RedirectStandardOutput = $true
-    $psi.RedirectStandardError  = $true
-    $psi.CreateNoWindow         = $true
 
-    $proc = New-Object System.Diagnostics.Process
-    $proc.StartInfo = $psi
+    # stdio on the frozen Windows exe:
+    # ---------------------------------
+    # The .NET Process pipe approach (RedirectStandardInput, WriteLine,
+    # StandardInput.Close()) does NOT deliver a usable EOF to the frozen
+    # PyInstaller exe on Windows: the server reads the requests and replies,
+    # but never sees end-of-stream, so the process stays alive until the
+    # harness kills it after the 30 s timeout.  (It is purely a Windows
+    # console/pipe EOF quirk -- identical runs on Linux exit cleanly.)
+    #
+    # Verified fix: pass the requests as a real file handle via
+    # Start-Process -RedirectStandardInput.  A redirected file reaches a
+    # genuine EOF, the stdio loop terminates, and the process exits promptly
+    # with the full response on stdout (`exited=True`, 4097 bytes).
+    # This is what FastMCP's stdio_server() treats as "client closed stdin".
+    $stamp = [DateTime]::UtcNow.ToString("yyyyMMdd_HHmmss_fff")
+    $dir = Join-Path $env:TEMP "prism-stdio-$stamp"
+    $null = New-Item -ItemType Directory -Path $dir -Force
+    $stdinFile  = Join-Path $dir "stdin.jsonl"
+    $stdoutFile = Join-Path $dir "stdout.txt"
+    $stderrFile = Join-Path $dir "stderr.txt"
 
     try {
-        [void]$proc.Start()
+        # One JSON-RPC message per line, no trailing newline surprises.
+        Set-Content -Path $stdinFile -Encoding Ascii -Value ($Lines -join "`r`n")
 
-        # Write each line to stdin, then close the stream so the server
-        # sees EOF and exits cleanly.
-        foreach ($line in $Lines) {
-            $proc.StandardInput.WriteLine($line)
-        }
-        $proc.StandardInput.Close()
+        $proc = Start-Process -FilePath $exe `
+            -ArgumentList @('serve', '--transport', 'stdio') `
+            -RedirectStandardInput  $stdinFile `
+            -RedirectStandardOutput $stdoutFile `
+            -RedirectStandardError  $stderrFile `
+            -PassThru -WindowStyle Hidden
 
-        # The server should process the requests and exit; give it 30s.
+        # The server should process the requests and exit on stdin EOF; give
+        # it 30 s, then kill to avoid wedging the suite behind WinRM.
         if (-not $proc.WaitForExit(30000)) {
             try { $proc.Kill() } catch {}
             $proc.WaitForExit(5000) | Out-Null
         }
 
-        $stdout = $proc.StandardOutput.ReadToEnd()
-        $stderr = $proc.StandardError.ReadToEnd()
+        $stdout = if (Test-Path $stdoutFile) { [IO.File]::ReadAllText($stdoutFile) } else { "" }
+        $stderr = if (Test-Path $stderrFile) { [IO.File]::ReadAllText($stderrFile) } else { "" }
+
         return [pscustomobject]@{
             Stdout   = $stdout
             Stderr   = $stderr
             ExitCode = $proc.ExitCode
         }
     } finally {
-        $proc.Close()
+        Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
     }
 }
 

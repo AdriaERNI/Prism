@@ -59,9 +59,9 @@ class TestSettingsFields:
 class TestTerminalMethodConfig:
     """Test terminal method config values."""
 
-    def test_terminal_method_default_is_native(self):
+    def test_terminal_method_default_is_ws(self):
         s = Settings()
-        assert s.iris_terminal_method == "native"
+        assert s.iris_terminal_method == "ws"
 
     def test_terminal_method_ws_from_env(self, monkeypatch):
         monkeypatch.setenv("IRIS_TERMINAL_METHOD", "ws")
