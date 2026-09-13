@@ -168,6 +168,16 @@ jobs:
         shell: pwsh
         run: |
           uv pip install pyinstaller
+          # Stamp the built exe's version resource (RG-011). ISCC /DAppVerNumeric
+          # stamps only the setup.exe wrapper; the embedded prism.exe is a
+          # PyInstaller build whose resource defaults to 0.0.0.0 unless
+          # --version-file stamps it -- test-install reads Get-PrismFileVersion
+          # off the INSTALLED prism.exe. Generate the resource from $env:VERSION
+          # (numeric head split, same as the compile step) into a temp stamp file.
+          $stamp = Join-Path ([IO.Path]::GetTempPath()) 'prism-version.txt'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+            prism-installer/static/write-version-stamp.ps1 $stamp $env:VERSION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           uv run pyinstaller --onedir --name prism --icon logo.ico `
             --copy-metadata fastmcp `
             --copy-metadata click `
@@ -184,6 +194,7 @@ jobs:
             --collect-all shellingham `
             --collect-submodules prism.mcp `
             --hidden-import importlib.metadata `
+            --version-file $stamp `
             src/prism/cli/app.py
           if (-not (Test-Path dist/prism/prism.exe)) { Write-Error 'PyInstaller produced no dist/prism/prism.exe'; exit 1 }
 
