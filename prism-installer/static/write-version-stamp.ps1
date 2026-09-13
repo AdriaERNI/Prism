@@ -17,6 +17,9 @@ if ($Version -match '^(\d+\.\d+\.\d+)-(?:beta|alpha|rc)[._]?(\d*)$') {
     $head = $matches[1]; if ($matches[2]) { $tagNum = $matches[2] }
 } elseif ($Version -match '^(\d+\.\d+\.\d+)-') { $head = $matches[1] }
 $numeric = "$head.$tagNum"
+# PyInstaller evals the file as Python; FixedFileInfo requires filevers/prodvers
+# as a 4-integer tuple. Set $verParts as a comma-separated int tuple string.
+$verParts = ($numeric.Split('.') | ForEach-Object { [int]$_ }) -join ', '
 $dir = Split-Path -Path $OutFile -Parent
 if ($dir -and -not (Test-Path -LiteralPath $dir)) {
     New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
