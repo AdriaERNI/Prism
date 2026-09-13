@@ -301,6 +301,12 @@ jobs:
           # so the suite may run. Only exit 0 means the gate accepted everything
           # and cannot fail; that is the refusal case.
           if ($LASTEXITCODE -eq 0) { Write-Error 'the gate accepted everything (exit 0) -- it cannot fail; refusing to run the suite'; exit 1 }
+          # A provable red (the gate caught the two deliberate fixtures and exited
+          # non-zero) is the SUCCESS signal for this step -- the suite may run.
+          # Mirror pwsh's exit-code forwarding explicitly: without exit 0 here,
+          # the child's non-zero code becomes the step's exit and GitHub marks the
+          # step X even though the gate did its job.
+          exit 0
 
       - name: Run the installer suite
         shell: pwsh
