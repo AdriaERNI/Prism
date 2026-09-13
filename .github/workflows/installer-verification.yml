@@ -196,6 +196,19 @@ jobs:
             $head = $matches[1]; if ($matches[2]) { $tagNum = $matches[2] }
           } elseif ($version -match '^(\d+\.\d+\.\d+)-') { $head = $matches[1] }
           $numeric = "$head.$tagNum"
+          # Echo the exact values ISCC will receive so a compile failure names
+          # the offender instead of ISCC's opaque 'VersionInfoVersion invalid'
+          # (the failing build job hid the runtime value).
+          Write-Host "compiling installer: version=$version, numeric=$numeric"
+          # VersionInfoVersion is a version resource: at most four dot-separated
+          # decimal parts, each <= 65535. Fail early with the real value if the
+          # derivation ever yields garbage (non-numeric or over-long).
+          $parts = $numeric.Split('.')
+          if ($parts.Count -gt 4 -or
+              ($parts | Where-Object { $_ -notmatch '^\d+$' }) -or
+              ($parts | Where-Object { [int]$_ -gt 65535 })) {
+            Write-Error "non-numeric AppVerNumeric '$numeric' (from version '$version')"; exit 1
+          }
           # Copy the .iss and its assets to dist/ so ISCC resolves them relative to
           # the script, exactly as the release build does.
           Copy-Item prism.iss dist/prism.iss -Force
