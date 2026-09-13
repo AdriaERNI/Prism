@@ -185,9 +185,14 @@ jobs:
       - name: Compile the installer
         shell: pwsh
         run: |
-          $pyproject = Get-Content pyproject.toml -Raw
-          $version = '0.0.0'
-          if ($pyproject -match 'version\s*=\s*"[^"]*"') { $version = $matches[1] }
+          # Use the version Sync already derived and validated ($env:VERSION),
+          # not a fragile re-read of pyproject.toml: the loose regex also matches
+          # 'target-version = "py312"' and could capture an empty quoted string,
+          # which was measured as version='' → numeric='.0' → ISCC rejected
+          # VersionInfoVersion. Env VERSION is deterministic (echoed as
+          # 0.2.1-beta4 in the failing run).
+          $version = $env:VERSION
+          if (-not $version) { $version = '0.0.0' }
           # Four-part numeric for the version resource; a prerelease tag never parses
           # as a version, so the head and the tag are split (a bare [version] cast
           # throws on '0.2.1-beta3').
