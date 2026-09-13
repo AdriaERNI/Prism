@@ -163,13 +163,13 @@ foreach ($name in $tests) {
     $child = Join-Path $PSScriptRoot $name
     if ($child -match '\s') { throw "child path contains a space ('$child'); the unquoted child invocation would break" }
     $childArgs = @(
-        ('-ArtifactsPath=' + $resolvedArt),
-        ('-Name=' + $name),
-        ('-Baseline=' + $Baseline),
-        ('-SourceVersion=' + $SourceVersion),
-        ('-SuiteLogFile=' + $tLog)
+        '-ArtifactsPath', $resolvedArt,
+        '-Name', $name,
+        '-Baseline', $Baseline,
+        '-SourceVersion', $SourceVersion,
+        '-SuiteLogFile', $tLog
     )
-    if (Test-Real $Repo) { $childArgs += ('-Repo=' + $Repo) }
+    if (Test-Real $Repo) { $childArgs += @('-Repo', $Repo) }
     # Launch through the trampoline, which runs the child, appends its console to
     # the SAME log the child's own Write-SuiteLine verdicts went to, and re-exits
     # with the child's code. Start-Process -Wait -PassThru is the one route that
