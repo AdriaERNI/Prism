@@ -63,10 +63,18 @@ jobs:
           # An unexpanded {owner}/{repo} placeholder is RG-012's root cause: the
           # literal brace reaches gh as a path segment, the API 404s, and the step
           # treats it as 'no baseline'. Scan every workflow, not just this one.
-          if grep -rn --include='*.yml' -E '(repos/\{owner\}|\{repo\}/|releases/latest)' .github/workflows/; then
-            echo "::error title=RG-012 an unexpanded placeholder or /releases/latest is used; walk the full release list instead"
-            fail=1
-          fi
+          # Scan every workflow except this one: this step's own grep command
+          # literally contains the placeholder pattern, so scanning itself is a
+          # guaranteed self-match (RG-012 fired on installer-verification.yml).
+          for wf in .github/workflows/*.yml; do
+            case "$wf" in
+              *.github/workflows/installer-verification.yml) continue ;;
+            esac
+            if grep -qE 'repos/\{owner\}|\{repo\}/|releases/latest' "$wf"; then
+              echo "::error title=RG-012 an unexpanded placeholder or /releases/latest is used; walk the full release list instead"
+              fail=1
+            fi
+          done
           # A downloaded baseline that no step verifies lets the upgrade matrix run
           # zero scenarios and still print green (RG-013's vacuous-green path).
           for wf in .github/workflows/*.yml; do
