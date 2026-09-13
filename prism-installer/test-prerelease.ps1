@@ -61,10 +61,19 @@ New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 $target = Join-Path $OutDir 'prism-old-setup.exe'
 if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Force }   # always re-fetch; a stale file masks a moved upload
 
-# RG-013: --pattern is a GLOB and is never quoted.
-$null = gh release download $pickedTag --repo $Repo --clobber --dir $OutDir --pattern '*-setup.exe' 2>&1
-if ($LASTEXITCODE -gt 0) {
-    Write-Output "##[FAIL] RG-013 gh release download $($pickedTag) exited $LASTEXITCODE with no matching asset"
+# RG-013: fetch the picked asset straight from its API url instead of
+# gh release download, which resolves the tag and failed with 'release not
+# found' even for a listed pre-release (measured: prism-0.2.2-beta7-setup.exe
+# on v0.2.2-beta7 could not be downloaded by tag). The picker already holds
+# the asset object, so its url is deterministic, and the step token (GH_TOKEN,
+# contents: read) covers reading release assets.
+$headers = @{ Authorization = "token $env:GH_TOKEN"; Accept = 'application/octet-stream' }
+try {
+    Invoke-WebRequest -Uri $pickedAsset.url -Headers $headers `
+        -OutFile (Join-Path $OutDir $pickedAsset.name) -UseBasicParsing
+}
+catch {
+    Write-Output "##[FAIL] RG-013 asset download failed: $($_.Exception.Message)"
     exit 1
 }
 $landed = @(Get-ChildItem -Path $OutDir -Filter '*-setup.exe' -File -Force |
