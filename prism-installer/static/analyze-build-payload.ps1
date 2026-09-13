@@ -5,7 +5,7 @@
 # AppVerFile and AppSource but not AppVerNumeric, and prism.iss falls back to
 # its 0.0.0.0 default -- every published setup.exe then reports a null file
 # version to Explorer, Add/Remove Programs and the Microsoft Store ingest.
-param([string] $Root = (Get-Location -Current))
+param([string] $Root = $PWD)
 
 $fail = @()
 $wfPath = Join-Path $Root '.github' 'workflows' 'build-release.yml'

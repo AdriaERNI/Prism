@@ -3,7 +3,7 @@
 # repo: a command deleted by a shipped PR keeps being asserted by a test until
 # somebody pays the VM minutes to find the whole suite red. These are cheap
 # textual pins for the classes already observed.
-param([string] $Root = (Get-Location -Current))
+param([string] $Root = $PWD)
 
 $fail = @()
 $excludes = @('docs\plans', 'docs/plans', 'prism-installer', 'site', '.venv', 'node_modules')
