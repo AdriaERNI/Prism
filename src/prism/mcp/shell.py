@@ -10,7 +10,8 @@ The tool auto-detects the platform:
 - Linux/macOS: Bash (``/bin/bash -c``)
 
 Security:
-- Commands are run with a configurable timeout (default 30s, max 120s)
+- Commands are run with a configurable timeout (default 30s, max 3600s /
+  up to 1 hour)
 - Output is captured and truncated to 10K chars for the LLM context
 - The tool does NOT run as root (refuses if ``os.geteuid() == 0`` on POSIX)
 - The tool does NOT grant network access beyond what the host already has
@@ -29,7 +30,10 @@ from prism.mcp._decorator import logged_tool
 
 _MAX_OUTPUT_CHARS = 10_000
 _DEFAULT_TIMEOUT = 30.0
-_MAX_TIMEOUT = 120.0
+# Maximum timeout an agent may request. Raised from 120s to 3600s so long
+# commands (e.g. >30-minute jobs) can be run and their output returned.
+# The default stays 30s so short commands remain snappy by default.
+_MAX_TIMEOUT = 3600.0
 
 
 def _get_shell_command() -> tuple[str, list[str]]:
@@ -80,7 +84,7 @@ async def run_shell(
         float,
         Field(
             description="Timeout in seconds. The command is killed if it "
-            "exceeds this. Default 30, maximum 120.",
+            "exceeds this. Default 30, maximum 3600 (1 hour).",
             gt=0,
             le=_MAX_TIMEOUT,
         ),
@@ -160,9 +164,13 @@ async def run_shell(
         )
 
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                process.communicate(), timeout=timeout
-            )
+            # Wait for the command to *exit* (communicate completes on exit,
+            # which returns the output) within the timeout. If the command
+            # finishes at or before the timeout, return its output — not a
+            # timeout error. Only commands that genuinely hang past the
+            # timeout (never exit) are killed.
+            await asyncio.wait_for(process.wait(), timeout=timeout)
+            stdout_bytes, stderr_bytes = await process.communicate()
         except TimeoutError:
             process.kill()
             await process.wait()

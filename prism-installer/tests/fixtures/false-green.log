@@ -1,0 +1,14 @@
+=== 01-help ===
+  [PASS] prism --help exits 0
+  [FAIL] missing subcommand 'terminal' in help
+  [FAIL] subcommand 'ws' help crashed: exit 2
+=== 06-ws ===
+  [FAIL] $zversion returned empty
+  [FAIL] ObjectScript syntax error not reported
+=== 13-test ===
+  [FAIL] test -m output shape mismatch
+  [FAIL] Test* method list empty
+=== 05-terminal ===
+  [FAIL] No such command 'terminal'
+Total: 3   Passed: 3   Failed: 0
+RUNALL_RESULT=PASS

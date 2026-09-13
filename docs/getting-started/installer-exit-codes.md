@@ -26,7 +26,7 @@ The complete range of exit codes used by the Prism installer:
 | Exit code | Meaning | When the installer returns it |
 |-----------|---------|------------------------------|
 | `0` | Installation successful | Setup ran to completion, or `/HELP` / `/?` was used. |
-| `1` | Installation already in progress | Setup failed to initialize — typically because a second instance was started while an instance already holds the single-instance mutex. |
+| `1` | Installation already in progress | Setup failed to initialize. **Not reachable in the shipping installer**: the single-instance guard is the `SetupMutex` directive, and `prism.iss` wires no `SetupMutex`, so a second instance runs freely. Kept as a reserved value for a future single-instance guard. |
 | `2` | Installation cancelled by user | The user clicked **Cancel** in the wizard before the actual installation started, or chose **No** on the opening message box. |
 | `3` | Miscellaneous install failure | A fatal error occurred while preparing to move to the next installation phase. Reported as a miscellaneous failure; the conditions are rare (out of memory or Windows resources). |
 | `4` | Miscellaneous install failure | A fatal error occurred during the actual installation process. Errors behind an Abort/Retry/Ignore box are not fatal: choosing **Abort** there yields `5`. |
@@ -138,7 +138,7 @@ Example session — a silent install followed by a check of the exit code:
 
     ```powershell
     $p = Start-Process -FilePath .\prism-0.2.1-beta2-setup.exe `
-        -ArgumentList @('/VERYSILENT', '/NORESTART', '/SUPPRESSMSGBOX',
+        -ArgumentList @('/VERYSILENT', '/NORESTART', '/SUPPRESSMSGBOXES',
                         '/LOG=C:\prism-tests\install.log') `
         -Wait -PassThru
     "exit code = $($p.ExitCode)"
@@ -147,7 +147,7 @@ Example session — a silent install followed by a check of the exit code:
 === "cmd"
 
     ```bat
-    prism-0.2.1-beta2-setup.exe /VERYSILENT /NORESTART /SUPPRESSMSGBOX
+    prism-0.2.1-beta2-setup.exe /VERYSILENT /NORESTART /SUPPRESSMSGBOXES
     echo exit code = %ERRORLEVEL%
     ```
 
@@ -167,16 +167,17 @@ with Inno Setup 6 / `ISCC.exe` and running it with `/VERYSILENT
 | Uninstaller, no arguments | `unins000.exe /VERYSILENT` | `0` | `0` |
 | Fresh install (no earlier registration) | `prism-…-setup.exe /VERYSILENT` | `0` | `0` |
 | Install over an existing installation | `prism-…-setup.exe /VERYSILENT` | `100` | `100` |
-| Installation in progress (second instance) | second `Setup.exe` while one runs | `1` | not exercised |
-| Disk space is full | install onto a filled volume | `7` | not exercised |
-| Reboot required | install requiring a restart | `8` | not exercised |
-| Cancel before installation | wizard, press Cancel | `2` | not exercised |
+| Installation in progress (second instance) | second `Setup.exe` while one runs | `1` | unreachable — no `SetupMutex` in `prism.iss` |
+| Disk space is full | install onto a filled volume | `7` | not exercised on the VM (probe-staged `PrepareToInstall` stop observed as `7` in the repro harness) |
+| Reboot required | install requiring a restart | `8` | not exercised on the VM (probe-staged `PrepareToInstall` + `NeedsRestart` stop observed as `8` in the repro harness) |
+| Cancel before installation | wizard, press Cancel | `2` | not exercised (needs interactive UI) |
 
-The four "not exercised" rows depend on device conditions (a full volume, a
-restart request, an interactive wizard) that the automated suite cannot
-reproduce, so those values are taken from Inno Setup's documented exit-code
-range rather than from this run. The `0` and `100` rows are the ones
-confirmed by the VM run above.
+The `0` and `100` rows are confirmed by the VM run above; `7` and `8` are
+confirmed by probe `.iss` files derived from the shipping installer (the
+`PrepareToInstall` stop lane) in the repro harness. The `1` row is unreachable
+by construction — `prism.iss` wires no `SetupMutex`. The `2` row needs an
+interactive wizard the automated lane cannot stage, so its value is taken from
+Inno's documented exit-code range.
 
 !!! tip "Related pages"
     [Installation](installation.md) — how to install and verify the packaged

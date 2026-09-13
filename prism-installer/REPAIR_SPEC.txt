@@ -1,0 +1,30 @@
+# Repair spec (written by vagrant/repair-suite.py; consumed by nothing at run time)
+
+R1 dot-source       Join-Path is called with only -Path/-ChildPath positionals, so a
+                    THREE-positional call is a bind-time error on 5.1 AND on the
+                    runners' PS7 -- and it sat in the first executable line of every
+                    test. Rewritten to nested two-positional joins.
+R2 Resolve-Path     PS6+ only; dies at run time on 5.1 (parses clean: invisible to
+                    any static gate). Call sites -> Get-AbsPath (this file).
+R3 Get-FileHash     PS6+ only; replaced by a crypto-type-based helper that throws
+                    rather than fabricate a digest when no provider constructs.
+R4 exclusions       The runner must honour -Not (exclude patterns): CI passes
+                    '-test-runner-report.ps1' so the DELIBERATELY-FAILING anti-vacuity
+                    probe never rides the main pass -- discovery that ignored an
+                    exclusion would turn CI permanently red on a file designed to fail.
+R5 parse gate       Dropped, not fixed: the only subprocess syntax check on 5.1
+                    (-File aborts before execution on a parse error) also EXECUTES a
+                    clean script, so pointing it at test-*.ps1 would run installer
+                    code with side effects. A gate that can only be honest about
+                    files it must not read is worse than none (repo rule: a gate that
+                    cannot fail is decoration). The functional suite run IS the syntax
+                    check -- a file that cannot parse fails its own test.
+R6 child launches   Children run through _invoke-child.ps1 and classify on a
+                    per-test sentinel log they write themselves; exit code via
+                    Start-Process -Wait -PassThru (measured on the guest: the '& exe'
+                    + $LASTEXITCODE route returns $null for BOTH a clean run and a
+                    parse abort, so it cannot tell pass from abort).
+R7 exit-code paths  Child classification must NOT use the installer normaliser
+                    (Get-NormalizedExitCode maps re-install 100 -> 0): a child dying
+                    with 100 would read as success. Children are classified on their
+                    own process ExitCode plus sentinel verdict lines.

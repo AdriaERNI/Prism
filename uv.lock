@@ -1008,7 +1008,7 @@ wheels = [
 
 [[package]]
 name = "prism"
-version = "0.2.1b2"
+version = "0.2.1b4"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
