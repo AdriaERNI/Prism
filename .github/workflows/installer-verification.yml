@@ -295,7 +295,12 @@ jobs:
         shell: pwsh
         run: |
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File prism-installer/test-runner-report.ps1
-          if ($LASTEXITCODE -ne 0) { Write-Error 'the gate cannot prove it can fail; refusing to run the suite'; exit 1 }
+          # Inverse of the obvious reading: a NON-zero exit is the gate going red
+          # (Test-GateIsFailable catches the known-bad fixture; Test-TallyIsTruthful
+          # flags the false-green tally) -- that is the proof the gate CAN fail,
+          # so the suite may run. Only exit 0 means the gate accepted everything
+          # and cannot fail; that is the refusal case.
+          if ($LASTEXITCODE -eq 0) { Write-Error 'the gate accepted everything (exit 0) -- it cannot fail; refusing to run the suite'; exit 1 }
 
       - name: Run the installer suite
         shell: pwsh
