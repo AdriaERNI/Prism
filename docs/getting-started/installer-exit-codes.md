@@ -160,7 +160,7 @@ exit code other than `0` has to be diagnosed; see
 The matrix was exercised on the packaged installer in the Windows Server
 2022 Vagrant VM (`prismdefault`), building `prism-0.2.1-beta2-setup.exe`
 with Inno Setup 6 / `ISCC.exe` and running it with `/VERYSILENT
-/SUPPRESSMSGBOX /NORESTART`.
+/SUPPRESSMSGBOXES /NORESTART`.
 
 | Scenario | Command run | Expected | Observed |
 |----------|-------------|----------|----------|
