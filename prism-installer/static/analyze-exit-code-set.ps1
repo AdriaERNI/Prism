@@ -27,7 +27,7 @@ if (-not $m.Success) {
 }
 $block = $m.Value
 $claimed = @()
-foreach ($line in ($block -split "`r`n")) {
+foreach ($line in ($block -split '\r?\n')) {
     # A mapping row: scenario text, then an integer code, then the basis text.
     if ($line -match '^\s*\{\s*(.+?)\s+(\d+)\s+(.+?)\s*\}\s*$') {
         $claimed += [int]$matches[2]
