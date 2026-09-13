@@ -249,6 +249,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { Write-Error "ISCC failed ($LASTEXITCODE)"; exit 1 }
           $installer = "dist/prism-$version-setup.exe"
           if (-not (Test-Path $installer)) { Write-Error "installer missing at $installer"; exit 1 }
+          # RG-011 landed check in the BUILD job too: read the FileVersion the
+          # freshly-compiled setup.exe actually carries and fail here if it is
+          # still the 0.0.0.0 fallback. Without this, upload can ship a stale
+          # (pre-stamp) artifact and verify's RG-011 later reads 0.0.0.0 while
+          # the build log claimed numeric=0.2.1.4 -- the same trap RG-013
+          # documents for the baseline download.
+          $fv = (Get-Item $installer).VersionInfo.FileVersion
+          if (-not $fv -or '0.0.0.0' -eq $fv.Trim()) {
+            Write-Error "ISCC stamped setup.exe $installer with '$fv' (0.0.0.0 fallback) -- the /DAppVerNumeric define did not reach the wrapper; fail here, not in verify"
+            exit 1
+          }
+          Write-Host ("setup.exe FileVersion: {0} (expected head {1})" -f $fv.Trim(), $head)
           Write-Host ("installer: {0} ({1} MB)" -f $installer,
             ([math]::Round((Get-Item $installer).Length / 1MB, 1)))
           # Provenance files the runtime scenarios derive their expectations from.
