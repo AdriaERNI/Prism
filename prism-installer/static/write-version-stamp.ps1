@@ -22,22 +22,37 @@ if ($dir -and -not (Test-Path -LiteralPath $dir)) {
     New-Item -ItemType Directory -Path $dir -Force -ErrorAction Stop | Out-Null
 }
 $text = @"
-VS_VERSIONINFO 1
-VersionInfoVersion $numeric
-[0] StringFileInfo
-[1] VarFileInfo
-VarFileInfo
-  TranslationTable
-    040904B0
-StringFileInfo
-  StringTable 040904B0
-    CompanyName      "Prism"
-    FileDescription  "Prism - IRIS development CLI and MCP server"
-    FileVersion      "$numeric"
-    InternalName     "prism"
-    OriginalFilename "prism.exe"
-    ProductName      "Prism"
-    ProductVersion   "$numeric"
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=($verParts),
+    prodvers=($verParts),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+  ),
+  kids=[
+    StringFileInfo(
+      [
+        StringTable(
+          u'040904B0',
+          [
+            StringStruct(u'CompanyName', u'Prism'),
+            StringStruct(u'FileDescription', u'Prism - IRIS development CLI and MCP server'),
+            StringStruct(u'FileVersion', u'$numeric'),
+            StringStruct(u'InternalName', u'prism'),
+            StringStruct(u'OriginalFilename', u'prism.exe'),
+            StringStruct(u'ProductName', u'Prism'),
+            StringStruct(u'ProductVersion', u'$numeric')
+          ]
+        )
+      ]
+    ),
+    VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+  ]
+)
 "@
-Set-Content -LiteralPath $OutFile -Value $text -Encoding ascii
+Set-Content -LiteralPath $OutFile -Value $text -Encoding utf8
 Write-Host ("version stamp: {0} (numeric {1})" -f $Version, $numeric)
