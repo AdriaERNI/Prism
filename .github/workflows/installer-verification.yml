@@ -246,6 +246,13 @@ jobs:
 
       - name: Acquire the published baseline (RG-012, RG-013)
         shell: pwsh
+        env:
+          # gh inside test-prerelease.ps1 runs as a child of powershell.exe and
+          # reads GH_TOKEN from its own environment; the runner only sets it
+          # for steps that declare it. Without it gh refused the call (measured:
+          # "To use GitHub CLI in this workflow, set GH_TOKEN"). contents: read
+          # covers reading the releases list.
+          GH_TOKEN: ${{ github.token }}
         run: |
           $v = (Get-Content dist/version.txt -Raw).Trim()
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
