@@ -241,7 +241,7 @@ jobs:
           Write-Host "Using ISCC: $($iscc.FullName)"
           # Compile from dist/ (where the .iss assets are). The onedir output
           # lives at dist/prism/, so pass /DAppSource=prism (relative to dist/).
-          & $iscc.FullName "/DAppVer=$issVersion" "/DAppVerFile=$version" "/DAppSource=prism" "dist/prism.iss"
+          & $iscc.FullName "/DAppVer=$issVersion" "/DAppVerFile=$version" "/DAppVerNumeric=$issVersion" "/DAppSource=prism" "dist/prism.iss"
           # Verify installer was created
           $installer = "dist/prism-$version-setup.exe"
           if (Test-Path $installer) {
