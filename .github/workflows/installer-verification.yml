@@ -308,6 +308,7 @@ jobs:
           name: installer-windows-${{ github.run_id }}
           path: |
             dist/prism-*-setup.exe
+            !dist/prism-old-setup.exe
             dist/version.txt
             dist/file-count.txt
           retention-days: 30
