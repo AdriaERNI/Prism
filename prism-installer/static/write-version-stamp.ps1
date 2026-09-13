@@ -8,7 +8,7 @@ param(
     [Parameter(Mandatory = $true, Position = 0)][string] $OutFile,
     # Version under test (e.g. 0.2.1-beta4); never empty -- caller passes the
     # committed $env:VERSION. Numeric head split exactly like the compile step.
-    [Parameter(Mandatory = $true)][string] $Version
+    [Parameter(Mandatory = $true, Position = 1)][string] $Version
 )
 if ([string]::IsNullOrWhiteSpace($Version)) { throw 'write-version-stamp: missing -Version' }
 # Four-part numeric; a prerelease tag never parses so head/tag are split.
