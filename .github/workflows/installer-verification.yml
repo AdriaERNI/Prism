@@ -261,6 +261,20 @@ jobs:
             exit 1
           }
           Write-Host ("setup.exe FileVersion: {0} (expected head {1})" -f $fv.Trim(), $head)
+          # Pre-upload ambiguity guard (RG-011/RG-013 trap): the loose upload
+          # glob dist/prism-*-setup.exe silently collapses if dist/ holds BOTH
+          # a freshly-stamped exe and a stale pre-stamp copy of the same name
+          # (verify then downloads the stale one and RG-011 reads 0.0.0.0 while
+          # the build claimed numeric=0.2.1.4). Require exactly one setup.exe
+          # here, fail loud otherwise.
+          $setupCount = @(Get-ChildItem -Path dist -Filter 'prism-*-setup.exe' -File -Force).Count
+          if ($setupCount -ne 1) {
+            $names = @(Get-ChildItem -Path dist -Filter 'prism-*-setup.exe' -File -Force |
+                       ForEach-Object { $_.FullName }) -join ', '
+            Write-Error "dist/ has $setupCount setup.exe files ($names) -- ambiguous/stale setup.exe would be uploaded; fail here, not in verify"
+            exit 1
+          }
+          Write-Host ("single setup.exe confirmed: $setupCount (version $version)")
           Write-Host ("installer: {0} ({1} MB)" -f $installer,
             ([math]::Round((Get-Item $installer).Length / 1MB, 1)))
           # Provenance files the runtime scenarios derive their expectations from.
@@ -293,7 +307,7 @@ jobs:
         with:
           name: installer-windows-${{ github.run_id }}
           path: |
-            dist/prism-${{ github.run_id }}-*-setup.exe
+            dist/prism-*-setup.exe
             dist/version.txt
             dist/file-count.txt
           retention-days: 30
