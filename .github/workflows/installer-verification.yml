@@ -135,7 +135,12 @@ jobs:
           $VERSION = $TAG.TrimStart('v')
           if (-not $VERSION) { Write-Error 'could not derive a version'; exit 1 }
           Write-Host "version under verification: $VERSION"
-          "version=$VERSION" | Out-File -Append -Encoding ascii github-env
+          # Write to the runner's actual env file ($env:GITHUB_ENV), not a literal
+          # relative 'github-env' file: GitHub only consumes the GITHUB_ENV path,
+          # otherwise no downstream step receives VERSION and the compile fell
+          # back to 0.0.0 (measured: version.txt = '0.0.0', artifact built at the
+          # fallback instead of the committed beta4).
+          "version=$VERSION" | Out-File -Append -Encoding ascii $env:GITHUB_ENV
           if ($SYNC) {
             # Tag/dispatch path only: sync the version from the tag into the
             # files exactly as the release build does, then refresh the lock.
@@ -244,7 +249,8 @@ jobs:
         run: |
           $v = (Get-Content dist/version.txt -Raw).Trim()
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
-            prism-installer/test-prerelease.ps1 "-Repo=${{ github.repository }}" "-SourceVersion=$v" -OutDir ./dist
+            prism-installer/test-prerelease.ps1 -Repo "${{ github.repository }}" `
+            -SourceVersion "$v" -OutDir ./dist
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           # The step owns the outcome: a missing baseline must be a hard failure,
           # not the 'downloaded asset is provided, so the pristine one is skipped'
