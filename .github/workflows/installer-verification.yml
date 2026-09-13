@@ -310,6 +310,14 @@ jobs:
 
       - name: Run the installer suite
         shell: pwsh
+        env:
+          # test-prerelease (the suite's first child) calls 'gh api .../releases'
+          # from its OWN powershell child, so it needs GH_TOKEN in its environment
+          # -- the runner only sets the token for steps that declare it (measured:
+          # "To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN
+          # environment variable" otherwise). contents: read covers reading the
+          # releases list.
+          GH_TOKEN: ${{ github.token }}
         run: |
           $v = '0.0.0'
           if (Test-Path dist/version.txt) { $v = (Get-Content dist/version.txt -Raw).Trim() }
