@@ -25,12 +25,20 @@ function Invoke-ChildProbe([string] $Target, [string[]] $ExtraArgs = @()) {
     # child's first positional parameter instead of the named ones (measured).
     $argLine = '-NoProfile -ExecutionPolicy Bypass -NonInteractive -File ' + $Target
     if ($ExtraArgs.Count -gt 0) { $argLine += ' ' + ($ExtraArgs -join ' ') }
+    # Start-Process -PassThru does not capture the child's console, so Out was a
+    # stringification of the Process object and the gate's contract-message
+    # assertion saw nothing (measured: "the failure did not surface the contract
+    # message"). Redirect stdout/stderr to temp files and read them back.
+    $id = [Guid]::NewGuid().ToString('N')
+    $outFile = Join-Path ([IO.Path]::GetTempPath()) "prism-probe-$id.out.txt"
+    $errFile = Join-Path ([IO.Path]::GetTempPath()) "prism-probe-$id.err.txt"
     $proc = Start-Process -FilePath 'powershell.exe' -Argument $argLine `
-        -Wait -PassThru -WindowStyle Hidden
+        -Wait -PassThru -WindowStyle Hidden `
+        -RedirectStandardOutput $outFile -RedirectStandardError $errFile
     $out = ''
-    if ($proc -is [string]) { $out = $proc } else {
-        try { $out = ($proc | Out-String) } catch { $out = '' }
-    }
+    if (Test-Path -LiteralPath $outFile -PathType Leaf) { $out += (Get-Content -LiteralPath $outFile -Raw) }
+    if (Test-Path -LiteralPath $errFile -PathType Leaf) { $out += (Get-Content -LiteralPath $errFile -Raw) }
+    Remove-Item -LiteralPath $outFile, $errFile -Force -ErrorAction SilentlyContinue
     return @{ Code = (Get-NormalizedExitCode $proc.ExitCode); Out = $out }
 }
 
