@@ -102,28 +102,43 @@ jobs:
       - name: Sync version from tag
         shell: pwsh
         run: |
+          $SYNC = $false
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $TAG = "${{ github.event.inputs.tag }}"
-          } else {
+            $SYNC = $true
+          } elseif ("${{ github.ref }}".StartsWith("refs/tags/")) {
             $TAG = "${{ github.ref }}".Replace("refs/tags/", "")
+            $SYNC = $true
+          } else {
+            # PR or branch push: github.ref is refs/pull/<n>/merge or a branch
+            # ref, NOT a tag -- treating it as a version wrote a garbage string
+            # into pyproject.toml and uv sync failed to parse it (measured: the
+            # build job wrote version = "refs/pull/29/merge"). The repo's own
+            # committed version (pyproject.toml) is the truth on these events;
+            # no rewrite is needed, so the artifact is verified at the committed
+            # version exactly as it would ship.
+            $TAG = ''
           }
           if (-not $TAG) {
-            # On a branch push there is no tag; the repo's own version is the truth.
-            $init = Get-Content src/prism/__init__.py -Raw
-            if ($init -match '__version__\s*=\s*"[^"]*"') { $TAG = 'v' + $matches[1] }
+            $py = Get-Content pyproject.toml -Raw
+            if ($py -match '(?m)^\s*version\s*=\s*"([^"]+)"') { $TAG = 'v' + $matches[1] }
           }
           if ($TAG -match '\{|\}') { Write-Error "refusing template-shaped tag '$TAG'"; exit 1 }
           $VERSION = $TAG.TrimStart('v')
           if (-not $VERSION) { Write-Error 'could not derive a version'; exit 1 }
           Write-Host "version under verification: $VERSION"
           "version=$VERSION" | Out-File -Append -Encoding ascii github-env
-          $c = Get-Content pyproject.toml -Raw
-          $c = $c -replace 'version\s*=\s*"[^"]*"', "version = `"$VERSION`""
-          Set-Content pyproject.toml $c
-          $i = Get-Content src/prism/__init__.py -Raw
-          $i = $i -replace '__version__\s*=\s*"[^"]*"', "__version__ = `"$VERSION`""
-          Set-Content src/prism/__init__.py $i
-          uv sync
+          if ($SYNC) {
+            # Tag/dispatch path only: sync the version from the tag into the
+            # files exactly as the release build does, then refresh the lock.
+            $c = Get-Content pyproject.toml -Raw
+            $c = $c -replace 'version\s*=\s*"[^"]*"', "version = `"$VERSION`""
+            Set-Content pyproject.toml $c
+            $i = Get-Content src/prism/__init__.py -Raw
+            $i = $i -replace '__version__\s*=\s*"[^"]*"', "__version__ = `"$VERSION`""
+            Set-Content src/prism/__init__.py $i
+            uv sync
+          }
 
       - name: Install Inno Setup 6
         shell: pwsh

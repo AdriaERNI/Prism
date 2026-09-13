@@ -7,7 +7,7 @@
 # the shared library carries the same cautionary comment. Scanning them would
 # make the gate red forever -- a permanently-red gate is as useless as a green
 # that cannot fail. Excluded from the scan, deliberately and permanently.
-param([string] $Root = (Get-Location -Current))
+param([string] $Root = $PWD)
 
 $fail = @()
 $excludes = @('docs\plans', 'docs/plans', 'prism-installer', 'site', '.venv', 'node_modules')
