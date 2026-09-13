@@ -455,13 +455,13 @@ function Get-SetupArtifact {
     # -- proven by vagrant/build-in-vm.ps1:108-116, which builds in place and
     # Move-Item's the result into dist/).
     #
-    # Resolution order is deliberate: first the file named from the REQUESTED
+    # Resolution is deliberate: first the file named from the REQUESTED
     # version (so a build that ignored the version override is a MISS, not a
     # silent fallback onto a stale same-named artifact), then any setup.exe in
-    # the directory. The last resort warns on the log and still lets callers
-    # run the RG-014 version assertion, which is the check that actually
-    # detects a no-op override -- returning the wrong file is safe precisely
-    # because that assertion compares the version RESOURCE, not the file name.
+    # the directory. A missing/ambiguous match is a hard failure, never a
+    # silent pick: RG-013/RG-011 document the trap where an upload carries a
+    # stale (pre-stamp) artifact and verify reads 0.0.0.0 while the build
+    # claimed numeric=0.2.1.4.
     param(
         [Parameter(Mandatory = $true)][string] $Dir,
         # Pass the version to pin the lookup to the artifact the caller EXPECTS;
