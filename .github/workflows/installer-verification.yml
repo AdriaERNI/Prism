@@ -359,7 +359,7 @@ jobs:
           $v = '0.0.0'
           if (Test-Path dist/version.txt) { $v = (Get-Content dist/version.txt -Raw).Trim() }
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File prism-installer/run-installer-tests.ps1 `
-            '-ArtifactsPath' './dist' '-SourceVersion' $v '-Repo=AdriaERNI/Prism' '-Baseline=runner' '-Not=test-runner-report.ps1'
+            '-ArtifactsPath' './dist' '-SourceVersion' $v '-Repo' 'AdriaERNI/Prism' '-Baseline' 'runner' '-Not' 'test-runner-report.ps1'
           exit $LASTEXITCODE
 
       - name: Upload scenario logs
