@@ -9,7 +9,6 @@ param(
     [string] $Baseline = 'fetch',
     [string] $Repo = '',
     [string] $SourceVersion = '',
-    [string] $SuiteLogFile = '',
     [string] $SuiteLogFile = ''
 )
 . (Join-Path (Join-Path $PSScriptRoot 'shared') 'installer-common.ps1')
