@@ -483,7 +483,9 @@ function Get-SetupArtifact {
         if ($exact) { return $exact.FullName }
         return $null
     }
-    $any = @(Get-ChildItem -Path $Dir -Filter 'prism-*-setup.exe' -File -Force) | Select-Object -First 1
+    $any = @(Get-ChildItem -Path $Dir -Filter 'prism-*-setup.exe' -File -Force |
+             Where-Object { $_.Name -ne 'prism-old-setup.exe' } |
+             Select-Object -First 1)
     if ($any) { return $any.FullName }
     return $null
 }
