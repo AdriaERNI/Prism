@@ -1,0 +1,372 @@
+name: Installer Verification
+
+# Builds the Inno Setup installer on a real Windows runner exactly as
+# build-release.yml does, then executes the committed prism-installer/ suite
+# against it. The point is to exercise the SHIPPED artifact path -- install,
+# in-place upgrade, uninstall and the exit-code contract -- on a real machine.
+#
+# Why a separate workflow from build-release.yml: the release workflow is
+# tag-triggered and its build job gates on the whole test matrix, so a failure
+# here would block a release. Verification is a PR/branch gate; releases stay a
+# separate concern. It mirrors build-release.yml's flags rather than
+# re-deriving them, so the artifact proven here is the artifact that ships.
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+  workflow_dispatch:
+
+concurrency:
+  group: installer-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  consistency:
+    # Fast, cheap, and deliberately independent of the build: every defect here
+    # is textual, so a broken switch or a stale doc must redden the gate without
+    # burning ~30 min of Windows build minutes. runs-on stays ubuntu because
+    # these are pure text scans; pwsh is preinstalled on hosted Linux runners, so
+    # the SAME pwsh the Windows build job uses parses them -- one interpreter for
+    # authoring here, and powershell.exe 5.1 on the guest is exercised by the
+    # runtime jobs, which is where the OS actually matters.
+    name: Consistency (static, no build needed)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer-script consistency (RG-001, RG-010)
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File prism-installer/static/analyze-install-consistency.ps1
+
+      - name: Docs and fixture drift (RG-004)
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File prism-installer/static/analyze-docs-drift.ps1
+
+      - name: Release-build payload flags (RG-010, RG-011)
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File prism-installer/static/analyze-build-payload.ps1
+
+      - name: Exit-code set gate (RG-006, must-go-red on deleted/falsified/duplicate)
+        shell: pwsh
+        run: pwsh -NoProfile -ExecutionPolicy Bypass -File prism-installer/static/analyze-exit-code-set.ps1
+
+      - name: Workflow hygiene (unexpanded placeholders, download guards)
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail=0
+          # An unexpanded {owner}/{repo} placeholder is RG-012's root cause: the
+          # literal brace reaches gh as a path segment, the API 404s, and the step
+          # treats it as 'no baseline'. Scan every workflow, not just this one.
+          # Scan every workflow except this one: this step's own grep command
+          # literally contains the placeholder pattern, so scanning itself is a
+          # guaranteed self-match (RG-012 fired on installer-verification.yml).
+          for wf in .github/workflows/*.yml; do
+            case "$wf" in
+              *.github/workflows/installer-verification.yml) continue ;;
+            esac
+            if grep -qE 'repos/\{owner\}|\{repo\}/|releases/latest' "$wf"; then
+              echo "::error title=RG-012 an unexpanded placeholder or /releases/latest is used; walk the full release list instead"
+              fail=1
+            fi
+          done
+          # A downloaded baseline that no step verifies lets the upgrade matrix run
+          # zero scenarios and still print green (RG-013's vacuous-green path).
+          for wf in .github/workflows/*.yml; do
+            if grep -qE 'gh release download' "$wf" && ! grep -qE 'prism-old-setup' "$wf"; then
+              echo "::error title=RG-013 $wf downloads a release asset without a landing assertion"
+              fail=1
+            fi
+          done
+          # The suite's own gate must be provably failable, so the negative fixture
+          # may not be deleted or neutered in a PR (the class of 'tests pass because
+          # nothing ran' failures).
+          test -f prism-installer/tests/fixtures/deliberately-broken.ps1 || {
+            echo "::error title=Gate not failable the negative fixture is gone"; exit 1; }
+          exit $fail
+
+  build:
+    name: Build installer (windows-latest)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # Version is derived from the tag/dispatch input exactly as the release
+      # build does, so the artifact verified here is the artifact that would ship
+      # (a stale pyproject version would otherwise name and version the wrong thing).
+      - name: Sync version from tag
+        shell: pwsh
+        run: |
+          $SYNC = $false
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $TAG = "${{ github.event.inputs.tag }}"
+            $SYNC = $true
+          } elseif ("${{ github.ref }}".StartsWith("refs/tags/")) {
+            $TAG = "${{ github.ref }}".Replace("refs/tags/", "")
+            $SYNC = $true
+          } else {
+            # PR or branch push: github.ref is refs/pull/<n>/merge or a branch
+            # ref, NOT a tag -- treating it as a version wrote a garbage string
+            # into pyproject.toml and uv sync failed to parse it (measured: the
+            # build job wrote version = "refs/pull/29/merge"). The repo's own
+            # committed version (pyproject.toml) is the truth on these events;
+            # no rewrite is needed, so the artifact is verified at the committed
+            # version exactly as it would ship.
+            $TAG = ''
+          }
+          if (-not $TAG) {
+            $py = Get-Content pyproject.toml -Raw
+            if ($py -match '(?m)^\s*version\s*=\s*"([^"]+)"') { $TAG = 'v' + $matches[1] }
+          }
+          if ($TAG -match '\{|\}') { Write-Error "refusing template-shaped tag '$TAG'"; exit 1 }
+          $VERSION = $TAG.TrimStart('v')
+          if (-not $VERSION) { Write-Error 'could not derive a version'; exit 1 }
+          Write-Host "version under verification: $VERSION"
+          # Write to the runner's actual env file ($env:GITHUB_ENV), not a literal
+          # relative 'github-env' file: GitHub only consumes the GITHUB_ENV path,
+          # otherwise no downstream step receives VERSION and the compile fell
+          # back to 0.0.0 (measured: version.txt = '0.0.0', artifact built at the
+          # fallback instead of the committed beta4).
+          "version=$VERSION" | Out-File -Append -Encoding ascii $env:GITHUB_ENV
+          if ($SYNC) {
+            # Tag/dispatch path only: sync the version from the tag into the
+            # files exactly as the release build does, then refresh the lock.
+            $c = Get-Content pyproject.toml -Raw
+            $c = $c -replace 'version\s*=\s*"[^"]*"', "version = `"$VERSION`""
+            Set-Content pyproject.toml $c
+            $i = Get-Content src/prism/__init__.py -Raw
+            $i = $i -replace '__version__\s*=\s*"[^"]*"', "__version__ = `"$VERSION`""
+            Set-Content src/prism/__init__.py $i
+            uv sync
+          }
+
+      - name: Install Inno Setup 6
+        shell: pwsh
+        run: |
+          choco install innosetup -y --stoponfail
+          if (-not (Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue)) {
+            choco install innosetup -y --force
+          }
+
+      # Mirrors build-release.yml's PyInstaller invocation flag-for-flag: a dropped
+      # --copy-metadata or --icon here produces an installer that cold-starts wrong,
+      # and analyze-build-payload.ps1 keeps the release workflow honest about the same set.
+      - name: Build PyInstaller onedir
+        shell: pwsh
+        run: |
+          uv pip install pyinstaller
+          # Stamp the built exe's version resource (RG-011). ISCC /DAppVerNumeric
+          # stamps only the setup.exe wrapper; the embedded prism.exe is a
+          # PyInstaller build whose resource defaults to 0.0.0.0 unless
+          # --version-file stamps it -- test-install reads Get-PrismFileVersion
+          # off the INSTALLED prism.exe. Generate the resource from $env:VERSION
+          # (numeric head split, same as the compile step) into a temp stamp file.
+          $stamp = Join-Path ([IO.Path]::GetTempPath()) 'prism-version.txt'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+            prism-installer/static/write-version-stamp.ps1 $stamp $env:VERSION
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          uv run pyinstaller --onedir --name prism --icon logo.ico `
+            --copy-metadata fastmcp `
+            --copy-metadata click `
+            --copy-metadata httpx `
+            --copy-metadata pydantic `
+            --copy-metadata pydantic-settings `
+            --copy-metadata typer `
+            --copy-metadata websockets `
+            --copy-metadata platformdirs `
+            --copy-metadata python-dotenv `
+            --copy-metadata toons `
+            --collect-all lupa `
+            --collect-all docket `
+            --collect-all shellingham `
+            --collect-submodules prism.mcp `
+            --hidden-import importlib.metadata `
+            --version-file $stamp `
+            src/prism/cli/app.py
+          if (-not (Test-Path dist/prism/prism.exe)) { Write-Error 'PyInstaller produced no dist/prism/prism.exe'; exit 1 }
+
+      - name: Compile the installer
+        shell: pwsh
+        run: |
+          # Use the version Sync already derived and validated ($env:VERSION),
+          # not a fragile re-read of pyproject.toml: the loose regex also matches
+          # 'target-version = "py312"' and could capture an empty quoted string,
+          # which was measured as version='' → numeric='.0' → ISCC rejected
+          # VersionInfoVersion. Env VERSION is deterministic (echoed as
+          # 0.2.1-beta4 in the failing run).
+          $version = $env:VERSION
+          if (-not $version) { $version = '0.0.0' }
+          # Four-part numeric for the version resource; a prerelease tag never parses
+          # as a version, so the head and the tag are split (a bare [version] cast
+          # throws on '0.2.1-beta3').
+          $head = $version; $tagNum = '0'
+          if ($version -match '^(\d+\.\d+\.\d+)-(?:beta|alpha|rc)[._]?(\d*)$') {
+            $head = $matches[1]; if ($matches[2]) { $tagNum = $matches[2] }
+          } elseif ($version -match '^(\d+\.\d+\.\d+)-') { $head = $matches[1] }
+          $numeric = "$head.$tagNum"
+          # Echo the exact values ISCC will receive so a compile failure names
+          # the offender instead of ISCC's opaque 'VersionInfoVersion invalid'
+          # (the failing build job hid the runtime value).
+          Write-Host "compiling installer: version=$version, numeric=$numeric"
+          # VersionInfoVersion is a version resource: at most four dot-separated
+          # decimal parts, each <= 65535. Fail early with the real value if the
+          # derivation ever yields garbage (non-numeric or over-long).
+          $parts = $numeric.Split('.')
+          if ($parts.Count -gt 4 -or
+              ($parts | Where-Object { $_ -notmatch '^\d+$' }) -or
+              ($parts | Where-Object { [int]$_ -gt 65535 })) {
+            Write-Error "non-numeric AppVerNumeric '$numeric' (from version '$version')"; exit 1
+          }
+          # Copy the .iss and its assets to dist/ so ISCC resolves them relative to
+          # the script, exactly as the release build does.
+          Copy-Item prism.iss dist/prism.iss -Force
+          Copy-Item logo.ico dist/logo.ico -Force
+          New-Item -ItemType Directory -Force dist/docs/assets | Out-Null
+          Copy-Item docs/assets/wizard-sidebar.bmp dist/docs/assets/wizard-sidebar.bmp -Force
+          Copy-Item docs/assets/wizard-header.bmp dist/docs/assets/wizard-header.bmp -Force
+          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue |
+                  Select-Object -First 1
+          if (-not $iscc) { $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 }
+          if (-not $iscc) { Write-Error 'ISCC.exe not found'; exit 1 }
+          # All four defines, including AppVerNumeric: omitting it leaves
+          # prism.iss's 0.0.0.0 fallback in the version resource, which is the
+          # shipped RG-011 defect, and test-install.ps1 asserts it is non-null.
+          & $iscc.FullName "/DAppVer=$numeric" "/DAppVerFile=$version" `
+              "/DAppVerNumeric=$numeric" '/DAppSource=prism' 'dist/prism.iss'
+          if ($LASTEXITCODE -ne 0) { Write-Error "ISCC failed ($LASTEXITCODE)"; exit 1 }
+          $installer = "dist/prism-$version-setup.exe"
+          if (-not (Test-Path $installer)) { Write-Error "installer missing at $installer"; exit 1 }
+          # RG-011 landed check in the BUILD job too: read the FileVersion the
+          # freshly-compiled setup.exe actually carries and fail here if it is
+          # still the 0.0.0.0 fallback. Without this, upload can ship a stale
+          # (pre-stamp) artifact and verify's RG-011 later reads 0.0.0.0 while
+          # the build log claimed numeric=0.2.1.4 -- the same trap RG-013
+          # documents for the baseline download.
+          $fv = (Get-Item $installer).VersionInfo.FileVersion
+          if (-not $fv -or '0.0.0.0' -eq $fv.Trim()) {
+            Write-Error "ISCC stamped setup.exe $installer with '$fv' (0.0.0.0 fallback) -- the /DAppVerNumeric define did not reach the wrapper; fail here, not in verify"
+            exit 1
+          }
+          Write-Host ("setup.exe FileVersion: {0} (expected head {1})" -f $fv.Trim(), $head)
+          # Pre-upload ambiguity guard (RG-011/RG-013 trap): the loose upload
+          # glob dist/prism-*-setup.exe silently collapses if dist/ holds BOTH
+          # a freshly-stamped exe and a stale pre-stamp copy of the same name
+          # (verify then downloads the stale one and RG-011 reads 0.0.0.0 while
+          # the build claimed numeric=0.2.1.4). Require exactly one setup.exe
+          # here, fail loud otherwise.
+          $setupCount = @(Get-ChildItem -Path dist -Filter 'prism-*-setup.exe' -File -Force).Count
+          if ($setupCount -ne 1) {
+            $names = @(Get-ChildItem -Path dist -Filter 'prism-*-setup.exe' -File -Force |
+                       ForEach-Object { $_.FullName }) -join ', '
+            Write-Error "dist/ has $setupCount setup.exe files ($names) -- ambiguous/stale setup.exe would be uploaded; fail here, not in verify"
+            exit 1
+          }
+          Write-Host ("single setup.exe confirmed: $setupCount (version $version)")
+          Write-Host ("installer: {0} ({1} MB)" -f $installer,
+            ([math]::Round((Get-Item $installer).Length / 1MB, 1)))
+          # Provenance files the runtime scenarios derive their expectations from.
+          Set-Content dist/version.txt $version
+          @(Get-ChildItem dist/prism -Recurse -File -Force).Count | Set-Content dist/file-count.txt
+
+      - name: Acquire the published baseline (RG-012, RG-013)
+        shell: pwsh
+        env:
+          # gh inside test-prerelease.ps1 runs as a child of powershell.exe and
+          # reads GH_TOKEN from its own environment; the runner only sets it
+          # for steps that declare it. Without it gh refused the call (measured:
+          # "To use GitHub CLI in this workflow, set GH_TOKEN"). contents: read
+          # covers reading the releases list.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = (Get-Content dist/version.txt -Raw).Trim()
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File `
+            prism-installer/test-prerelease.ps1 -Repo "${{ github.repository }}" `
+            -SourceVersion "$v" -OutDir ./dist
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          # The step owns the outcome: a missing baseline must be a hard failure,
+          # not the 'downloaded asset is provided, so the pristine one is skipped'
+          # silent-skip class, because a matrix with no baseline tests nothing.
+          if (-not (Test-Path dist/prism-old-setup.exe)) {
+            Write-Host '::warning title=No published baseline yet — the upgrade and downgrade scenarios will report skipped'
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-windows-${{ github.run_id }}
+          path: |
+            dist/prism-old-setup.exe
+            dist/prism-0.2.1-beta4-setup.exe
+            dist/version.txt
+            dist/file-count.txt
+          retention-days: 30
+        if: always()
+
+  verify:
+    name: verify (windows-latest)
+    # needs both: the suite must run the artifact the build job produced.
+    needs: [consistency, build]
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: installer-windows-${{ github.run_id }}
+          path: dist
+
+      # Pre-flight: a broken check must redden the job BEFORE the real suite, so a
+      # gate that cannot fail is never trusted to pass.
+      - name: Gate is live (negative self-test)
+        shell: pwsh
+        run: |
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File prism-installer/test-runner-report.ps1
+          # Inverse of the obvious reading: a NON-zero exit is the gate going red
+          # (Test-GateIsFailable catches the known-bad fixture; Test-TallyIsTruthful
+          # flags the false-green tally) -- that is the proof the gate CAN fail,
+          # so the suite may run. Only exit 0 means the gate accepted everything
+          # and cannot fail; that is the refusal case.
+          if ($LASTEXITCODE -eq 0) { Write-Error 'the gate accepted everything (exit 0) -- it cannot fail; refusing to run the suite'; exit 1 }
+          # A provable red (the gate caught the two deliberate fixtures and exited
+          # non-zero) is the SUCCESS signal for this step -- the suite may run.
+          # Mirror pwsh's exit-code forwarding explicitly: without exit 0 here,
+          # the child's non-zero code becomes the step's exit and GitHub marks the
+          # step X even though the gate did its job.
+          exit 0
+
+      - name: Run the installer suite
+        shell: pwsh
+        env:
+          # test-prerelease (the suite's first child) calls 'gh api .../releases'
+          # from its OWN powershell child, so it needs GH_TOKEN in its environment
+          # -- the runner only sets the token for steps that declare it (measured:
+          # "To use GitHub CLI in a GitHub Actions workflow, set the GH_TOKEN
+          # environment variable" otherwise). contents: read covers reading the
+          # releases list.
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '0.0.0'
+          if (Test-Path dist/version.txt) { $v = (Get-Content dist/version.txt -Raw).Trim() }
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File prism-installer/run-installer-tests.ps1 `
+            '-ArtifactsPath' './dist' '-SourceVersion' $v '-Repo' 'AdriaERNI/Prism' '-Baseline' 'runner' '-Not' 'test-runner-report.ps1'
+          exit $LASTEXITCODE
+
+      - name: Upload scenario logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-logs-windows-${{ github.run_id }}
+          path: prism-installer/tests/
+          retention-days: 30

@@ -92,6 +92,7 @@ nav:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quick-start.md
     - Configuration: getting-started/configuration.md
+    - Installer Exit Codes: getting-started/installer-exit-codes.md
   - Commands:
     - Overview: commands/index.md
     - prism config: commands/config.md

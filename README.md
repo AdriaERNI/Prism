@@ -128,9 +128,9 @@ See the [commands overview](https://adriaerni.github.io/Prism/commands/) for det
 
 ## MCP Tools
 
-12 tools are always available (including `monitor_system`), 5 workspace-gated
-(`put_document`, `put_and_compile`, `list_files`, `read_file`, `run_shell`),
-and 9 debug-gated (`debug_*`) — up to 26 total.
+12 tools are always available (including `monitor_system` and `run_shell`),
+4 workspace-gated (`put_document`, `put_and_compile`, `list_files`,
+`read_file`) and 9 debug-gated (`debug_*`) — up to 25 total.
 
 See the [full tool reference](https://adriaerni.github.io/Prism/mcp/tools/) for details.
 
@@ -233,7 +233,7 @@ src/prism/
 ├── mcp/               # MCP tools with @logged_tool decorator
 │   ├── _decorator.py   # Logging + auto-discovery
 │   ├── server.py       # FastMCP server
-│   └── *.py            # One module per tool domain (12 always + 5 gated + 9 debug)
+│   └── *.py            # One module per tool domain (12 always + 4 gated + 9 debug)
 ├── chatbot/           # AI chatbot agent (OpenAI-compatible LLM)
 │   ├── agent.py        # Tool-calling agent with conversation memory
 │   └── skills.py       # Built-in skills (code review, testing, etc.)

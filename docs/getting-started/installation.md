@@ -10,7 +10,8 @@ via `uv`/`pip` for Linux and development setups.
 
    - `prism-<version>-setup.exe` — Inno Setup installer. Installs
      `prism.exe` to `C:\Program Files\prism\` and adds that folder to
-     the system `PATH`.
+     the system `PATH`. See [Installer Exit Codes](installer-exit-codes.md)
+     for what the process exit code means after a silent install.
    - `prism.exe` — Standalone PyInstaller binary. Drop it anywhere on
      your `PATH` — no install needed.
 

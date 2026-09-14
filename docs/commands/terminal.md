@@ -10,10 +10,20 @@ to IRIS.
 |-----------|----------|
 | Atelier WebSocket | `/api/atelier/v8/%25SYS/terminal` (same as `IRIS_BASE_URL`, port `52773`) |
 
-The terminal uses the WebSocket terminal exclusively. The MCP
-`execute_terminal` tool and the CLI both use the WebSocket terminal; no
-ObjectScript helper is uploaded and IRIS_SUPERSERVER_PORT (1972, the
-superport) is not used at all.
+## WebSocket
+
+The only terminal backend Prism ships is the Atelier **WebSocket**
+terminal (`/api/atelier/v8/%25SYS/terminal` on the IRIS HTTP port, by
+default `52773`). It is used by both the CLI (`prism ws`) and the MCP
+`execute_terminal` tool.
+
+The WebSocket terminal does **not** upload any ObjectScript helper to
+IRIS, and does **not** use the native SuperServer ("superport", port
+1972). IRIS answers over HTTP, so the terminal works from any machine
+that can reach the HTTP port — the superport is not required.
+
+ObjectScript errors from the server are returned as `ERROR: <message>`
+in the `output` field rather than crashing the command.
 
 ---
 

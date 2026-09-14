@@ -97,7 +97,7 @@ src/prism/
 ├── mcp/                # MCP tools with @logged_tool decorator
 │   ├── _decorator.py   # logged_tool implementation
 │   ├── server.py       # FastMCP server with auto-discovery
-│   └── *.py            # One module per tool domain (13 always + 5 gated + 9 debug)
+│   └── *.py            # One module per tool domain (12 always + 4 gated + 9 debug)
 ├── chatbot/            # AI agent that orchestrates MCP tools via LLM
 │   ├── agent.py        # LLM-powered tool-use loop (OpenAI-compatible API)
 │   └── skills.py       # Markdown skill folder reader/loader
@@ -107,7 +107,7 @@ src/prism/
 │   ├── controllers/    # SQL execution controller (async)
 │   └── widgets/        # DatabaseTree, SQLEditor, ResultsTable, StatusBar, Toolbar
 └── cli/                # Typer commands (sync wrappers around async API)
-    └── commands/       # One module per command (19 commands)
+    └── commands/       # One module per command (17 commands)
 ```
 
 ### MCP Tool Registration
@@ -116,10 +116,10 @@ Tools are registered conditionally based on settings:
 
 | Category | Count | Condition |
 |----------|-------|-----------|
-| Always-on | 13 | Always registered (including `index_code`, `index_reachability` and `monitor_system`) |
-| Workspace-gated | 5 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`, `list_files`, `read_file`, `run_shell`) |
+| Always-on | 12 | Always registered (including `monitor_system` and `run_shell`) |
+| Workspace-gated | 4 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`, `list_files`, `read_file`) |
 | Debug-gated | 9 | `IRIS_DEBUG_ENABLED=true` (`debug_*` tools) |
-| **Maximum** | **27** | Both workspace + debug enabled |
+| **Maximum** | **25** | Both workspace + debug enabled |
 
 ### Settings (28 fields)
 
@@ -234,8 +234,3 @@ tests skip on CI due to IRIS Community license limits).
 
 1. `debug_attach` (attach by PID) does not work on Windows IRIS due to a server-side
    limitation. Use `debug_start` with breakpoints instead.
-2. Parallel native terminal tests skip on CI — IRIS Community license limits
-   concurrent SuperServer connections (3+ parallel calls fail with "Unable to
-   allocate a license").
-3. Native terminal `_run_command_sync` retries 3× on transient errors (CLASS DOES
-   NOT EXIST, license limit, COMMUNICATION LINK ERROR) with 2s delay.
