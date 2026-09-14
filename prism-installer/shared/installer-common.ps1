@@ -209,11 +209,15 @@ function Assert-PrismInstalled {
     if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw "prism.exe missing under $($script:InstallRoot)" }
     $info = Get-InstalledVersion
     if ($null -eq $info) { throw 'installed exe exposes no version resource' }
-    if ($info.FileVersion -notlike ('*' + $Version.TrimStart('v'))) {
-        # The shipped 0.2.1-beta3 case: FileVersion carries the pre-release suffix.
-        if ($info.FileVersion -notmatch [regex]::Escape($Version)) {
-            throw "FileVersion '$($info.FileVersion)' does not match '$Version'"
-        }
+    # FileVersion is the Windows PE version resource: the stamp always derives
+    # the numeric four-part form (0.2.1.4) from head+prerelease, so it can never
+    # carry the user-facing pre-release string '0.2.1-beta4'. Compare it against
+    # the numeric head (like test-install RG-011), not the product string -- a
+    # real stamp passes and the 0.0.0.0 fallback is already caught upstream.
+    $head = $Version
+    if ($Version -match '^(\d+\.\d+\.\d+)-') { $head = $matches[1] }
+    if ($info.FileVersion -notmatch ('^' + [regex]::Escape($head))) {
+        throw "FileVersion '$($info.FileVersion)' does not match the build head '$head' (product version '$Version')"
     }
     $reported = Get-PrismVersionOutput
     if ($null -eq $reported) { throw 'prism.exe is not on the machine PATH after install' }
