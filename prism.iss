@@ -22,7 +22,7 @@
 
 [Setup]
 AppName=Prism
-AppVersion={#AppVer}
+AppVersion={#AppVerFile}
 AppPublisher=Adria Sanchez
 AppPublisherURL=https://github.com/AdriaERNI/Prism
 AppSupportURL=https://github.com/AdriaERNI/Prism/issues
