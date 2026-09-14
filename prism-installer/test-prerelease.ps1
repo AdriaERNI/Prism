@@ -76,12 +76,18 @@ catch {
     Write-Output "##[FAIL] RG-013 asset download failed: $($_.Exception.Message)"
     exit 1
 }
-$landed = @(Get-ChildItem -Path $OutDir -Filter '*-setup.exe' -File -Force |
-           Where-Object { $_.Name -ne 'prism-old-setup.exe' }) | Select-Object -First 1
-if (-not $landed) {
-    Write-Output "##[FAIL] RG-013 $($pickedTag) lists a setup.exe asset but the download wrote none"
+# RG-013 landed file must be the exact downloaded asset, never "whatever
+# *-setup.exe happens to be first": dist/ also holds the freshly-built
+# prism-0.2.1-beta4-setup.exe, which sorts before the baseline name, so the
+# old first-found picker selected the BUILT exe, then Move-Item renamed it
+# to prism-old-setup.exe -- the built stamped exe vanished before upload and
+# RG-011 read 0.0.0.0 (measured). Target the exact download path instead.
+$landedPath = Join-Path $OutDir $pickedAsset.name
+if (-not (Test-Path -LiteralPath $landedPath -PathType Leaf)) {
+    Write-Output "##[FAIL] RG-013 $($pickedTag) asset '$($pickedAsset.name)' was not written to $landedPath"
     exit 1
 }
+$landed = Get-Item -LiteralPath $landedPath
 if ($landed.Length -lt 1MB) {
     Write-Output "##[FAIL] RG-013 the downloaded baseline is only $($landed.Length) bytes -- a truncated fetch"
     exit 1
