@@ -91,9 +91,9 @@ Output:
 }
 ```
 
-If the SuperServer port isn't reachable from your machine, use `prism
-ws` instead — same arguments, but runs over the Atelier WebSocket on
-the HTTP port:
+`prism ws` runs entirely over the Atelier WebSocket terminal (no
+ObjectScript helper upload, no SuperServer "superport" dependency), so it
+works whether or not the native SuperServer port (1972) is reachable:
 
 ```powershell
 prism ws 'Write ##class(MyApp.Hello).Greet(""Prism"")'
@@ -118,3 +118,5 @@ prism delete-doc MyApp.Hello.cls
   client into the same operations.
 - **[Configuration](configuration.md)** — full settings and
   environment-variable reference.
+- **[Installer Exit Codes](installer-exit-codes.md)** — what each
+  installer EXE return code means and the Microsoft Store mapping.

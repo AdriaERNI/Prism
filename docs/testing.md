@@ -430,7 +430,9 @@ GitHub Actions runs on every push and pull request to `main` and
 
 The Linux integration tests run against an `intersystemsdc/iris-community:latest`
 Docker container with both port 52773 (Atelier REST API) and port 1972
-(SuperServer for native terminal) exposed.
+(SuperServer) exposed. Prism's terminal is WebSocket-only, so integration
+tests talk to the Atelier WebSocket on 52773; port 1972 is exposed for the
+server-side features that use it.
 
 ---
 
