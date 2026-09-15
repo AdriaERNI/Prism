@@ -116,3 +116,7 @@ nav:
     - Interactive debugger: mcp/debugging.md
   - Changelog: changelog.md
   - Releases: releases.md
+  - Plans:
+    - Installer CI Verification: plans/2026-09-07-installer-ci-verification.md
+    - Exit Code Reproduction: plans/2026-09-07-exit-code-reproduction.md
+    - Status Review: plans/2026-09-08-status-review.md

@@ -245,15 +245,15 @@ src/prism/
 ├── cast/              # Cast plugin system (import-based Typer plugins)
 │   └── manager.py      # Clone, import, cache, run commands
 └── cli/               # Typer CLI commands (async wrappers)
-    └── commands/       # One module per command (18 commands)
+    └── commands/       # One module per command (17 commands)
 ```
 
 ## Testing
 
 ```bash
-uv run pytest tests/unit/ -v                    # No IRIS needed (966 tests)
+uv run pytest tests/unit/ -v                    # No IRIS needed (1252 tests: 1241 pass, 11 skip)
 IRIS_BASE_URL=http://localhost:52773 \
-  uv run pytest tests/integration/ -v            # Needs IRIS (87 tests)
+  uv run pytest tests/integration/ -v            # Needs IRIS (68 tests)
 uv run pytest tests/gui/ -v                      # GUI tests (29 tests, needs display)
 uv run ruff check . && uv run ruff format --check .  # Lint
 ```
