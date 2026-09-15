@@ -49,10 +49,7 @@ async def put_document(
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
@@ -125,10 +122,7 @@ async def put_and_compile(
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,

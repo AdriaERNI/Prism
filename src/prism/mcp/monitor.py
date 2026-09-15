@@ -31,10 +31,7 @@ async def monitor_system(
     ] = False,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,

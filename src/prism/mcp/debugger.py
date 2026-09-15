@@ -27,10 +27,7 @@ async def debug_list_processes(
     ] = False,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
@@ -71,16 +68,11 @@ async def debug_attach(
     ],
     namespace: Annotated[
         str | None,
-        Field(
-            description="IRIS namespace for the debug connection (default if omitted)."
-        ),
+        Field(description="IRIS namespace for the debug connection (default if omitted)."),
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
@@ -145,10 +137,7 @@ async def debug_start(
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,

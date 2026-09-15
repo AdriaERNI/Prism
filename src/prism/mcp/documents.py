@@ -63,10 +63,7 @@ async def get_document(
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
@@ -228,10 +225,7 @@ async def list_documents(
     ] = 0,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
@@ -328,10 +322,7 @@ async def delete_document(
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server host or IP. "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
