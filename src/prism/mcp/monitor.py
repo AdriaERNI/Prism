@@ -45,25 +45,13 @@ async def monitor_system(
         ),
     ] = None,
 ) -> dict:
-    """Monitor IRIS instance CPU, RAM, disk I/O, GPU (where available), and process load.
+    """Fetch live IRIS metrics and return a load snapshot.
 
-    **Runs on: IRIS server** — fetches live metrics from the IRIS /api/monitor
-    REST endpoint (Prometheus/OpenMetrics format).
-
-    Returns a real-time snapshot with:
-
-    * ``score`` — composite 0-100 load score (higher = more loaded) with
-      per-category sub-scores: ``cpu``, ``memory``, ``disk``, ``process``
-    * ``grade`` — health grade: ``idle``, ``healthy``, ``moderate``,
-      ``loaded``, or ``critical``
-    * ``metrics`` — curated key metrics (CPU %, memory %, process count,
-      physical reads/writes, global references, write-daemon cycle time,
-      SQL active queries, license usage, alerts)
-    * ``metric_count`` — total number of metric samples collected
-    * ``alerts_count`` — number of system alerts since last scrape
-
-    Use two snapshots to compare instances and determine which is less
-    loaded — the lower score wins.
+    **Runs on: IRIS server** (remote, `/api/monitor`). Returns a snapshot
+    with `score` (composite 0-100 load, higher = more loaded) and per-category
+    sub-scores (`cpu`, `memory`, `disk`, `process`), `grade`
+    (idle..critical), curated `metrics`, `metric_count`, and `alerts_count`.
+    Use two snapshots to compare instances — the lower score wins.
     """
     snapshot = await collect_snapshot(
         target_host=target_host,

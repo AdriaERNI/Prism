@@ -53,20 +53,17 @@ async def execute_sql(
         ),
     ] = None,
 ) -> dict:
-    """Execute an InterSystems SQL query on the IRIS server and return the results.
+    """Execute an InterSystems SQL query on the IRIS server and return the rows.
 
-    **Runs on: IRIS server** (remote, via REST API).
+    **Runs on: IRIS server** (remote, REST). SELECT returns
+    ``{"rows": [...], "count": N}`` where each row is a dict of column ->
+    value; INSERT/UPDATE/DELETE return ``{"rows": [], "count": 0}``; SQL
+    errors return ``{"error": "...", "rows": [], "count": 0}``.
 
-    Returns ``{"rows": [...], "count": N}`` for SELECT queries where each
-    row is a dict of column names to values. For INSERT/UPDATE/DELETE returns
-    ``{"rows": [], "count": 0}``. On SQL errors returns
-    ``{"error": "message", "rows": [], "count": 0}``.
-
-    InterSystems SQL follows standard SQL with extensions: %ID is the
-    auto-generated row ID, class properties become columns, and
-    package.class names become table names. Classes must be compiled before
-    their SQL tables are available. Use CALL to invoke ClassMethods marked
-    with [SqlProc] — the SQL name is Package.Class_Method().
+    InterSystems SQL extends standard SQL: `%ID` is the auto row ID, class
+    properties are columns, and `Package.Class` is the table name. Classes
+    must be compiled before their tables exist. Use CALL for [SqlProc]
+    ClassMethods — the SQL name is `Package.Class_Method()`.
     """
     try:
         data = await sql_api.execute_query(

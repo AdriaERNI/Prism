@@ -69,15 +69,13 @@ async def run_tests(
 ) -> dict:
     """Run ObjectScript unit tests on the IRIS server and return structured results.
 
-    **Runs on: IRIS server** (remote — executes tests via IRIS %UnitTest framework).
+    **Runs on: IRIS server** (remote, %UnitTest framework). Runs one or all
+    Test* methods of a %UnitTest.TestCase subclass via DebugRunTestCase (class
+    must be compiled; no filesystem access needed). Helper auto-deployed on
+    first use.
 
-    Executes one or all Test* methods in a %UnitTest.TestCase subclass using
-    DebugRunTestCase (no file system access needed — the class must already be
-    compiled). A helper class is auto-deployed to IRIS on first use.
-
-    Returns ``{"class": "...", "status": "passed|failed", "passed": N,
-    "failed": N, "skipped": N, "methods": [...]}`` where each method has
-    name, status, duration, and error details for failures.
+    Returns ``{"class", "status": passed|failed, "passed", "failed", "skipped",
+    "methods": [...]}`` — each method has name, status, duration, error details.
     """
     # Run the tests via SqlProc
     run_data = await testing_api.run_tests(
@@ -223,11 +221,8 @@ async def list_tests(
 ) -> dict:
     """Discover %UnitTest.TestCase classes and their Test* methods on the IRIS server.
 
-    **Runs on: IRIS server** (remote — queries IRIS %Dictionary tables).
-
-    Queries the %Dictionary tables to find all compiled classes extending
-    %UnitTest.TestCase, with their test method names. Use this before
-    run_tests to see what tests are available.
+    **Runs on: IRIS server** (remote, %Dictionary tables). Use before run_tests
+    to see what tests exist before running them.
 
     Returns ``{"classes": [{"name": "...", "methods": ["TestX", ...]}, ...],
     "count": N}``.

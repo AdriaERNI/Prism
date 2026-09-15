@@ -65,27 +65,17 @@ async def execute_terminal(
         ),
     ] = None,
 ) -> dict:
-    """Execute an ObjectScript command in the IRIS terminal (on the IRIS server).
+    """Execute an ObjectScript command on the IRIS server via the WebSocket terminal.
 
-    **Runs on: IRIS server** (remote, via WebSocket terminal session).
+    **Runs on: IRIS server** (remote). Use for ObjectScript beyond SQL —
+    method calls, globals, $system utilities, variable manipulation. Each call
+    opens a fresh session, so combine dependent statements in one command
+    (e.g. 'set x=1 write x'). For SQL prefer execute_sql.
 
-    Use this tool for ObjectScript that cannot be expressed as SQL — method
-    calls, global operations, system commands ($system utilities), variable
-    manipulation, and any general-purpose ObjectScript code. For SQL queries
-    (SELECT, INSERT, UPDATE, DELETE, CALL), prefer execute_sql instead.
-
-    Each invocation opens a fresh terminal session, so variables and state
-    do not persist between calls. To run multiple dependent statements,
-    combine them in a single command separated by spaces
-    (e.g. 'set x=1 write x').
-
-    This tool supports background execution. For long-running commands
-    (data migrations, batch processing, builds), call it as a background
-    task to avoid blocking. The command runs in its own session while you
-    continue using other tools. Increase the timeout for commands that
-    take longer than 30 seconds.
-
-    Use *target_host* / *target_port* to target a different IRIS instance.
+    Returns ``{"namespace", "command", "output", "prompt"}``; server errors
+    appear as ``ERROR: <message>`` in output. Long commands support background
+    execution (call as a task, raise `timeout`, default 30s). Use
+    target_host/target_port for another IRIS instance.
     """
     try:
         return await terminal_api.execute_command(

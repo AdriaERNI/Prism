@@ -242,25 +242,13 @@ async def list_documents(
         ),
     ] = None,
 ) -> dict:
-    """List source code documents stored on the IRIS server.
+    """List source documents stored on the IRIS server.
 
-    **Runs on: IRIS server** (remote — queries IRIS database metadata).
-
-    Use this to discover existing classes, routines, and other source
-    artifacts before reading or modifying them. Results can be filtered by
-    type (e.g. 'cls' for classes only) and by name prefix.
-
-    Supports pagination via *limit* and *offset*. The response includes
-    ``has_more`` and ``next_offset`` to help navigate large result sets.
-
-    Returns ``{"documents": [...], "count": N, "total": N, "offset": N,
-    "has_more": bool, "next_offset": N | None}`` where each document has:
-    - **name**: full document name to pass to get_document, put_document,
-      delete_document, or compile_documents (e.g. ``MyApp.Person.cls``)
-    - **type**: category — CLS (class), MAC (routine), INC (include), INT
-      (intermediate), CSP (web page), etc.
-    - **modified**: last modification timestamp
-    - **database**: IRIS database the document is stored in
+    **Runs on: IRIS server** (remote metadata query). Filter by `doc_type`
+    (e.g. 'cls') or name prefix (`filter="MyApp"`). Supports pagination via
+    `limit`/`offset`: returns ``{"documents": [...], "count": N, "total": N,
+    "offset": N, "has_more": bool, "next_offset": N | None}``. Each document
+    has `name` (pass to get/put/delete/compile), `type`, `modified`, `database`.
     """
     try:
         data = await docs_api.list_documents(
