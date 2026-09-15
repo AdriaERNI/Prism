@@ -74,8 +74,8 @@ async def read_file(
     path: Annotated[
         str,
         Field(
-            description="Relative path to the file within the workspace. "
-            "Examples: 'src/main.py', 'config/app.json', 'README.md'. "
+            description="Relative path within the workspace. "
+            "Examples: 'src/main.py'. "
             "Absolute paths outside the workspace are rejected."
         ),
     ],
@@ -190,7 +190,7 @@ async def list_files(
     path: Annotated[
         str | None,
         Field(
-            description="Relative directory path within the workspace to list. "
+            description="Directory path within the workspace to list. "
             "Defaults to the workspace root. "
             "Examples: '', 'src', 'tests/unit'."
         ),
@@ -198,9 +198,9 @@ async def list_files(
     pattern: Annotated[
         str | None,
         Field(
-            description="Glob pattern to filter files. "
+            description="Glob filter (e.g. '*.py', '**/*.cls'). "
             "Examples: '*.py', '*.json', '**/*.cls'. "
-            "If omitted, all files and directories are listed."
+            "Omit for all."
         ),
     ] = None,
     max_results: Annotated[

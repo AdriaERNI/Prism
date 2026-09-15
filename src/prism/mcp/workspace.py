@@ -26,7 +26,7 @@ async def put_document(
     name: Annotated[
         str,
         Field(
-            description="Full document name including extension. Format: 'Package.ClassName.ext'. Examples: 'MyApp.Person.cls', 'Utils.mac'. For .cls files, this MUST match the class declaration inside the file (e.g. 'Class MyApp.Person' → name 'MyApp.Person.cls').",
+            description="Full document name incl. extension (e.g. 'MyApp.Person.cls'). For .cls files must match the class declaration inside the file.",
             min_length=1,
             max_length=255,
         ),
@@ -34,7 +34,7 @@ async def put_document(
     path: Annotated[
         str | None,
         Field(
-            description="Relative file path within the workspace to read from. Defaults to the document name. The file must already exist in the workspace — write it first before calling this tool.",
+            description="Relative workspace file path (default: document name). Must exist first — write it first.",
             min_length=1,
             max_length=1024,
         ),
@@ -50,14 +50,14 @@ async def put_document(
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -110,7 +110,7 @@ async def put_and_compile(
     flags: Annotated[
         str | None,
         Field(
-            description="Compiler flags. Defaults to IRIS_COMPILE_FLAGS env var ('cuk'). Flag reference: c=compile, u=skip up-to-date, k=keep generated source, b=include subclasses/dependents, r=compile predecessors, d=display output.",
+            description="Compiler flags (default: IRIS_COMPILE_FLAGS 'cuk'). c=compile, u=skip up-to-date, k=keep generated, b=include subclasses/dependents, r=predecessors, d=display output.",
             min_length=1,
             max_length=64,
         ),
@@ -126,14 +126,14 @@ async def put_and_compile(
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),

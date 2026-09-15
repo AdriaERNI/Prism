@@ -28,14 +28,14 @@ async def debug_list_processes(
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -72,20 +72,20 @@ async def debug_attach(
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace for the debug connection. Uses configured default if omitted."
+            description="IRIS namespace for the debug connection (default if omitted)."
         ),
     ] = None,
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -146,14 +146,14 @@ async def debug_start(
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),

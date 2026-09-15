@@ -52,14 +52,14 @@ async def execute_terminal(
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),

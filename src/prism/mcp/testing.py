@@ -54,14 +54,14 @@ async def run_tests(
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -190,7 +190,7 @@ async def list_tests(
     filter: Annotated[
         str | None,
         Field(
-            description="Filter test classes by name prefix. Examples: 'MyApp.Tests' returns all test classes in that package. Omit to list all test classes in the namespace.",
+            description="Test class name prefix (e.g. 'MyApp.Tests'). Omit for all.",
             min_length=1,
             max_length=255,
         ),
@@ -198,7 +198,7 @@ async def list_tests(
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to search for test classes. Uses the configured default if omitted.",
+            description="IRIS namespace for test classes (default if omitted).",
             min_length=1,
             max_length=64,
         ),
@@ -206,14 +206,14 @@ async def list_tests(
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -281,7 +281,7 @@ async def get_test_results(
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to query results from. Uses the configured default if omitted.",
+            description="IRIS namespace for results (default if omitted).",
             min_length=1,
             max_length=64,
         ),
@@ -289,14 +289,14 @@ async def get_test_results(
     target_host: Annotated[
         str | None,
         Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
+            description="IRIS server host or IP. "
             "Uses the configured default if omitted."
         ),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
