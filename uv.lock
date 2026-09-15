@@ -1121,8 +1121,12 @@ requires-dist = [
     { name = "platformdirs", specifier = ">=4.10.1" },
     { name = "prompt-toolkit", specifier = ">=3.0.53" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
+<<<<<<< HEAD
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "rich", specifier = ">=14.0.0" },
+=======
+    { name = "python-dotenv", specifier = ">=1.2.1" },
+>>>>>>> origin/main
     { name = "toons", specifier = ">=0.7.0" },
     { name = "typer", specifier = ">=0.27.0" },
     { name = "websockets", specifier = ">=16.1.1" },
@@ -1138,7 +1142,10 @@ dev = [
 docs = [
     { name = "mkdocs", specifier = ">=1.6.1" },
     { name = "mkdocs-material", specifier = ">=9.7.7" },
+<<<<<<< HEAD
     { name = "pymdown-extensions", specifier = ">=10.14" },
+=======
+>>>>>>> origin/main
 ]
 
 [[package]]
