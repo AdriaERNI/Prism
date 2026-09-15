@@ -245,7 +245,7 @@ src/prism/
 ├── cast/              # Cast plugin system (import-based Typer plugins)
 │   └── manager.py      # Clone, import, cache, run commands
 └── cli/               # Typer CLI commands (async wrappers)
-    │   └── commands/       # One module per command (17 commands)
+    └── commands/       # One module per command (17 commands)
 ```
 
 ## Testing
