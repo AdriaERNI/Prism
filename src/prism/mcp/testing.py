@@ -53,15 +53,12 @@ async def run_tests(
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -69,15 +66,13 @@ async def run_tests(
 ) -> dict:
     """Run ObjectScript unit tests on the IRIS server and return structured results.
 
-    **Runs on: IRIS server** (remote — executes tests via IRIS %UnitTest framework).
+    **Runs on: IRIS server** (remote, %UnitTest framework). Runs one or all
+    Test* methods of a %UnitTest.TestCase subclass via DebugRunTestCase (class
+    must be compiled; no filesystem access needed). Helper auto-deployed on
+    first use.
 
-    Executes one or all Test* methods in a %UnitTest.TestCase subclass using
-    DebugRunTestCase (no file system access needed — the class must already be
-    compiled). A helper class is auto-deployed to IRIS on first use.
-
-    Returns ``{"class": "...", "status": "passed|failed", "passed": N,
-    "failed": N, "skipped": N, "methods": [...]}`` where each method has
-    name, status, duration, and error details for failures.
+    Returns ``{"class", "status": passed|failed, "passed", "failed", "skipped",
+    "methods": [...]}`` — each method has name, status, duration, error details.
     """
     # Run the tests via SqlProc
     run_data = await testing_api.run_tests(
@@ -192,7 +187,7 @@ async def list_tests(
     filter: Annotated[
         str | None,
         Field(
-            description="Filter test classes by name prefix. Examples: 'MyApp.Tests' returns all test classes in that package. Omit to list all test classes in the namespace.",
+            description="Test class name prefix (e.g. 'MyApp.Tests'). Omit for all.",
             min_length=1,
             max_length=255,
         ),
@@ -200,22 +195,19 @@ async def list_tests(
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to search for test classes. Uses the configured default if omitted.",
+            description="IRIS namespace for test classes (default if omitted).",
             min_length=1,
             max_length=64,
         ),
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -223,11 +215,8 @@ async def list_tests(
 ) -> dict:
     """Discover %UnitTest.TestCase classes and their Test* methods on the IRIS server.
 
-    **Runs on: IRIS server** (remote — queries IRIS %Dictionary tables).
-
-    Queries the %Dictionary tables to find all compiled classes extending
-    %UnitTest.TestCase, with their test method names. Use this before
-    run_tests to see what tests are available.
+    **Runs on: IRIS server** (remote, %Dictionary tables). Use before run_tests
+    to see what tests exist before running them.
 
     Returns ``{"classes": [{"name": "...", "methods": ["TestX", ...]}, ...],
     "count": N}``.
@@ -286,22 +275,19 @@ async def get_test_results(
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to query results from. Uses the configured default if omitted.",
+            description="IRIS namespace for results (default if omitted).",
             min_length=1,
             max_length=64,
         ),
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),

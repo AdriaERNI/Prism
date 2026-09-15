@@ -100,30 +100,16 @@ async def run_shell(
         ),
     ] = None,
 ) -> dict:
-    """Execute a shell command on the local host system (NOT on the IRIS server).
+    """Run a shell command on the local host and return captured output.
 
-    **Runs on: local host** (NOT the IRIS server — this runs on the machine
-    where Prism is installed).
+    **Runs on: local host** (NOT the IRIS server). Shells: PowerShell on
+    Windows, Bash on Linux/macOS. Use for git, file inspection, build
+    steps, and host tasks that do not need IRIS.
 
-    The command runs in the platform's native shell:
-    - **Windows**: PowerShell (``powershell.exe -NoProfile -Command``)
-    - **Linux/macOS**: Bash (``/bin/bash -c``)
-
-    Both stdout and stderr are captured and returned. The output is
-    truncated to 10,000 characters to fit within the LLM context window.
-
-    Use this tool to:
-    - Run ``git`` commands (status, log, diff, add, commit)
-    - List and inspect local files (``ls``, ``dir``, ``Get-ChildItem``)
-    - Run build scripts or local tests
-    - Check local system information (``uname``, ``$PSVersionTable``)
-    - Any general shell task that does NOT need the IRIS server
-
-    Security notes:
-    - The tool refuses to run as root on POSIX systems.
-    - Commands have a timeout (default 30s, max 120s) — long-running
-      processes are killed.
-    - Output is truncated to prevent context window overflow.
+    Returns ``{stdout, stderr, exit_code}``; output is truncated at a limit
+    with a truncation notice. Commands have a timeout (default 30s, max
+    3600s); a timed-out command is killed and reports ``exit_code: -1``
+    with a "Command timed out" stderr line. Refuses to run as root on POSIX.
     """
     # Refuse to run as root on POSIX
     if os.name != "nt":

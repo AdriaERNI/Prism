@@ -20,30 +20,23 @@ from prism.mcp._decorator import logged_tool
 async def get_server_info(
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
     ] = None,
 ) -> dict:
-    """Get IRIS server information including version and available namespaces.
+    """Get IRIS server version and available namespaces.
 
-    **Runs on: IRIS server** (remote — queries server metadata).
-
-    Returns ``{"version": "...", "api": N, "namespaces": [...]}`` — use
-    this to verify connectivity, check the server version, or discover
-    available namespaces before targeting one with other tools.
-
-    Use *target_host* / *target_port* to query a different IRIS instance
-    without changing global settings.
+    **Runs on: IRIS server** (remote metadata query). Returns
+    ``{"version": "...", "api": N, "namespaces": [...]}`` — verify
+    connectivity, check the version, and discover namespaces before targeting
+    one with other tools. Use target_host/target_port for another instance.
     """
     try:
         data = await info_api.get_server_info(

@@ -57,32 +57,23 @@ async def compile_documents(
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
     ] = None,
 ) -> dict:
-    """Compile one or more IRIS source code documents on the IRIS server.
+    """Compile one or more IRIS source documents on the server.
 
-    **Runs on: IRIS server** (remote — compiles classes via IRIS compiler).
-
-    Compilation is required after creating or modifying a class with
-    put_document — it registers the class with IRIS so it becomes usable as a
-    SQL table, its methods can be called, and other classes can reference it.
-    If you only need to push and compile a single document, prefer
-    put_and_compile instead.
-
-    Returns ``{"success": bool, "errors": [...], "console": [...]}``
-    where errors is empty on success and console contains compiler output.
+    **Runs on: IRIS server** (remote compiler). Returns ``{"success": bool,
+    "errors": [...], "console": [...]}`` — errors is empty on success. Compile
+    a created/modified `.cls` so it becomes usable (SQL table, callable
+    methods, references). Prefer `put_and_compile` for a single push+compile.
     """
     for doc_name in doc_names:
         validate_doc_name(doc_name)

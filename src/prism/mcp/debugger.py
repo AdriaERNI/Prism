@@ -27,15 +27,12 @@ async def debug_list_processes(
     ] = False,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -71,21 +68,16 @@ async def debug_attach(
     ],
     namespace: Annotated[
         str | None,
-        Field(
-            description="IRIS namespace for the debug connection. Uses configured default if omitted."
-        ),
+        Field(description="IRIS namespace for the debug connection (default if omitted)."),
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
@@ -93,15 +85,10 @@ async def debug_attach(
 ) -> dict:
     """Attach the debugger to a running IRIS process (on the IRIS server).
 
-    **Runs on: IRIS server** (remote — opens a DBGP debug session).
-
-    Pauses the target process and opens an interactive debug session.
-    Once attached, use debug_step, debug_inspect, debug_variables,
-    debug_stack, and debug_breakpoints to examine and control execution.
-    The process resumes when you call debug_stop or the session times out.
-
-    Only one debug session can be active at a time. Call debug_stop to end
-    the current session before attaching to a new process.
+    **Runs on: IRIS server** (opens a DBGP debug session). Pauses the target
+    process; then use debug_step/inspect/variables/stack/breakpoints. The
+    process resumes on debug_stop or session timeout. One session at a time —
+    call debug_stop before attaching to a new process.
     """
     return await debugger_api.attach_session(
         pid=pid, namespace=namespace, target_host=target_host, target_port=target_port
@@ -150,15 +137,12 @@ async def debug_start(
     ] = None,
     target_host: Annotated[
         str | None,
-        Field(
-            description="IRIS server hostname or IP address (e.g. '192.168.1.100'). "
-            "Uses the configured default if omitted."
-        ),
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
     ] = None,
     target_port: Annotated[
         int | None,
         Field(
-            description="IRIS REST API port (e.g. 52773). Uses the configured default if omitted.",
+            description="IRIS REST API port. Uses the configured default if omitted.",
             ge=1,
             le=65535,
         ),
