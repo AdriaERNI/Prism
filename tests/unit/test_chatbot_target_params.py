@@ -76,8 +76,15 @@ class TestTargetParamsInSchemas:
         """Every IRIS-targeting tool should have target_host and target_port."""
         # Local-only tools that don't target IRIS
         local_tools = {"run_shell", "list_files", "read_file"}
+        # Session-bound debug tools operate on an existing session_id created by
+        # debug_start; the server is fixed at session creation, so they cannot
+        # retarget a different IRIS instance and carry no target params.
+        session_bound_debug_tools = {
+            "debug_step", "debug_inspect", "debug_variables", "debug_stack",
+            "debug_breakpoints", "debug_stop",
+        }
         for tool in discovered_tools:
-            if tool.name in local_tools:
+            if tool.name in local_tools or tool.name in session_bound_debug_tools:
                 continue
             props = tool.inputSchema.get("properties", {})
             # Every IRIS-targeting tool should have both params
