@@ -4,7 +4,7 @@
 # Usage: ./vagrant/build-windows.sh
 #
 # Prerequisites: vagrant up already done from vagrant/
-# Outputs in dist/: prism-<version>.exe and prism-<version>-setup.exe
+# Outputs in dist/: prism-<version>-setup.exe
 
 set -euo pipefail
 
@@ -19,7 +19,6 @@ import tomllib, pathlib
 d = tomllib.loads(pathlib.Path('pyproject.toml').read_text())
 print(d['project']['version'])
 ")
-EXE_NAME="prism-${VERSION}.exe"
 INSTALLER_NAME="prism-${VERSION}-setup.exe"
 echo "==> Building version: $VERSION"
 
@@ -92,11 +91,10 @@ vagrant winrm --shell powershell --command "
   Write-Host 'HTTP server ready'
 
   \$files = @{
-    '/$EXE_NAME' = 'C:\build\prism\dist\\$EXE_NAME'
     '/$INSTALLER_NAME' = 'C:\build\prism\dist\\$INSTALLER_NAME'
   }
 
-  for (\$i = 0; \$i -lt 2; \$i++) {
+  for (\$i = 0; \$i -lt 1; \$i++) {
     \$ctx = \$listener.GetContext()
     \$path = \$ctx.Request.Url.AbsolutePath
     if (\$files.ContainsKey(\$path)) {
@@ -118,13 +116,12 @@ vagrant winrm --shell powershell --command "
 HTTP_PID=$!
 sleep 5
 
-curl -sS -o "$DIST_DIR/$EXE_NAME" "http://${VM_IP}:${HTTP_PORT}/${EXE_NAME}"
 curl -sS -o "$DIST_DIR/$INSTALLER_NAME" "http://${VM_IP}:${HTTP_PORT}/${INSTALLER_NAME}"
 
 wait $HTTP_PID 2>/dev/null || true
 
 # Validate
-for f in "$DIST_DIR/$EXE_NAME" "$DIST_DIR/$INSTALLER_NAME"; do
+for f in "$DIST_DIR/$INSTALLER_NAME"; do
   if [[ ! -s "$f" ]]; then
     echo "ERROR: $f is empty or missing." >&2
     exit 1
@@ -132,4 +129,4 @@ for f in "$DIST_DIR/$EXE_NAME" "$DIST_DIR/$INSTALLER_NAME"; do
 done
 
 echo "==> Build complete:"
-ls -lh "$DIST_DIR/$EXE_NAME" "$DIST_DIR/$INSTALLER_NAME"
+ls -lh "$DIST_DIR/$INSTALLER_NAME"

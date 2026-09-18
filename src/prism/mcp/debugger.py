@@ -8,18 +8,35 @@ from prism.iris.api import debugger as debugger_api
 from prism.mcp._decorator import logged_tool
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_list_processes(
     namespace: Annotated[
         str | None,
-        Field(
-            description="Filter processes by IRIS namespace. Returns all namespaces if omitted."
-        ),
+        Field(description="Filter processes by IRIS namespace. Returns all namespaces if omitted."),
     ] = None,
     system: Annotated[
         bool,
         Field(description="Include system processes. Default false."),
     ] = False,
+    target_host: Annotated[
+        str | None,
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port. Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> list[dict]:
     """List running IRIS processes (on the IRIS server).
 
@@ -28,15 +45,22 @@ async def debug_list_processes(
     Returns process information including PID, namespace, routine, state,
     and device. Use this to find a process to attach the debugger to.
     """
-    processes = await debugger_api.list_processes(system=system)
+    processes = await debugger_api.list_processes(
+        system=system, target_host=target_host, target_port=target_port
+    )
     if namespace:
-        processes = [
-            p for p in processes if p.get("namespace", "").upper() == namespace.upper()
-        ]
+        processes = [p for p in processes if p.get("namespace", "").upper() == namespace.upper()]
     return processes
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_attach(
     pid: Annotated[
         int,
@@ -44,27 +68,41 @@ async def debug_attach(
     ],
     namespace: Annotated[
         str | None,
+        Field(description="IRIS namespace for the debug connection (default if omitted)."),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
+    ] = None,
+    target_port: Annotated[
+        int | None,
         Field(
-            description="IRIS namespace for the debug connection. Uses configured default if omitted."
+            description="IRIS REST API port. Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
         ),
     ] = None,
 ) -> dict:
     """Attach the debugger to a running IRIS process (on the IRIS server).
 
-    **Runs on: IRIS server** (remote — opens a DBGP debug session).
-
-    Pauses the target process and opens an interactive debug session.
-    Once attached, use debug_step, debug_inspect, debug_variables,
-    debug_stack, and debug_breakpoints to examine and control execution.
-    The process resumes when you call debug_stop or the session times out.
-
-    Only one debug session can be active at a time. Call debug_stop to end
-    the current session before attaching to a new process.
+    **Runs on: IRIS server** (opens a DBGP debug session). Pauses the target
+    process; then use debug_step/inspect/variables/stack/breakpoints. The
+    process resumes on debug_stop or session timeout. One session at a time —
+    call debug_stop before attaching to a new process.
     """
-    return await debugger_api.attach_session(pid=pid, namespace=namespace)
+    return await debugger_api.attach_session(
+        pid=pid, namespace=namespace, target_host=target_host, target_port=target_port
+    )
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_start(
     target: Annotated[
         str,
@@ -97,6 +135,18 @@ async def debug_start(
         str | None,
         Field(description="IRIS namespace. Uses configured default if omitted."),
     ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port. Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
+        ),
+    ] = None,
 ) -> dict:
     """Start an interactive debug session on an ObjectScript target.
 
@@ -112,10 +162,19 @@ async def debug_start(
         breakpoints=breakpoints,
         stop_on_entry=stop_on_entry,
         namespace=namespace,
+        target_host=target_host,
+        target_port=target_port,
     )
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_step(
     session_id: Annotated[
         str,
@@ -144,7 +203,14 @@ async def debug_step(
     return await debugger_api.step(session_id, action)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_inspect(
     session_id: Annotated[
         str,
@@ -177,7 +243,14 @@ async def debug_inspect(
     return await debugger_api.inspect_expression(session_id, expression, stack_level)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_variables(
     session_id: Annotated[
         str,
@@ -217,7 +290,14 @@ async def debug_variables(
     return await debugger_api.get_variables(session_id, context_id, sl)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_stack(
     session_id: Annotated[
         str,
@@ -233,7 +313,14 @@ async def debug_stack(
     return await debugger_api.get_stack(session_id)
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_breakpoints(
     session_id: Annotated[
         str,
@@ -289,7 +376,14 @@ async def debug_breakpoints(
     )
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def debug_stop(
     session_id: Annotated[
         str,

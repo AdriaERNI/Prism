@@ -20,21 +20,15 @@ VISION_URL = os.environ.get(
 VISION_API_KEY = os.environ.get(
     "VISION_API_KEY", os.environ.get("EMY_API_KEY", "sk-emy-vllm-vl-72b")
 )
-VISION_MODEL = os.environ.get(
-    "VISION_MODEL", os.environ.get("QWEN3_VL_MODEL", "qwen3-vl")
-)
+VISION_MODEL = os.environ.get("VISION_MODEL", os.environ.get("QWEN3_VL_MODEL", "qwen3-vl"))
 
 # Fallback: emy (Gemma4 VL)
-EMY_URL = os.environ.get(
-    "EMY_VISION_URL", "http://192.168.6.185:8001/v1/chat/completions"
-)
+EMY_URL = os.environ.get("EMY_VISION_URL", "http://192.168.6.185:8001/v1/chat/completions")
 EMY_API_KEY = os.environ.get("EMY_API_KEY", "sk-emy-vllm-vl-72b")
 EMY_MODEL = os.environ.get("EMY_MODEL", "emy")
 
 
-def analyze_screenshot(
-    image_path: str | Path, question: str, timeout: float = 60
-) -> str:
+def analyze_screenshot(image_path: str | Path, question: str, timeout: float = 60) -> str:
     """Send a screenshot to the vision model and return the description.
 
     Tries Qwen3-VL-8B first, falls back to emy if it fails.
@@ -105,6 +99,4 @@ def assert_not_contains(response: str, *keywords: str) -> None:
     """Assert that the vision response does NOT contain any of the keywords."""
     lower = response.lower()
     for kw in keywords:
-        assert kw.lower() not in lower, (
-            f"Did not expect '{kw}' in vision response: {response}"
-        )
+        assert kw.lower() not in lower, f"Did not expect '{kw}' in vision response: {response}"

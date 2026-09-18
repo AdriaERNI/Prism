@@ -1,10 +1,10 @@
 """Unit tests for the monitoring scorer — load score, health grade, comparison."""
 
 from prism.iris.monitor.scorer import (
+    LoadScore,
+    compare_snapshots,
     compute_load_score,
     get_health_grade,
-    compare_snapshots,
-    LoadScore,
 )
 
 
@@ -144,12 +144,7 @@ class TestComputeLoadScore:
         )
         score = compute_load_score(samples)
         # Overall should be a weighted combination
-        expected = (
-            score.cpu * 0.25
-            + score.memory * 0.25
-            + score.disk * 0.25
-            + score.process * 0.25
-        )
+        expected = score.cpu * 0.25 + score.memory * 0.25 + score.disk * 0.25 + score.process * 0.25
         assert abs(score.overall - expected) < 0.01
 
     def test_load_score_has_detail_breakdown(self):
@@ -234,47 +229,31 @@ class TestCompareSnapshots:
 
     def test_first_less_loaded(self):
         """Snapshot A has lower scores → A is less loaded."""
-        score_a = LoadScore(
-            overall=20, cpu=15, memory=20, disk=25, process=20, details={}
-        )
-        score_b = LoadScore(
-            overall=60, cpu=50, memory=65, disk=70, process=55, details={}
-        )
+        score_a = LoadScore(overall=20, cpu=15, memory=20, disk=25, process=20, details={})
+        score_b = LoadScore(overall=60, cpu=50, memory=65, disk=70, process=55, details={})
         result = compare_snapshots(score_a, score_b)
         assert result["less_loaded"] == "snapshot_a"
         assert result["difference"] == 40
         assert result["winner_score"] == 20
 
     def test_second_less_loaded(self):
-        score_a = LoadScore(
-            overall=70, cpu=65, memory=70, disk=75, process=70, details={}
-        )
-        score_b = LoadScore(
-            overall=25, cpu=20, memory=25, disk=30, process=25, details={}
-        )
+        score_a = LoadScore(overall=70, cpu=65, memory=70, disk=75, process=70, details={})
+        score_b = LoadScore(overall=25, cpu=20, memory=25, disk=30, process=25, details={})
         result = compare_snapshots(score_a, score_b)
         assert result["less_loaded"] == "snapshot_b"
         assert result["difference"] == 45
 
     def test_equal_scores(self):
-        score_a = LoadScore(
-            overall=50, cpu=50, memory=50, disk=50, process=50, details={}
-        )
-        score_b = LoadScore(
-            overall=50, cpu=50, memory=50, disk=50, process=50, details={}
-        )
+        score_a = LoadScore(overall=50, cpu=50, memory=50, disk=50, process=50, details={})
+        score_b = LoadScore(overall=50, cpu=50, memory=50, disk=50, process=50, details={})
         result = compare_snapshots(score_a, score_b)
         assert result["less_loaded"] == "tie"
         assert result["difference"] == 0
 
     def test_comparison_includes_sub_scores(self):
         """Comparison should include per-category breakdown."""
-        score_a = LoadScore(
-            overall=30, cpu=10, memory=20, disk=40, process=50, details={}
-        )
-        score_b = LoadScore(
-            overall=60, cpu=50, memory=60, disk=70, process=60, details={}
-        )
+        score_a = LoadScore(overall=30, cpu=10, memory=20, disk=40, process=50, details={})
+        score_b = LoadScore(overall=60, cpu=50, memory=60, disk=70, process=60, details={})
         result = compare_snapshots(score_a, score_b)
         assert "sub_scores" in result
         assert "cpu" in result["sub_scores"]

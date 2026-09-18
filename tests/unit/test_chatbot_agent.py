@@ -21,11 +21,10 @@ from prism.chatbot.agent import (
     ChatbotAgent,
     _build_system_prompt,
     _extract_tool_result_text,
-    _truncate_tool_result,
     _tools_summary,
     _tools_to_openai_format,
+    _truncate_tool_result,
 )
-
 
 # -- Fixtures ----------------------------------------------------------------
 
@@ -283,9 +282,7 @@ class TestBuildSystemPrompt:
 
     def test_includes_shell_and_file_guidance(self):
         """System prompt must mention shell and file tools."""
-        prompt = _build_system_prompt(
-            "- **run_shell**: Run shell", "- **read_file**: Read file"
-        )
+        prompt = _build_system_prompt("- **run_shell**: Run shell", "- **read_file**: Read file")
         assert "run_shell" in prompt
         assert "read_file" in prompt
         assert "PowerShell" in prompt
@@ -636,9 +633,7 @@ class TestChatbotAgentRun:
         tool_call_1 = _make_tool_call(
             call_id="call_1", name="execute_sql", arguments={"query": "SELECT 1"}
         )
-        tool_call_2 = _make_tool_call(
-            call_id="call_2", name="get_server_info", arguments={}
-        )
+        tool_call_2 = _make_tool_call(call_id="call_2", name="get_server_info", arguments={})
 
         first_response = _make_llm_response(tool_calls=[tool_call_1, tool_call_2])
         second_response = _make_llm_response(content="Done.")
@@ -708,9 +703,7 @@ class TestChatbotAgentRun:
         mock_tool_result.content = []
         mock_tool_result.data = None
 
-        mcp_patch, client_patch, _mc = _patch_agent(
-            mcp_tools=[], tool_result=mock_tool_result
-        )
+        mcp_patch, client_patch, _mc = _patch_agent(mcp_tools=[], tool_result=mock_tool_result)
 
         async def mock_call_llm(http_client, messages, tools):
             return _make_llm_response(tool_calls=[tool_call])
@@ -725,9 +718,7 @@ class TestChatbotAgentRun:
         """When LLM returns no content and no tool calls."""
         agent = ChatbotAgent(api_url="https://api.test/v1", api_key="sk-test")
 
-        mock_response = {
-            "choices": [{"message": {"role": "assistant"}, "finish_reason": "stop"}]
-        }
+        mock_response = {"choices": [{"message": {"role": "assistant"}, "finish_reason": "stop"}]}
         mcp_patch, client_patch, _mc = _patch_agent(mcp_tools=[])
 
         with mcp_patch, client_patch:
@@ -803,15 +794,13 @@ class TestChatbotAgentRun:
                     assert result == "Done."
 
                     second_call_messages = captured_messages[1]
-                    tool_message = next(
-                        m for m in second_call_messages if m.get("role") == "tool"
-                    )
+                    tool_message = next(m for m in second_call_messages if m.get("role") == "tool")
                     assert "truncated" in tool_message["content"].lower()
 
     async def test_skills_loaded_into_system_prompt(self):
         """Skills are included in the system prompt sent to the LLM."""
-        import tempfile
         import pathlib
+        import tempfile
 
         with tempfile.TemporaryDirectory() as tmpdir:
             (pathlib.Path(tmpdir) / "guide.md").write_text(
@@ -932,9 +921,7 @@ class TestParallelToolExecution:
         tool_call_1 = _make_tool_call(
             call_id="c1", name="execute_sql", arguments={"query": "SELECT 1"}
         )
-        tool_call_2 = _make_tool_call(
-            call_id="c2", name="get_server_info", arguments={}
-        )
+        tool_call_2 = _make_tool_call(call_id="c2", name="get_server_info", arguments={})
 
         first_response = _make_llm_response(tool_calls=[tool_call_1, tool_call_2])
         second_response = _make_llm_response(content="Both done.")
@@ -966,9 +953,7 @@ class TestParallelToolExecution:
                     # Both tools should have been called
                     assert mock_client.call_tool.call_count == 2
                     # Check the tool names called
-                    called_names = [
-                        c.args[0] for c in mock_client.call_tool.call_args_list
-                    ]
+                    called_names = [c.args[0] for c in mock_client.call_tool.call_args_list]
                     assert "execute_sql" in called_names
                     assert "get_server_info" in called_names
 
@@ -999,9 +984,7 @@ class TestParallelToolExecution:
                     # The unknown tool should NOT have been called via MCP
                     mock_client.call_tool.assert_not_called()
                     # The tool result message should contain the error
-                    tool_msg = next(
-                        m for m in agent.messages if m.get("role") == "tool"
-                    )
+                    tool_msg = next(m for m in agent.messages if m.get("role") == "tool")
                     assert "unknown tool" in tool_msg["content"]
 
 
@@ -1025,9 +1008,7 @@ class TestRetryBackoff:
             if call_count < 3:
                 raise httpx.HTTPStatusError(
                     "Rate limited",
-                    request=httpx.Request(
-                        "POST", "https://api.test/v1/chat/completions"
-                    ),
+                    request=httpx.Request("POST", "https://api.test/v1/chat/completions"),
                     response=httpx.Response(429),
                 )
             return _make_llm_response(content="Success on retry!")
@@ -1035,9 +1016,7 @@ class TestRetryBackoff:
         with mcp_patch, client_patch:
             async with agent:
                 with patch.object(agent, "_call_llm", new=mock_call_llm):
-                    with patch(
-                        "prism.chatbot.agent.asyncio.sleep", new_callable=AsyncMock
-                    ):
+                    with patch("prism.chatbot.agent.asyncio.sleep", new_callable=AsyncMock):
                         result = await agent.run("Hello")
                         assert result == "Success on retry!"
                         assert call_count == 3  # 2 retries + 1 success
@@ -1056,9 +1035,7 @@ class TestRetryBackoff:
             if call_count == 1:
                 raise httpx.HTTPStatusError(
                     "Server error",
-                    request=httpx.Request(
-                        "POST", "https://api.test/v1/chat/completions"
-                    ),
+                    request=httpx.Request("POST", "https://api.test/v1/chat/completions"),
                     response=httpx.Response(503),
                 )
             return _make_llm_response(content="OK")
@@ -1066,9 +1043,7 @@ class TestRetryBackoff:
         with mcp_patch, client_patch:
             async with agent:
                 with patch.object(agent, "_call_llm", new=mock_call_llm):
-                    with patch(
-                        "prism.chatbot.agent.asyncio.sleep", new_callable=AsyncMock
-                    ):
+                    with patch("prism.chatbot.agent.asyncio.sleep", new_callable=AsyncMock):
                         result = await agent.run("Hello")
                         assert result == "OK"
                         assert call_count == 2
@@ -1115,9 +1090,7 @@ class TestRetryBackoff:
         with mcp_patch, client_patch:
             async with agent:
                 with patch.object(agent, "_call_llm", new=mock_call_llm):
-                    with patch(
-                        "prism.chatbot.agent.asyncio.sleep", new_callable=AsyncMock
-                    ):
+                    with patch("prism.chatbot.agent.asyncio.sleep", new_callable=AsyncMock):
                         result = await agent.run("Hello")
                         assert result == "OK after timeout"
                         assert call_count == 2
@@ -1151,9 +1124,7 @@ class TestFinishReason:
                 ):
                     with caplog.at_level(logging.WARNING):
                         await agent.run("Hello")
-                        assert any(
-                            "truncated" in r.message.lower() for r in caplog.records
-                        )
+                        assert any("truncated" in r.message.lower() for r in caplog.records)
 
     async def test_content_filter_logged(self, caplog):
         """finish_reason='content_filter' should be logged."""
@@ -1177,10 +1148,7 @@ class TestFinishReason:
                 ):
                     with caplog.at_level(logging.WARNING):
                         await agent.run("Hello")
-                        assert any(
-                            "content filter" in r.message.lower()
-                            for r in caplog.records
-                        )
+                        assert any("content filter" in r.message.lower() for r in caplog.records)
 
     async def test_token_usage_logged(self, caplog):
         """Token usage from API response should be logged at DEBUG level."""
@@ -1204,9 +1172,7 @@ class TestFinishReason:
                 ):
                     with caplog.at_level(logging.DEBUG):
                         await agent.run("Hello")
-                        assert any(
-                            "token usage" in r.message.lower() for r in caplog.records
-                        )
+                        assert any("token usage" in r.message.lower() for r in caplog.records)
 
     async def test_missing_choices_returns_default(self):
         """When API returns no choices, agent should return default."""
@@ -1321,9 +1287,7 @@ class TestAPICompatibility:
 
     async def test_max_tokens_in_payload(self):
         """Payload should include max_tokens."""
-        agent = ChatbotAgent(
-            api_url="https://api.test/v1", api_key="sk-test", max_tokens=2048
-        )
+        agent = ChatbotAgent(api_url="https://api.test/v1", api_key="sk-test", max_tokens=2048)
 
         mcp_patch, client_patch, _mc = _patch_agent(mcp_tools=[])
 

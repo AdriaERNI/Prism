@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 import typer
 
-from prism.iris.sdk.http import base_url, auth
+from prism.iris.sdk.http import auth, base_url
 from prism.iris.sdk.log import logger
 from prism.settings import settings
 
@@ -29,8 +29,7 @@ def preflight_check() -> None:
         sys.exit(1)
     except httpx.ConnectTimeout:
         typer.echo(
-            f"Error: Connection to IRIS at {base_url()} timed out. "
-            f"Use --skip-preflight to bypass.",
+            f"Error: Connection to IRIS at {base_url()} timed out. Use --skip-preflight to bypass.",
             err=True,
         )
         sys.exit(1)

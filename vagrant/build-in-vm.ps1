@@ -22,8 +22,11 @@ if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: pyinstaller install failed"; exit 
 # Extract version from pyproject.toml
 $ver = (Select-String -Path C:\build\prism\pyproject.toml -Pattern '^version\s*=\s*"(.+)"').Matches[0].Groups[1].Value
 Write-Host "Build version: $ver"
-$parts = $ver.Split('.')
-$major = $parts[0]; $minor = $parts[1]; $patch = $parts[2]
+
+# Parse numeric components (strip pre-release suffix like -beta2)
+$numericVer = ($ver -split '-')[0]
+$parts = $numericVer.Split('.')
+$major = [int]$parts[0]; $minor = [int]$parts[1]; $patch = if ($parts.Length -gt 2) { [int]$parts[2] } else { 0 }
 
 # Generate version-info file for PyInstaller
 $versionInfo = @"
@@ -65,7 +68,7 @@ if ($irisLibs -and (Test-Path $irisLibs)) {
   $addBinary = @("--add-binary", "$irisLibs;intersystems_irispython.libs")
 }
 
-uv run pyinstaller --noconfirm --onefile --name prism --clean `
+uv run pyinstaller --noconfirm --onedir --name prism --clean `
   --paths src `
   --hidden-import prism `
   --hidden-import prism.cli `
@@ -79,8 +82,7 @@ uv run pyinstaller --noconfirm --onefile --name prism --clean `
   --collect-submodules fastmcp `
   --copy-metadata fastmcp `
   --copy-metadata python-dotenv `
-  --copy-metadata toons `
-  --collect-all fakeredis `
+  --noupx `
   --collect-submodules lupa `
   --collect-binaries lupa `
   --version-file version-info.py `
@@ -88,29 +90,30 @@ uv run pyinstaller --noconfirm --onefile --name prism --clean `
   main.py 2>&1 | Out-Host
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: PyInstaller failed"; exit 1 }
 
-if (-not (Test-Path C:\build\prism\dist\prism.exe)) {
-  Write-Host "ERROR: exe not found after build"
+# --onedir output: prism.exe + _internal/ live in a folder named prism\.
+if (-not (Test-Path C:\build\prism\dist\prism\prism.exe)) {
+  Write-Host "ERROR: exe not found after onedir build"
   exit 1
 }
 
-# Rename exe to include version
-Rename-Item C:\build\prism\dist\prism.exe "prism-$ver.exe"
-Write-Host "Build successful: prism-$ver.exe"
+Write-Host "Build successful (onedir): prism\$ver\prism.exe"
 
 Write-Host "Building Inno Setup installer..."
 Write-Host "Installer version: $ver"
 
-$issContent = Get-Content C:\build\prism\vagrant\prism.iss -Raw
+$issContent = Get-Content C:\build\prism\prism.iss -Raw
 $issContent = $issContent -replace 'C:\\vagrant', 'C:\build\prism'
-Set-Content -Path C:\build\prism\vagrant\prism-build.iss -Value $issContent
+Set-Content -Path C:\build\prism\prism-build.iss -Value $issContent
 
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=$ver" C:\build\prism\vagrant\prism-build.iss 2>&1 | Out-Host
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVer=$ver" "/DAppVerNumeric=$numericVer.0" C:\build\prism\prism-build.iss 2>&1 | Out-Host
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: Inno Setup failed"; exit 1 }
 
-if (-not (Test-Path "C:\build\prism\dist\prism-$ver-setup.exe")) {
+if (-not (Test-Path "C:\build\prism\prism-$ver-setup.exe")) {
   Write-Host "ERROR: installer not found after build"
   exit 1
 }
+# Move installer to dist/ for consistent output location
+Move-Item "C:\build\prism\prism-$ver-setup.exe" "C:\build\prism\dist\prism-$ver-setup.exe" -Force
 Write-Host "Installer built: prism-$ver-setup.exe"
 Write-Host "BUILD_VERSION=$ver"
 Write-Host "BUILD_SUCCESS"

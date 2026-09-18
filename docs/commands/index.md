@@ -1,6 +1,6 @@
 # Commands
 
-Prism ships 19 CLI commands. Each one is a thin wrapper around a single
+Prism ships 17 CLI commands. Each one is a thin wrapper around a single
 IRIS operation, so the output is the raw Atelier REST response (as JSON)
 unless otherwise noted.
 
@@ -24,15 +24,14 @@ prism <command> --help
 |---------|---------|
 | [`prism config`](config.md) | Save connection settings to a persistent user-level file. |
 | [`prism info`](info.md) | Print IRIS server version, namespaces, and feature flags. |
-| [`prism monitor`](monitor.md) | Monitor IRIS instance CPU, RAM, disk I/O, and process load in real time with a live terminal dashboard. |
+| [`prism monitor`](monitor.md) | Monitor IRIS instance CPU, RAM, disk I/O, and process load in real time with a live monitoring dashboard. |
 
 ### SQL and ObjectScript
 
 | Command | Summary |
 |---------|---------|
 | [`prism sql`](sql.md) | Run an InterSystems SQL query. |
-| [`prism terminal`](terminal.md#native) | Run an ObjectScript command via the SuperServer (native driver). |
-| [`prism ws`](terminal.md#websocket) | Run an ObjectScript command via the Atelier WebSocket. |
+| [`prism ws`](terminal.md#websocket) | Run an ObjectScript command via the WebSocket terminal (Atelier WebSocket). |
 
 ### Documents
 
@@ -50,12 +49,6 @@ prism <command> --help
 |---------|---------|
 | [`prism list-tests`](testing.md#list-tests) | Discover `%UnitTest.TestCase` classes and their `Test*` methods. |
 | [`prism test`](testing.md#test) | Run a unit test class (or a single method). |
-
-### Code indexing
-
-| Command | Summary |
-|---------|---------|
-| [`prism index`](indexing.md) | Build a compact index of all classes in a namespace. Token-efficient alternative to reading every source file. |
 
 ### MCP server
 
@@ -89,8 +82,8 @@ Several options appear on multiple commands. They all behave the same way:
 | Option | Long / Short | Applies to | Meaning |
 |--------|--------------|-----------|---------|
 | `--format` | — | **Global** (before the subcommand) | Output format: `json` (default) or `toon`. Example: `prism --format toon sql "SELECT 1"`. |
-| `--namespace` | `-n` | `sql`, `terminal`, `ws`, `compile`, `get-doc`, `list-docs`, `put-doc`, `delete-doc`, `test`, `list-tests`, `index` | Target IRIS namespace. Defaults to `IRIS_NAMESPACE` from your settings. |
-| `--timeout` | `-t` | `terminal`, `ws` | Command timeout in seconds. Default `30.0`. |
+| `--namespace` | `-n` | `sql`, `ws`, `compile`, `get-doc`, `list-docs`, `put-doc`, `delete-doc`, `test`, `list-tests` | Target IRIS namespace. Defaults to `IRIS_NAMESPACE` from your settings. |
+| `--timeout` | `-t` | `ws` | Command timeout in seconds. Default `30.0`. |
 | `--port` | `-p` | `serve`, `setup` | Port for the MCP server. Default `3000`. |
 | `--flags` | — | `compile` | IRIS compiler flags (default `cuk`, from `IRIS_COMPILE_FLAGS`). |
 

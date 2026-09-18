@@ -2,8 +2,7 @@
 
 import math
 
-
-from prism.iris.monitor.parser import parse_prometheus_text, MetricSample
+from prism.iris.monitor.parser import parse_prometheus_text
 
 
 class TestParseBasic:
@@ -88,9 +87,7 @@ class TestParseLabels:
 
     def test_label_with_escaped_quote(self):
         text = (
-            "# HELP iris_process Process\n"
-            "# TYPE iris_process gauge\n"
-            'iris_process{id="pid\\"1"} 1\n'
+            '# HELP iris_process Process\n# TYPE iris_process gauge\niris_process{id="pid\\"1"} 1\n'
         )
         metrics = parse_prometheus_text(text)
         assert len(metrics) == 1
@@ -207,17 +204,3 @@ class TestParseEdgeCases:
         assert math.isnan(metrics[0].value)
         assert metrics[1].value == float("inf")
         assert metrics[2].value == float("-inf")
-
-
-class TestMetricSampleDataclass:
-    """Verify MetricSample dataclass fields."""
-
-    def test_metric_sample_creation(self):
-        sample = MetricSample(name="iris_cpu_usage", value=12.5, labels={})
-        assert sample.name == "iris_cpu_usage"
-        assert sample.value == 12.5
-        assert sample.labels == {}
-
-    def test_metric_sample_with_labels(self):
-        sample = MetricSample(name="iris_db_size_mb", value=100, labels={"id": "USER"})
-        assert sample.labels["id"] == "USER"

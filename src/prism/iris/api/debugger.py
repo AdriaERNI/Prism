@@ -9,15 +9,13 @@ from __future__ import annotations
 import asyncio
 import base64
 import re
-from xml.etree.ElementTree import Element
-
 from urllib.parse import quote
+from xml.etree.ElementTree import Element
 
 from prism.iris.sdk.dbgp import DbgpConnection, DbgpError
 from prism.iris.sdk.debug_session import get_session_manager
 from prism.iris.sdk.http import api_url, client, parse_json
 from prism.settings import settings
-
 
 # ── Session lifecycle ─────────────────────────────────────────────────
 
@@ -27,6 +25,8 @@ async def start_session(
     breakpoints: list[dict] | None = None,
     stop_on_entry: bool = True,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Start a new debug session targeting an ObjectScript expression.
 
@@ -39,11 +39,13 @@ async def start_session(
         stop_on_entry: If True, break at the first line. If False, run until
             a breakpoint is hit.
         namespace: IRIS namespace (defaults to configured).
+        target_host: Optional IRIS host override (defaults to configured).
+        target_port: Optional IRIS port override (defaults to configured).
 
     Returns:
         Session info with id, initial location, and source context.
     """
-    conn = await DbgpConnection.connect(namespace)
+    conn = await DbgpConnection.connect(namespace, target_host, target_port)
     session = None
     manager = get_session_manager()
 
@@ -52,15 +54,11 @@ async def start_session(
         # The target value is base64-encoded (using -v_base64) to avoid
         # DBGP argument parsing issues with special characters like ##, ()
         # in ObjectScript expressions — matches VS Code ObjectScript extension.
-        await conn.send_command(
-            "feature_set", n="max_data", v=str(settings.iris_debug_max_data)
-        )
+        await conn.send_command("feature_set", n="max_data", v=str(settings.iris_debug_max_data))
         await conn.send_command(
             "feature_set", n="max_children", v=str(settings.iris_debug_max_children)
         )
-        await conn.send_command(
-            "feature_set", n="max_depth", v=str(settings.iris_debug_max_depth)
-        )
+        await conn.send_command("feature_set", n="max_depth", v=str(settings.iris_debug_max_depth))
         await conn.send_command(
             "feature_set",
             n="step_granularity",
@@ -130,18 +128,27 @@ async def start_session(
         raise
 
 
-async def list_processes(system: bool = False) -> list[dict]:
+async def list_processes(
+    system: bool = False,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> list[dict]:
     """List IRIS processes via the Atelier jobs API.
 
     Args:
         system: If True, include system processes.
+        target_host: Optional IRIS host override (defaults to configured).
+        target_port: Optional IRIS port override (defaults to configured).
 
     Returns:
         List of process dicts with pid, namespace, routine, state, device.
     """
-    c = client()
+    c = client(target_host=target_host, target_port=target_port)
     params = {"system": "1" if system else "0"}
-    r = await c.get(f"{api_url('%SYS')}/jobs", params=params)
+    r = await c.get(
+        f"{api_url('%SYS', target_host=target_host, target_port=target_port)}/jobs",
+        params=params,
+    )
     r.raise_for_status()
     data = parse_json(r)
 
@@ -163,6 +170,8 @@ async def list_processes(system: bool = False) -> list[dict]:
 async def attach_session(
     pid: int,
     namespace: str | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Attach the debugger to an already-running IRIS process.
 
@@ -172,6 +181,8 @@ async def attach_session(
     Args:
         pid: Process ID to attach to.
         namespace: IRIS namespace for the DBGP connection (defaults to configured).
+        target_host: Optional IRIS host override (defaults to configured).
+        target_port: Optional IRIS port override (defaults to configured).
 
     Returns:
         Session info with id, state, target, and location/variables if in break state.
@@ -179,7 +190,7 @@ async def attach_session(
     last_err: Exception | None = None
     for attempt in range(4):
         try:
-            return await _do_attach(pid, namespace)
+            return await _do_attach(pid, namespace, target_host, target_port)
         except (DbgpError, RuntimeError):
             raise  # Protocol / logic errors — don't retry
         except Exception as e:
@@ -189,8 +200,13 @@ async def attach_session(
     raise last_err  # type: ignore[misc]
 
 
-async def _do_attach(pid: int, namespace: str | None) -> dict:
-    conn = await DbgpConnection.connect(namespace)
+async def _do_attach(
+    pid: int,
+    namespace: str | None,
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> dict:
+    conn = await DbgpConnection.connect(namespace, target_host, target_port)
     session = None
     manager = get_session_manager()
     target = f"PID:{pid}"
@@ -201,15 +217,11 @@ async def _do_attach(pid: int, namespace: str | None) -> dict:
         await conn.send_command("feature_set", n="debug_target", v=target)
 
         # Then configure session features
-        await conn.send_command(
-            "feature_set", n="max_data", v=str(settings.iris_debug_max_data)
-        )
+        await conn.send_command("feature_set", n="max_data", v=str(settings.iris_debug_max_data))
         await conn.send_command(
             "feature_set", n="max_children", v=str(settings.iris_debug_max_children)
         )
-        await conn.send_command(
-            "feature_set", n="max_depth", v=str(settings.iris_debug_max_depth)
-        )
+        await conn.send_command("feature_set", n="max_depth", v=str(settings.iris_debug_max_depth))
         await conn.send_command(
             "feature_set",
             n="step_granularity",
@@ -481,9 +493,7 @@ async def manage_breakpoints(
             await session.conn.send_command("breakpoint_remove", d=breakpoint_id)
         else:
             state = "enabled" if action == "enable" else "disabled"
-            await session.conn.send_command(
-                "breakpoint_update", d=breakpoint_id, s=state
-            )
+            await session.conn.send_command("breakpoint_update", d=breakpoint_id, s=state)
         return {
             "session_id": session_id,
             "action": action,
@@ -500,7 +510,7 @@ async def stop_session(session_id: str) -> dict:
 
     try:
         await session.conn.send_command("stop")
-    except (DbgpError, Exception):
+    except Exception:
         pass
 
     await manager.close(session_id)
@@ -629,9 +639,7 @@ def _parse_breakpoint_list(resp: Element) -> list[dict]:
     return bps
 
 
-async def _set_breakpoint(
-    conn: DbgpConnection, bp: dict, namespace: str | None = None
-) -> dict:
+async def _set_breakpoint(conn: DbgpConnection, bp: dict, namespace: str | None = None) -> dict:
     """Set a single breakpoint from a breakpoint definition dict.
 
     IRIS expects file URIs in ``dbgp://|NAMESPACE|FileName.cls`` format
@@ -700,6 +708,4 @@ async def _get_current_stack_level(conn: DbgpConnection) -> int:
 
 
 def _context_name(context_id: int) -> str:
-    return {0: "private", 1: "public", 2: "class"}.get(
-        context_id, f"context_{context_id}"
-    )
+    return {0: "private", 1: "public", 2: "class"}.get(context_id, f"context_{context_id}")

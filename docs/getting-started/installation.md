@@ -10,7 +10,8 @@ via `uv`/`pip` for Linux and development setups.
 
    - `prism-<version>-setup.exe` — Inno Setup installer. Installs
      `prism.exe` to `C:\Program Files\prism\` and adds that folder to
-     the system `PATH`.
+     the system `PATH`. See [Installer Exit Codes](installer-exit-codes.md)
+     for what the process exit code means after a silent install.
    - `prism.exe` — Standalone PyInstaller binary. Drop it anywhere on
      your `PATH` — no install needed.
 
@@ -96,9 +97,9 @@ Linux: `pip uninstall prism` or remove the cloned directory.
 ## Prerequisites
 
 The only runtime requirement is a reachable IRIS instance with the
-Atelier REST API enabled. The SuperServer port (default `1972`) should
-also be reachable for the native `prism terminal` command; if it isn't,
-`prism ws` uses the Atelier WebSocket instead.
+Atelier REST API enabled. The terminal uses the Atelier WebSocket terminal
+(`prism ws`); it does NOT upload an ObjectScript helper and does NOT use
+the SuperServer ("superport") port.
 
 ## Next steps
 

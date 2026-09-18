@@ -102,8 +102,7 @@ def _slug_from_url(url: str) -> str:
     parsed = urlparse(url)
     path = parsed.path or url
     path = path.strip("/")
-    if path.endswith(".git"):
-        path = path[: -len(".git")]
+    path = path.removesuffix(".git")
     name = Path(path).name
     if name.lower().startswith("prism-"):
         name = name[len("prism-") :]
@@ -117,8 +116,7 @@ def _resolve_clone_url(url: str) -> str:
     parsed = urlparse(url)
     if parsed.hostname and "github.com" in parsed.hostname:
         path = parsed.path.strip("/")
-        if path.endswith(".git"):
-            path = path[: -len(".git")]
+        path = path.removesuffix(".git")
         parts = path.split("/")
         if len(parts) >= 2:
             owner, repo = parts[0], parts[1]
@@ -257,9 +255,7 @@ def add_repo(url: str) -> CastRepo:
     # Duplicate URL check
     for r in repos:
         if r.url == url:
-            raise RuntimeError(
-                f"Repository already registered as '{r.name}' (URL: {r.url})"
-            )
+            raise RuntimeError(f"Repository already registered as '{r.name}' (URL: {r.url})")
 
     target = cast_dir() / slug
     if target.exists():
@@ -279,9 +275,7 @@ def add_repo(url: str) -> CastRepo:
             text=True,
         )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"Failed to clone {url}: {result.stderr.strip() or 'unknown error'}"
-        )
+        raise RuntimeError(f"Failed to clone {url}: {result.stderr.strip() or 'unknown error'}")
 
     # Import + read metadata
     alias, description, commands = _read_cast_metadata(target)
@@ -365,9 +359,7 @@ def update_repos() -> list[tuple[str, str]]:
                 entry["name"] = alias
                 entry["description"] = description
                 entry["commands"] = [{"name": c.name, "help": c.help} for c in commands]
-                status = (
-                    "updated" if "Updating" in result.stdout else "already up to date"
-                )
+                status = "updated" if "Updating" in result.stdout else "already up to date"
             except Exception as exc:
                 status = f"pulled but import failed: {exc}"
             results.append((name, status))

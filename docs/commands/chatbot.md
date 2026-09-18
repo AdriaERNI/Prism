@@ -197,7 +197,7 @@ server. The exact set depends on your configuration:
 
 | Category | Count | Condition |
 |----------|-------|-----------|
-| Always-on | 11 | SQL, documents, terminal, testing, indexing |
+| Always-on | 11 | SQL, documents, terminal, testing |
 | Workspace-gated | 2 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`) |
 | Debug-gated | 9 | `IRIS_DEBUG_ENABLED=true` (`debug_*` tools) |
 

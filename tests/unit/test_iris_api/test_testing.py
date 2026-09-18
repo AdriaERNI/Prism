@@ -36,9 +36,7 @@ class TestEnsureRunnerDeployed:
                 "get_document",
                 AsyncMock(side_effect=DocumentNotFound("MCP.TestRunner.cls")),
             ),
-            patch.object(
-                testing_api, "put_document", AsyncMock(return_value={})
-            ) as mock_put,
+            patch.object(testing_api, "put_document", AsyncMock(return_value={})) as mock_put,
             patch.object(
                 testing_api,
                 "compile_documents",
@@ -64,13 +62,11 @@ class TestEnsureRunnerDeployed:
             patch.object(
                 testing_api,
                 "compile_documents",
-                AsyncMock(
-                    return_value={"status": {"errors": [{"error": "Syntax error"}]}}
-                ),
+                AsyncMock(return_value={"status": {"errors": [{"error": "Syntax error"}]}}),
             ),
+            pytest.raises(RuntimeError, match="Syntax error"),
         ):
-            with pytest.raises(RuntimeError, match="Syntax error"):
-                await testing_api.ensure_runner_deployed()
+            await testing_api.ensure_runner_deployed()
 
     async def test_skips_when_auto_deploy_disabled(self):
         """When IRIS_TEST_AUTO_DEPLOY is False, skip deployment entirely."""
@@ -88,9 +84,7 @@ class TestRunTests:
 
     async def test_calls_sql_with_correct_query(self):
         with (
-            patch.object(
-                testing_api, "ensure_runner_deployed", AsyncMock(return_value=True)
-            ),
+            patch.object(testing_api, "ensure_runner_deployed", AsyncMock(return_value=True)),
             patch.object(
                 testing_api,
                 "execute_query",
@@ -110,9 +104,7 @@ class TestRunTests:
 
     async def test_passes_custom_manager(self):
         with (
-            patch.object(
-                testing_api, "ensure_runner_deployed", AsyncMock(return_value=True)
-            ),
+            patch.object(testing_api, "ensure_runner_deployed", AsyncMock(return_value=True)),
             patch.object(
                 testing_api,
                 "execute_query",
@@ -124,9 +116,7 @@ class TestRunTests:
                 ),
             ) as mock_sql,
         ):
-            await testing_api.run_tests(
-                "MyApp.Tests.Calc", manager_class="TestCoverage.Manager"
-            )
+            await testing_api.run_tests("MyApp.Tests.Calc", manager_class="TestCoverage.Manager")
             query = mock_sql.call_args[0][0]
             assert "TestCoverage.Manager" in query
 
@@ -152,10 +142,7 @@ class TestListTestClasses:
             await testing_api.list_test_classes()
             query = mock_sql.call_args[0][0]
             assert "%UnitTest.TestCase" in query
-            assert (
-                "%STARTSWITH"
-                not in query.split("AND md.Name")[0].split("AND cd.Name")[-1]
-            )
+            assert "%STARTSWITH" not in query.split("AND md.Name")[0].split("AND cd.Name")[-1]
 
     async def test_with_filter(self):
         with patch.object(

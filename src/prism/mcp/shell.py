@@ -10,7 +10,8 @@ The tool auto-detects the platform:
 - Linux/macOS: Bash (``/bin/bash -c``)
 
 Security:
-- Commands are run with a configurable timeout (default 30s, max 120s)
+- Commands are run with a configurable timeout (default 30s, max 3600s /
+  up to 1 hour)
 - Output is captured and truncated to 10K chars for the LLM context
 - The tool does NOT run as root (refuses if ``os.geteuid() == 0`` on POSIX)
 - The tool does NOT grant network access beyond what the host already has
@@ -29,7 +30,10 @@ from prism.mcp._decorator import logged_tool
 
 _MAX_OUTPUT_CHARS = 10_000
 _DEFAULT_TIMEOUT = 30.0
-_MAX_TIMEOUT = 120.0
+# Maximum timeout an agent may request. Raised from 120s to 3600s so long
+# commands (e.g. >30-minute jobs) can be run and their output returned.
+# The default stays 30s so short commands remain snappy by default.
+_MAX_TIMEOUT = 3600.0
 
 
 def _get_shell_command() -> tuple[str, list[str]]:
@@ -55,7 +59,14 @@ def _truncate_output(text: str, max_chars: int = _MAX_OUTPUT_CHARS) -> str:
     return text[:cut] + f"\n... [output truncated, {len(text) - cut} more chars]"
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
 async def run_shell(
     command: Annotated[
         str,
@@ -64,14 +75,16 @@ async def run_shell(
             "PowerShell; on Linux/macOS it runs in Bash. "
             "Examples (PowerShell): 'Get-ChildItem', 'echo $env:PATH', "
             "'git status'. Examples (Bash): 'ls -la', 'echo $PATH', "
-            "'git status'."
+            "'git status'.",
+            min_length=1,
+            max_length=10000,
         ),
     ],
     timeout: Annotated[
         float,
         Field(
             description="Timeout in seconds. The command is killed if it "
-            "exceeds this. Default 30, maximum 120.",
+            "exceeds this. Default 30, maximum 3600 (1 hour).",
             gt=0,
             le=_MAX_TIMEOUT,
         ),
@@ -81,34 +94,22 @@ async def run_shell(
         Field(
             description="Working directory for the command. If omitted, "
             "uses the workspace root (IRIS_WORKSPACE) or the current "
-            "directory."
+            "directory.",
+            min_length=1,
+            max_length=1024,
         ),
     ] = None,
 ) -> dict:
-    """Execute a shell command on the local host system (NOT on the IRIS server).
+    """Run a shell command on the local host and return captured output.
 
-    **Runs on: local host** (NOT the IRIS server — this runs on the machine
-    where Prism is installed).
+    **Runs on: local host** (NOT the IRIS server). Shells: PowerShell on
+    Windows, Bash on Linux/macOS. Use for git, file inspection, build
+    steps, and host tasks that do not need IRIS.
 
-    The command runs in the platform's native shell:
-    - **Windows**: PowerShell (``powershell.exe -NoProfile -Command``)
-    - **Linux/macOS**: Bash (``/bin/bash -c``)
-
-    Both stdout and stderr are captured and returned. The output is
-    truncated to 10,000 characters to fit within the LLM context window.
-
-    Use this tool to:
-    - Run ``git`` commands (status, log, diff, add, commit)
-    - List and inspect local files (``ls``, ``dir``, ``Get-ChildItem``)
-    - Run build scripts or local tests
-    - Check local system information (``uname``, ``$PSVersionTable``)
-    - Any general shell task that does NOT need the IRIS server
-
-    Security notes:
-    - The tool refuses to run as root on POSIX systems.
-    - Commands have a timeout (default 30s, max 120s) — long-running
-      processes are killed.
-    - Output is truncated to prevent context window overflow.
+    Returns ``{stdout, stderr, exit_code}``; output is truncated at a limit
+    with a truncation notice. Commands have a timeout (default 30s, max
+    3600s); a timed-out command is killed and reports ``exit_code: -1``
+    with a "Command timed out" stderr line. Refuses to run as root on POSIX.
     """
     # Refuse to run as root on POSIX
     if os.name != "nt":
@@ -116,8 +117,7 @@ async def run_shell(
             if os.geteuid() == 0:
                 return {
                     "stdout": "",
-                    "stderr": "Refusing to run shell command as root. "
-                    "Use a non-root user.",
+                    "stderr": "Refusing to run shell command as root. Use a non-root user.",
                     "exit_code": -1,
                     "shell": "bash",
                 }
@@ -150,10 +150,14 @@ async def run_shell(
         )
 
         try:
-            stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                process.communicate(), timeout=timeout
-            )
-        except asyncio.TimeoutError:
+            # Wait for the command to *exit* (communicate completes on exit,
+            # which returns the output) within the timeout. If the command
+            # finishes at or before the timeout, return its output — not a
+            # timeout error. Only commands that genuinely hang past the
+            # timeout (never exit) are killed.
+            await asyncio.wait_for(process.wait(), timeout=timeout)
+            stdout_bytes, stderr_bytes = await process.communicate()
+        except TimeoutError:
             process.kill()
             await process.wait()
             return {

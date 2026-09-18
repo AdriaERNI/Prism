@@ -7,8 +7,8 @@ import httpx
 import pytest
 
 from prism.iris.api import documents as docs_api
-from prism.iris.api.documents import DocumentNotFound
-from tests.unit.test_iris_api.conftest import mock_client, json_response, text_response
+from prism.iris.api.documents import DocumentNotFound, DocumentPutError
+from tests.unit.test_iris_api.conftest import json_response, mock_client, text_response
 
 
 class TestListDocuments:
@@ -19,7 +19,7 @@ class TestListDocuments:
             assert "/docnames" in str(request.url)
             return json_response(body)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await docs_api.list_documents()
         assert result["result"]["content"][0]["name"] == "MyApp.cls"
 
@@ -30,14 +30,14 @@ class TestListDocuments:
             assert "filter=Test" in str(request.url)
             return json_response({"result": {"content": []}})
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             await docs_api.list_documents(doc_type="cls", generated=True, filter="Test")
 
     async def test_http_error(self):
         def handler(request):
             return httpx.Response(500)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.HTTPStatusError):
                 await docs_api.list_documents()
 
@@ -45,7 +45,7 @@ class TestListDocuments:
         def handler(request):
             return text_response("{broken", status=200)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(ValueError, match="invalid JSON"):
                 await docs_api.list_documents()
 
@@ -58,7 +58,7 @@ class TestGetDocument:
             assert "/doc/MyApp.cls" in str(request.url)
             return json_response(body)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await docs_api.get_document("MyApp.cls")
         assert result["result"]["content"][0]["content"] == "Class MyApp {}"
 
@@ -66,7 +66,7 @@ class TestGetDocument:
         def handler(request):
             return httpx.Response(404)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(DocumentNotFound) as exc_info:
                 await docs_api.get_document("Missing.cls")
         assert exc_info.value.name == "Missing.cls"
@@ -75,7 +75,7 @@ class TestGetDocument:
         def handler(request):
             return httpx.Response(500)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.HTTPStatusError):
                 await docs_api.get_document("MyApp.cls")
 
@@ -83,7 +83,7 @@ class TestGetDocument:
         def handler(request):
             return text_response("oops", status=200)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(ValueError, match="invalid JSON"):
                 await docs_api.get_document("MyApp.cls")
 
@@ -98,7 +98,7 @@ class TestPutDocument:
             assert "ignoreConflict=1" in str(request.url)
             return json_response(body)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await docs_api.put_document("MyApp.cls", ["line1"])
         assert result["result"]["name"] == "MyApp.cls"
 
@@ -109,14 +109,14 @@ class TestPutDocument:
             assert payload["content"] == ["Class MyApp {", "}"]
             return json_response({"result": {}})
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             await docs_api.put_document("MyApp.cls", ["Class MyApp {", "}"])
 
     async def test_http_error(self):
         def handler(request):
             return httpx.Response(500)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.HTTPStatusError):
                 await docs_api.put_document("MyApp.cls", ["line"])
 
@@ -124,9 +124,50 @@ class TestPutDocument:
         def handler(request):
             return text_response("bad", status=200)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(ValueError, match="invalid JSON"):
                 await docs_api.put_document("MyApp.cls", ["line"])
+
+    async def test_rejected_upload_embedded_status_raises(self):
+        """IRIS rejects the PUT but returns HTTP 200 with error in result.status."""
+        body = {
+            "result": {
+                "name": "MyApp.inc",
+                "status": "ERROR #16021: Illegal Header Line: #define X",
+            }
+        }
+
+        def handler(request):
+            return json_response(body)
+
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
+            with pytest.raises(DocumentPutError, match="ERROR #16021"):
+                await docs_api.put_document("MyApp.inc", ["#define X"])
+
+    async def test_rejected_upload_top_level_errors_raises(self):
+        """IRIS puts the error in status.errors instead."""
+        body = {
+            "status": {"errors": [{"error": "ERROR #5001: compile failed"}]},
+            "result": {},
+        }
+
+        def handler(request):
+            return json_response(body)
+
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
+            with pytest.raises(DocumentPutError, match="ERROR #5001"):
+                await docs_api.put_document("MyApp.cls", ["line"])
+
+    async def test_ok_status_is_not_error(self):
+        """A successful put with status 'ok'/'created' must not raise."""
+        body = {"result": {"name": "MyApp.cls", "status": "created"}}
+
+        def handler(request):
+            return json_response(body)
+
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
+            result = await docs_api.put_document("MyApp.cls", ["line"])
+        assert result["result"]["status"] == "created"
 
 
 class TestDeleteDocument:
@@ -137,7 +178,7 @@ class TestDeleteDocument:
             assert request.method == "DELETE"
             return json_response(body)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await docs_api.delete_document("MyApp.cls")
         assert result["result"]["deleted"] is True
 
@@ -145,7 +186,7 @@ class TestDeleteDocument:
         def handler(request):
             return httpx.Response(404)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(DocumentNotFound) as exc_info:
                 await docs_api.delete_document("Missing.cls")
         assert exc_info.value.name == "Missing.cls"
@@ -154,7 +195,7 @@ class TestDeleteDocument:
         def handler(request):
             return httpx.Response(500)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.HTTPStatusError):
                 await docs_api.delete_document("MyApp.cls")
 
@@ -162,6 +203,6 @@ class TestDeleteDocument:
         def handler(request):
             return text_response("nope", status=200)
 
-        with patch.object(docs_api, "client", lambda: mock_client(handler)):
+        with patch.object(docs_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(ValueError, match="invalid JSON"):
                 await docs_api.delete_document("MyApp.cls")

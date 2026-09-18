@@ -134,9 +134,7 @@ class TestWatchEventLoop:
 
     def test_single_snapshot_works_without_error(self):
         """`prism monitor` (no watch) should also work without event loop issues."""
-        with patch(
-            "prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.cli.commands.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             mock.return_value = _make_snapshot()
             result = runner.invoke(app, ["monitor"])
 

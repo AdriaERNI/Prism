@@ -20,10 +20,10 @@ import html
 import queue
 import threading
 import time
-from dataclasses import dataclass, field
-from typing import Any, Callable
-
 import tkinter as tk
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -150,9 +150,7 @@ class SQLController:
 
         self._running = True
         self._cancel_requested = False
-        self._pending_callback = (
-            None  # connection check doesn't use QueryResult callback
-        )
+        self._pending_callback = None  # connection check doesn't use QueryResult callback
 
         def _conn_done(connected: bool) -> None:
             self._running = False
@@ -290,12 +288,8 @@ class SQLController:
         if any_error:
             result.error = first_error
 
-        # N2: Always invoke callback — even on cancel — so UI is restored
-        if self._cancel_requested:
-            # Still put result in queue so _poll() picks it up and
-            # calls the callback to restore toolbar/status bar
-            pass
-
+        # Always enqueue the result — even on cancel — so _poll() invokes
+        # the callback and the UI (toolbar/status bar) is restored.
         self._queue.put(result)
 
     def _run_query(self, query: str, namespace: str | None) -> None:
@@ -308,8 +302,9 @@ class SQLController:
         fail with "Event loop is closed".
         """
         import httpx
-        from prism.settings import settings
+
         from prism.iris.sdk.http import api_url, parse_json
+        from prism.settings import settings
 
         result = QueryResult()
         start = time.monotonic()
@@ -320,9 +315,7 @@ class SQLController:
 
             async def _do():
                 async with httpx.AsyncClient(
-                    auth=httpx.BasicAuth(
-                        settings.iris_username, settings.iris_password
-                    ),
+                    auth=httpx.BasicAuth(settings.iris_username, settings.iris_password),
                     timeout=30.0,
                 ) as c:
                     url = f"{api_url(namespace)}/action/query"
@@ -342,8 +335,8 @@ class SQLController:
                 pass
             loop.close()
 
-        # N2: Always put result in queue — even on cancel — so _poll()
-        # picks it up and calls the callback to restore toolbar/status bar.
+        # Always enqueue the result — even on cancel — so _poll() picks it
+        # up and calls the callback to restore the toolbar/status bar.
         # The cancelled result is still valid (just might be partial).
         self._queue.put(result)
 

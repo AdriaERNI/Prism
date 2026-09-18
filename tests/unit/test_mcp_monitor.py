@@ -2,16 +2,13 @@
 
 from unittest.mock import AsyncMock, patch
 
-
 from prism.mcp.monitor import monitor_system
 
 
 class TestMonitorSystemTool:
     async def test_returns_snapshot_dict(self):
         """monitor_system returns a dict with score, grade, metrics."""
-        with patch(
-            "prism.mcp.monitor.collect_snapshot", new_callable=AsyncMock
-        ) as mock:
+        with patch("prism.mcp.monitor.collect_snapshot", new_callable=AsyncMock) as mock:
             from prism.iris.monitor import MonitorSnapshot
             from prism.iris.monitor.scorer import LoadScore
 

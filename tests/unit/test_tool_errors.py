@@ -1,6 +1,6 @@
 """Unit tests for error handling in MCP tool functions."""
 
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -135,17 +135,13 @@ class TestGetDocumentSlicing:
     async def test_conflict_from_line_with_head(self):
         from prism.mcp import documents as doc_tools
 
-        with pytest.raises(
-            ValueError, match="from_line/to_line cannot be combined with head"
-        ):
+        with pytest.raises(ValueError, match="from_line/to_line cannot be combined with head"):
             await doc_tools.get_document.__wrapped__("X.cls", from_line=1, head=5)
 
     async def test_conflict_to_line_with_tail(self):
         from prism.mcp import documents as doc_tools
 
-        with pytest.raises(
-            ValueError, match="from_line/to_line cannot be combined with tail"
-        ):
+        with pytest.raises(ValueError, match="from_line/to_line cannot be combined with tail"):
             await doc_tools.get_document.__wrapped__("X.cls", to_line=5, tail=3)
 
     async def test_conflict_head_with_tail(self):
@@ -197,9 +193,7 @@ class TestPutDocumentErrors:
 
         with patch.object(settings, "iris_workspace", str(tmp_path)):
             with pytest.raises(ValueError, match="escapes workspace"):
-                await ws_tools.put_document.__wrapped__(
-                    "Hack.cls", path="../../../etc/passwd"
-                )
+                await ws_tools.put_document.__wrapped__("Hack.cls", path="../../../etc/passwd")
 
 
 class TestPutAndCompileErrors:

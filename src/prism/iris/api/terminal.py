@@ -10,7 +10,8 @@ from collections.abc import Awaitable, Callable
 import httpx
 import websockets
 
-from prism.iris.sdk.http import auth, base_url
+from prism.iris.sdk.connection import resolve_base_url
+from prism.iris.sdk.http import auth
 from prism.settings import settings
 
 
@@ -50,9 +51,7 @@ def _clean_text(value: str) -> str:
     control characters, preserving newlines, tabs, and printable text.
     """
     stripped = _ANSI_ESCAPE_RE.sub("", value)
-    return "".join(
-        ch for ch in stripped if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
-    )
+    return "".join(ch for ch in stripped if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f"))
 
 
 def _finalize_result(result: dict) -> dict:
@@ -79,22 +78,29 @@ def _finalize_result(result: dict) -> dict:
     }
 
 
-async def _get_session_cookies() -> dict[str, str]:
+async def _get_session_cookies(
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> dict[str, str]:
     """Authenticate via GET /api/atelier/ and return a fresh session cookie.
 
     Uses a one-shot client so concurrent calls each get their own
     IRIS session — sharing a session across WebSocket connections causes
     output to be lost.
     """
+    burl = resolve_base_url(target_host, target_port)
     async with httpx.AsyncClient(auth=auth(), timeout=30.0) as c:
-        r = await c.get(f"{base_url()}/api/atelier/")
+        r = await c.get(f"{burl}/api/atelier/")
         r.raise_for_status()
         return dict(r.cookies)
 
 
-def _ws_url() -> str:
+def _ws_url(
+    target_host: str | None = None,
+    target_port: int | None = None,
+) -> str:
     """Build the WebSocket URL for the IRIS terminal endpoint."""
-    url = base_url()
+    url = resolve_base_url(target_host, target_port)
     if url.startswith("https://"):
         url = "wss://" + url[len("https://") :]
     elif url.startswith("http://"):
@@ -139,10 +145,12 @@ async def execute_command_ws(
     namespace: str | None = None,
     timeout: float = 30.0,
     on_output: Callable[[str], Awaitable[None]] | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
     """Run an ObjectScript command over the Atelier WebSocket terminal."""
     ns = _resolve_namespace(namespace)
-    cookies = await _get_session_cookies()
+    cookies = await _get_session_cookies(target_host, target_port)
 
     # Signal progress after auth so the MCP transport knows we're alive.
     if on_output is not None:
@@ -151,7 +159,7 @@ async def execute_command_ws(
     cookie_header = "; ".join(f"{k}={v}" for k, v in cookies.items())
 
     async with websockets.connect(
-        _ws_url(),
+        _ws_url(target_host, target_port),
         additional_headers={"Cookie": cookie_header},
     ) as ws:
         # 1. Wait for init
@@ -202,25 +210,17 @@ async def execute_command(
     namespace: str | None = None,
     timeout: float = 30.0,
     on_output: Callable[[str], Awaitable[None]] | None = None,
+    target_host: str | None = None,
+    target_port: int | None = None,
 ) -> dict:
-    """Run an ObjectScript command, dispatching based on IRIS_TERMINAL_METHOD.
+    """Run an ObjectScript command via the Atelier WebSocket terminal.
 
-    When ``native``, uses irisnative via SuperServer (parallel-capable).
-    When ``ws``, uses the Atelier WebSocket terminal.
+    The terminal always uses the WebSocket terminal (``execute_command_ws``).
+    It does NOT upload our own ObjectScript helper (MCP.Terminal) and does
+    NOT use the native SuperServer ("superport") path.
 
     Returns ``{"namespace": ..., "command": ..., "output": ..., "prompt": ...}``.
     """
-    ns = _resolve_namespace(namespace)
-
-    if settings.iris_terminal_method == "native":
-        from prism.iris.sdk import terminal as native_terminal
-
-        # Signal progress before blocking executor call so the MCP transport
-        # keeps the response stream alive while irisnative is working.
-        if on_output is not None:
-            await on_output("")
-
-        result = await native_terminal.execute_command(command, ns, timeout)
-        return _finalize_result(result)
-
-    return await execute_command_ws(command, ns, timeout, on_output)
+    return await execute_command_ws(
+        command, namespace, timeout, on_output, target_host, target_port
+    )

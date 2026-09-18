@@ -28,7 +28,6 @@ _ALL_TOOL_MODULES = [
     "debugger",
     "documents",
     "files",
-    "index",
     "monitor",
     "server_info",
     "shell",

@@ -25,7 +25,6 @@ from typer.testing import CliRunner
 from prism.cast import manager
 from prism.cli.app import app
 
-
 # ── Fixtures ────────────────────────────────────────────────────────
 
 

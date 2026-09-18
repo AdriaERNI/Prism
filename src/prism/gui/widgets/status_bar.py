@@ -10,8 +10,7 @@ Shows:
 from __future__ import annotations
 
 import datetime
-
-from tkinter import LEFT, X, Frame, Label
+from tkinter import LEFT, Frame, Label, X
 
 from prism.gui import theme
 from prism.iris.sdk.http import base_url
@@ -71,7 +70,7 @@ class StatusBar(Frame):
         self._status_label.pack(side=LEFT, padx=(12, 8))
 
         # Timezone indicator
-        tz = datetime.datetime.now(datetime.timezone.utc).astimezone()
+        tz = datetime.datetime.now(datetime.UTC).astimezone()
         tz_name = tz.tzname() or "UTC"
         self._tz_label = Label(
             self,
@@ -100,9 +99,7 @@ class StatusBar(Frame):
     def set_running(self, running: bool) -> None:
         """Show running indicator."""
         if running:
-            self._status_label.config(
-                text="Executing query...", foreground=theme.SYNTAX_KEYWORD
-            )
+            self._status_label.config(text="Executing query...", foreground=theme.SYNTAX_KEYWORD)
         # Don't overwrite status on set_running(False) — let callers set it
 
     def set_status(self, message: str, is_error: bool = False) -> None:

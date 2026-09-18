@@ -13,9 +13,7 @@ from prism.output import format_output, get_output_format
 
 
 def test(
-    test_class: str = typer.Argument(
-        ..., help="Test class to execute (e.g. MyApp.Tests.Calc)"
-    ),
+    test_class: str = typer.Argument(..., help="Test class to execute (e.g. MyApp.Tests.Calc)"),
     method: str = typer.Option(
         "", "--method", "-m", help="Run a single test method instead of the whole class"
     ),
@@ -61,9 +59,7 @@ def list_tests(
 ) -> None:
     """List %UnitTest.TestCase classes and their Test* methods."""
     try:
-        response = asyncio.run(
-            list_test_classes(filter_prefix=filter, namespace=namespace)
-        )
+        response = asyncio.run(list_test_classes(filter_prefix=filter, namespace=namespace))
     except Exception as exc:
         handle_command_error(exc)
 

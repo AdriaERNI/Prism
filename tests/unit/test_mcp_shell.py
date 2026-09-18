@@ -61,8 +61,7 @@ class TestTruncateOutput:
         assert "truncated" in result
         # Should end at a line boundary (before the truncation marker)
         assert (
-            result.split("\n...")[0].rstrip().endswith("x")
-            or "\nline " in result.split("\n...")[0]
+            result.split("\n...")[0].rstrip().endswith("x") or "\nline " in result.split("\n...")[0]
         )
 
 

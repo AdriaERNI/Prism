@@ -141,9 +141,7 @@ def _register_lazy_repo(name: str, description: str, commands: list) -> None:
     # completion work without importing the repo.
     for cmd_info in commands:
         cmd_name = cmd_info.name if hasattr(cmd_info, "name") else cmd_info["name"]
-        cmd_help = (
-            cmd_info.help if hasattr(cmd_info, "help") else cmd_info.get("help", "")
-        )
+        cmd_help = cmd_info.help if hasattr(cmd_info, "help") else cmd_info.get("help", "")
         _register_lazy_command(repo_typer, name, cmd_name, cmd_help)
 
     cast_app.add_typer(repo_typer, name=name)
@@ -181,7 +179,7 @@ def _register_lazy_command(
             sys.exit(exit_code)
 
     # Pyright complains about the __doc__ assignment; use setattr
-    setattr(_lazy_cmd, "__doc__", cmd_help or None)
+    _lazy_cmd.__doc__ = cmd_help or None
 
 
 # Register on import

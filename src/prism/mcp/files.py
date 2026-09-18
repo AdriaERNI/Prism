@@ -62,13 +62,20 @@ def _truncate_content(text: str, max_chars: int = _MAX_FILE_CHARS) -> str:
     return text[:cut] + f"\n\n[... file truncated, {len(text) - cut} more chars]"
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    }
+)
 async def read_file(
     path: Annotated[
         str,
         Field(
-            description="Relative path to the file within the workspace. "
-            "Examples: 'src/main.py', 'config/app.json', 'README.md'. "
+            description="Relative path within the workspace. "
+            "Examples: 'src/main.py'. "
             "Absolute paths outside the workspace are rejected."
         ),
     ],
@@ -80,29 +87,13 @@ async def read_file(
         ),
     ] = "utf-8",
 ) -> dict:
-    """Read a text file from the local workspace directory (NOT from the IRIS server).
+    """Read a text file from the local workspace (NOT the IRIS server).
 
-    **Runs on: local host** (reads files from the local filesystem, NOT from IRIS).
-
-    The file must be inside the configured local workspace directory
-    (``IRIS_WORKSPACE``). Path traversal is blocked — relative paths
-    like ``../etc/passwd`` are rejected.
-
-    To read source code from the IRIS server, use ``get_document`` instead.
-
-    The tool detects binary files (images, executables, archives) and
-    returns a message instead of garbled content. Text files are read
-    with the specified encoding (default UTF-8).
-
-    Use this tool to:
-    - Read local source code files for review or debugging
-    - Inspect local configuration files (JSON, YAML, .env, TOML)
-    - Read local documentation (Markdown, README, docs)
-    - View local log files or text output
-    - Check file contents before pushing to IRIS
-
-    The content is truncated at 100,000 characters for large files.
-    The truncation point is at a line boundary when possible.
+    **Runs on: local host** (local filesystem; path must be inside
+    IRIS_WORKSPACE, traversal blocked). Binary files are detected and
+    rejected. Returns ``{"content", "path", "size", "truncated",
+    "truncation_message"}``; content truncated at a 100,000-char limit on a
+    line boundary. For IRIS source code use `get_document`.
     """
     from prism.iris.sdk.workspace import resolve_safe, workspace_root
 
@@ -130,9 +121,7 @@ async def read_file(
         return {
             "content": "",
             "path": path,
-            "error": f"File not found: {path}. "
-            f"The file does not exist in the workspace "
-            f"({root}).",
+            "error": f"File not found: {path}. The file does not exist in the workspace ({root}).",
             "size": 0,
         }
 
@@ -189,12 +178,19 @@ async def read_file(
     }
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    }
+)
 async def list_files(
     path: Annotated[
         str | None,
         Field(
-            description="Relative directory path within the workspace to list. "
+            description="Directory path within the workspace to list. "
             "Defaults to the workspace root. "
             "Examples: '', 'src', 'tests/unit'."
         ),
@@ -202,9 +198,9 @@ async def list_files(
     pattern: Annotated[
         str | None,
         Field(
-            description="Glob pattern to filter files. "
+            description="Glob filter (e.g. '*.py', '**/*.cls'). "
             "Examples: '*.py', '*.json', '**/*.cls'. "
-            "If omitted, all files and directories are listed."
+            "Omit for all."
         ),
     ] = None,
     max_results: Annotated[
@@ -216,21 +212,11 @@ async def list_files(
         ),
     ] = 200,
 ) -> dict:
-    """List files and directories in the local workspace (NOT on the IRIS server).
+    """List files and directories in the local workspace (NOT the IRIS server).
 
-    **Runs on: local host** (reads the local filesystem, NOT the IRIS server).
-
-    Returns a structured listing of files and subdirectories within the
-    specified path. Use glob patterns to filter results (e.g. ``*.py``,
-    ``**/*.cls``).
-
-    To list source code on the IRIS server, use ``list_documents`` instead.
-
-    Use this tool to:
-    - Discover what files exist in the local project
-    - Find local source files for a specific task
-    - Browse local directory structure before reading specific files
-    - Check if a local file exists before writing or compiling it
+    **Runs on: local host** (local filesystem). Glob patterns filter results
+    (e.g. ``*.py``, ``**/*.cls``). Returns ``{"files": [...], "path", "count"}``.
+    For IRIS source code use `list_documents` instead.
     """
     from prism.iris.sdk.workspace import resolve_safe, workspace_root
 

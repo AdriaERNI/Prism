@@ -60,9 +60,7 @@ class TestGetDocumentSlicing:
         content = result["content"]
         assert len(content) == 4  # lines 2,3,4,5
 
-    async def test_get_document_invalid_slicing_head_and_from_line(
-        self, live, deployed_doc
-    ):
+    async def test_get_document_invalid_slicing_head_and_from_line(self, live, deployed_doc):
         """get_document with head + from_line raises an error."""
         with pytest.raises(Exception):
             await live.call_tool(

@@ -12,8 +12,8 @@ Trend arrows compare the 1m EWMA against the 5m EWMA:
   ↓  1m < 5m  → load falling
 """
 
-from prism.iris.monitor.dashboard import HistoryBuffer, _trend_arrow, _ewma, _sma
 from prism.iris.monitor import MonitorSnapshot
+from prism.iris.monitor.dashboard import HistoryBuffer, _ewma, _sma, _trend_arrow
 from prism.iris.monitor.scorer import LoadScore
 
 

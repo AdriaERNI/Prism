@@ -28,16 +28,16 @@ from prism.cli.commands.install import (
     HERMES,
     OPENCODE,
     SERVER_NAME,
+    _apply_claude,
+    _apply_codex,
+    _apply_hermes,
+    _apply_opencode,
     _config_path,
     _default_url,
     _patch_claude,
     _patch_codex,
     _patch_hermes,
     _patch_opencode,
-    _apply_claude,
-    _apply_codex,
-    _apply_hermes,
-    _apply_opencode,
 )
 
 runner = CliRunner()
@@ -213,9 +213,7 @@ class TestPatchCodex:
     def test_replace_existing_prism(self, tmp_home: Path) -> None:
         config_file = tmp_home / ".codex" / "config.toml"
         config_file.parent.mkdir(parents=True, exist_ok=True)
-        config_file.write_text(
-            f'[mcp_servers.{SERVER_NAME}]\nurl = "http://old:9999/mcp"\n'
-        )
+        config_file.write_text(f'[mcp_servers.{SERVER_NAME}]\nurl = "http://old:9999/mcp"\n')
         url = "http://localhost:3000/mcp"
         _, _, content = _patch_codex(url)
 
@@ -238,9 +236,7 @@ class TestApplyCodex:
     def test_preserves_existing(self, tmp_home: Path) -> None:
         config_file = tmp_home / ".codex" / "config.toml"
         config_file.parent.mkdir(parents=True, exist_ok=True)
-        config_file.write_text(
-            'model = "o4-mini"\n\n[mcp_servers.existing]\ncommand = "foo"\n'
-        )
+        config_file.write_text('model = "o4-mini"\n\n[mcp_servers.existing]\ncommand = "foo"\n')
         _apply_codex("http://localhost:3000/mcp")
 
         content = config_file.read_text()
@@ -364,11 +360,7 @@ class TestIdempotency:
             assert count == 1, f"Duplicate sections found in {service}"
         elif service == HERMES:
             # Hermes YAML has prism: at 2-space indent
-            lines = [
-                line
-                for line in content.splitlines()
-                if line.strip() == f"{SERVER_NAME}:"
-            ]
+            lines = [line for line in content.splitlines() if line.strip() == f"{SERVER_NAME}:"]
             assert len(lines) == 1, f"Duplicate entries found in {service}"
 
 

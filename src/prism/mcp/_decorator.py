@@ -12,12 +12,15 @@ from prism.output import format_output
 from prism.settings import settings
 
 
-def logged_tool(fn=None, *, task=None):
+def logged_tool(fn=None, *, task=None, annotations=None):
     """Wrap an async MCP tool function with automatic request/response logging.
 
     Sets ``_is_mcp_tool = True`` on the wrapper so that auto-discovery can
     collect it.  Pass ``task=True`` to mark the tool as background-capable
     (forwarded to ``FastMCP.tool()`` during registration).
+
+    Pass ``annotations={...}`` to set MCP tool annotations such as
+    ``readOnlyHint``, ``destructiveHint``, ``idempotentHint``, ``openWorldHint``.
 
     When ``settings.prism_output_format`` is ``"toon"`` and the tool returns a dict,
     the result is returned as a ``ToolResult`` with TOON-formatted
@@ -31,16 +34,12 @@ def logged_tool(fn=None, *, task=None):
             sig = inspect.signature(fn)
             bound = sig.bind(*args, **kwargs)
             bound.apply_defaults()
-            params = {
-                k: v for k, v in bound.arguments.items() if not isinstance(v, Context)
-            }
+            params = {k: v for k, v in bound.arguments.items() if not isinstance(v, Context)}
 
             log_request(fn.__name__, params)
             result = await fn(*args, **kwargs)
 
-            if settings.prism_output_format == "toon" and isinstance(
-                result, (dict, list)
-            ):
+            if settings.prism_output_format == "toon" and isinstance(result, (dict, list)):
                 toon_text = format_output(result, "toon")
                 log_response(fn.__name__, toon_text)
                 return ToolResult(
@@ -54,6 +53,8 @@ def logged_tool(fn=None, *, task=None):
         wrapper._mcp_tool_kwargs = {}
         if task is not None:
             wrapper._mcp_tool_kwargs["task"] = task
+        if annotations is not None:
+            wrapper._mcp_tool_kwargs["annotations"] = annotations
         return wrapper
 
     if fn is not None:

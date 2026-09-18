@@ -8,13 +8,27 @@ robustness expected from professional CLI tools like Docker.
 from __future__ import annotations
 
 import json
+import os
 from unittest.mock import patch
 
+import pytest
 from typer.testing import CliRunner
 
+from prism import settings as settings_module
 from prism.cli.app import app
 
 runner = CliRunner()
+
+
+@pytest.fixture
+def tmp_config(tmp_path, monkeypatch):
+    """Redirect config_path() to a tmp file and clear IRIS_*/PRISM_* env vars."""
+    path = tmp_path / "prism" / "config.json"
+    monkeypatch.setattr(settings_module, "config_path", lambda: path)
+    for var in list(os.environ):
+        if var.startswith(("IRIS_", "PRISM_")):
+            monkeypatch.delenv(var, raising=False)
+    return path
 
 
 # ── Output format validation ─────────────────────────────────────────
@@ -63,17 +77,7 @@ class TestSqlEdgeCases:
 
 
 class TestTerminalEdgeCases:
-    """Terminal and ws commands should validate input."""
-
-    def test_empty_terminal_command_errors(self):
-        result = runner.invoke(app, ["terminal", ""])
-        assert result.exit_code == 1
-        assert "cannot be empty" in result.output.lower()
-
-    def test_whitespace_terminal_command_errors(self):
-        result = runner.invoke(app, ["terminal", "   "])
-        assert result.exit_code == 1
-        assert "cannot be empty" in result.output.lower()
+    """ws command should validate input and handle empty/interactive."""
 
     def test_empty_ws_command_enters_interactive(self):
         """Empty ws command enters interactive mode (not an error)."""
@@ -213,6 +217,11 @@ class TestConfigValidation:
         result = runner.invoke(app, ["config", "--terminal-method", "invalid"])
         assert result.exit_code == 1
         assert "invalid terminal method" in result.output.lower()
+
+    def test_terminal_method_ws_alias_normalised_to_websocket(self, tmp_config):
+        result = runner.invoke(app, ["config", "--terminal-method", "ws"])
+        assert result.exit_code == 0
+        assert "websocket" in result.output.lower()
 
     def test_reset_unknown_key_errors(self):
         result = runner.invoke(app, ["config", "--reset", "nonexistent_key"])

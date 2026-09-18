@@ -4,13 +4,27 @@ from __future__ import annotations
 
 import typer
 
-from prism.settings import (
-    Settings,
-    clear_config,
-    config_path,
-    reset_keys,
-    save_config,
-)
+# prism.settings is imported lazily inside functions to avoid pulling
+# pydantic_settings (~85 ms) into cold start for unrelated commands.
+# ``Settings``, ``save_config``, ``config_path``, ``reset_keys``, and
+# ``clear_config`` are also exposed at module level via ``__getattr__``
+# so tests can monkeypatch them without triggering the import at CLI
+# startup time.
+
+
+def __getattr__(name: str) -> object:
+    if name in (
+        "Settings",
+        "save_config",
+        "config_path",
+        "reset_keys",
+        "clear_config",
+    ):
+        from prism import settings as _settings_mod
+
+        return getattr(_settings_mod, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 REDACTED = "***"
 SECRET_FIELDS = {"iris_password", "chatbot_api_key"}
@@ -57,6 +71,8 @@ def _format_value(name: str, value: object) -> str:
 
 def _coerce(field_name: str, raw: str) -> object:
     """Coerce *raw* CLI/prompt input to the field's annotated type."""
+    from prism.settings import Settings
+
     ann = Settings.model_fields[field_name].annotation
     raw = raw.strip()
     if ann is bool:
@@ -72,6 +88,8 @@ def _coerce(field_name: str, raw: str) -> object:
 
 def _show_config() -> None:
     """Print all settings with their current effective values."""
+    from prism.settings import Settings, config_path
+
     s = Settings()
     width = max(len(n) for n in Settings.model_fields)
     typer.echo(f"Config file: {config_path()}")
@@ -91,6 +109,8 @@ def _interactive() -> None:
     Handles non-interactive stdin (piped input, EOF) gracefully by falling
     back to the current values instead of crashing with an EOFError.
     """
+    from prism.settings import Settings, config_path, reset_keys, save_config
+
     s = Settings()
     fields = list(Settings.model_fields.items())
     updates: dict[str, object] = {}
@@ -125,15 +145,11 @@ def _interactive() -> None:
             continue
         if choice.startswith("d"):
             resets.append(name)
-            typer.echo(
-                f"        → reset to default ({_format_value(name, field.default)})\n"
-            )
+            typer.echo(f"        → reset to default ({_format_value(name, field.default)})\n")
             continue
         if choice.startswith("c"):
             try:
-                new_raw = typer.prompt(
-                    "        New value", default="", show_default=False
-                )
+                new_raw = typer.prompt("        New value", default="", show_default=False)
             except (EOFError, typer.Abort):
                 typer.echo("\n  Input ended — keeping current.\n")
                 break
@@ -161,9 +177,7 @@ def config(
     url: str | None = typer.Option(None, "-U", "--url", help="IRIS base URL"),
     user: str | None = typer.Option(None, "-u", "--user", help="IRIS username"),
     password: str | None = typer.Option(None, "-p", "--password", help="IRIS password"),
-    namespace: str | None = typer.Option(
-        None, "-n", "--namespace", help="Default IRIS namespace"
-    ),
+    namespace: str | None = typer.Option(None, "-n", "--namespace", help="Default IRIS namespace"),
     workspace: str | None = typer.Option(
         None, "-w", "--workspace", help="Local workspace directory for file I/O tools"
     ),
@@ -185,14 +199,12 @@ def config(
         None, "--compile-flags", help="Default compiler flags (e.g. cuk)"
     ),
     terminal_method: str | None = typer.Option(
-        None, "--terminal-method", help="Terminal backend: native or websocket"
+        None, "--terminal-method", help="Terminal backend: native, websocket (or 'ws')"
     ),
     terminal_max_output: int | None = typer.Option(
         None, "--terminal-max-output", help="Max chars of terminal output"
     ),
-    test_runner: str | None = typer.Option(
-        None, "--test-runner", help="Test runner class name"
-    ),
+    test_runner: str | None = typer.Option(None, "--test-runner", help="Test runner class name"),
     test_method: str | None = typer.Option(
         None, "--test-method", help="Test runner classmethod name"
     ),
@@ -246,9 +258,7 @@ def config(
         "--reset",
         help="Reset KEY to its default (remove from config.json). Repeatable.",
     ),
-    reset_all: bool = typer.Option(
-        False, "--reset-all", help="Wipe config.json entirely"
-    ),
+    reset_all: bool = typer.Option(False, "--reset-all", help="Wipe config.json entirely"),
 ) -> None:
     """View or edit Prism settings.
 
@@ -257,6 +267,8 @@ def config(
     for an interactive walkthrough, or ``-r KEY`` to reset a single key
     to its default.
     """
+    from prism.settings import Settings, clear_config, reset_keys, save_config
+
     if reset_all:
         path = clear_config()
         typer.echo(f"Cleared {path}")
@@ -277,9 +289,7 @@ def config(
 
     locals_ = locals()
     updates: dict[str, object] = {
-        field: locals_[flag]
-        for flag, field in _FLAG_TO_FIELD.items()
-        if locals_[flag] is not None
+        field: locals_[flag] for flag, field in _FLAG_TO_FIELD.items() if locals_[flag] is not None
     }
 
     # Validate output_format if being set
@@ -299,10 +309,13 @@ def config(
     if "iris_terminal_method" in updates:
         method_val = str(updates["iris_terminal_method"]).strip().lower()
         valid_methods = ("native", "websocket")
+        # Accept 'ws' as an alias for 'websocket'
+        if method_val == "ws":
+            method_val = "websocket"
         if method_val not in valid_methods:
             typer.echo(
                 f"Error: Invalid terminal method '{updates['iris_terminal_method']}'. "
-                f"Supported methods: {', '.join(valid_methods)}.",
+                f"Supported methods: {', '.join(valid_methods)} (or 'ws').",
                 err=True,
             )
             raise typer.Exit(code=1)

@@ -72,11 +72,12 @@ prism compile MyApp.Hello.cls
 
 ## 5. Call the method
 
-Run the new method from the terminal. `prism terminal` talks to the
-IRIS SuperServer (default port `1972`) via the native driver:
+Run the new method from the terminal. `prism ws` talks to IRIS over the
+Atelier WebSocket terminal (no ObjectScript helper upload, no SuperServer
+"superport"):
 
 ```powershell
-prism terminal 'Write ##class(MyApp.Hello).Greet(""Prism"")'
+prism ws 'Write ##class(MyApp.Hello).Greet("Prism")'
 ```
 
 Output:
@@ -90,9 +91,9 @@ Output:
 }
 ```
 
-If the SuperServer port isn't reachable from your machine, use `prism
-ws` instead — same arguments, but runs over the Atelier WebSocket on
-the HTTP port:
+`prism ws` runs entirely over the Atelier WebSocket terminal (no
+ObjectScript helper upload, no SuperServer "superport" dependency), so it
+works whether or not the native SuperServer port (1972) is reachable:
 
 ```powershell
 prism ws 'Write ##class(MyApp.Hello).Greet(""Prism"")'
@@ -117,3 +118,5 @@ prism delete-doc MyApp.Hello.cls
   client into the same operations.
 - **[Configuration](configuration.md)** — full settings and
   environment-variable reference.
+- **[Installer Exit Codes](installer-exit-codes.md)** — what each
+  installer EXE return code means and the Microsoft Store mapping.

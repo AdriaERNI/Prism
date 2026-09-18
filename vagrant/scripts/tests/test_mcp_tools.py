@@ -164,9 +164,7 @@ def main():
 
     # Test put_document + compile + delete as a group
     if "put_document" in tool_names:
-        cls = (
-            'Class prism.MCPTest\n{\nMethod Ping() As %String\n{\n    Quit "pong"\n}\n}'
-        )
+        cls = 'Class prism.MCPTest\n{\nMethod Ping() As %String\n{\n    Quit "pong"\n}\n}'
         status, output = client.call_tool(
             "put_document",
             {
@@ -181,18 +179,14 @@ def main():
         print()
 
     if "compile_documents" in tool_names and results.get("put_document") == "PASS":
-        status, output = client.call_tool(
-            "compile_documents", {"documents": ["prism.MCPTest.cls"]}
-        )
+        status, output = client.call_tool("compile_documents", {"documents": ["prism.MCPTest.cls"]})
         results["compile_documents"] = status
         print(f"=== compile_documents === {status}")
         print(output[:300])
         print()
 
     if "delete_document" in tool_names and results.get("put_document") == "PASS":
-        status, output = client.call_tool(
-            "delete_document", {"name": "prism.MCPTest.cls"}
-        )
+        status, output = client.call_tool("delete_document", {"name": "prism.MCPTest.cls"})
         results["delete_document"] = status
         print(f"=== delete_document === {status}")
         print(output[:300])
@@ -206,9 +200,7 @@ def main():
         print()
 
     if "run_tests" in tool_names:
-        status, output = client.call_tool(
-            "run_tests", {"test_class": "%UnitTest.Manager"}
-        )
+        status, output = client.call_tool("run_tests", {"test_class": "%UnitTest.Manager"})
         results["run_tests"] = status
         print(f"=== run_tests === {status}")
         print(output[:300])

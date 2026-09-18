@@ -61,7 +61,6 @@ uv run pytest tests/unit/ -v
 - `test_debugger.py` — Debug session lifecycle, stepping, breakpoints, variable inspection
 - `test_gui_sql.py` — GUI SQL controller and query execution logic
 - `test_gui_widgets.py` — GUI widget unit tests (tree, editor, results table, toolbar)
-- `test_index.py` — Code indexing tool and CLI
 - `test_settings.py` — Settings loading precedence (env > .env > config.json > defaults)
 - `test_output.py` — Output format support (JSON, TOON)
 - `test_pyinstaller_compat.py` — PyInstaller frozen build compatibility checks
@@ -78,8 +77,10 @@ import httpx
 from unittest.mock import patch
 from prism.iris.api import my_api
 
+
 def mock_client(handler):
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
 
 async def test_my_api():
     def handler(request):
@@ -155,7 +156,6 @@ IRIS_BASE_URL=http://localhost:52773 uv run pytest tests/integration/ -v
 - `test_debugger.py` — Debug start/stop, stepping, breakpoints, variable inspection, process discovery
 - `test_debugger_extra.py` — Extended debugger scenarios (skips if XDebug unavailable)
 - `test_e2e.py` — Full create-compile-insert-select roundtrip, SQL procs, embedded objects
-- `test_index.py` — Code indexing against a live IRIS namespace
 - `test_server_info.py` — Server version, namespaces
 - `test_background.py` — Background-capable tools
 
@@ -430,7 +430,9 @@ GitHub Actions runs on every push and pull request to `main` and
 
 The Linux integration tests run against an `intersystemsdc/iris-community:latest`
 Docker container with both port 52773 (Atelier REST API) and port 1972
-(SuperServer for native terminal) exposed.
+(SuperServer) exposed. Prism's terminal is WebSocket-only, so integration
+tests talk to the Atelier WebSocket on 52773; port 1972 is exposed for the
+server-side features that use it.
 
 ---
 

@@ -5,11 +5,11 @@ from unittest.mock import patch
 import pytest
 
 from prism.iris.sdk.workspace import (
-    workspace_root,
+    load_content,
     resolve_safe,
     save_content,
-    load_content,
     validate_doc_name,
+    workspace_root,
 )
 from prism.settings import settings
 
@@ -70,6 +70,12 @@ class TestSaveAndLoadContent:
         missing = tmp_path / "NoSuch.cls"
         with pytest.raises(FileNotFoundError, match="Write the file"):
             load_content(missing)
+
+    def test_strips_utf8_bom(self, tmp_path):
+        """A BOM-prefixed file (common on Windows editors) must load clean."""
+        file_path = tmp_path / "BOM.cls"
+        file_path.write_bytes(b"\xef\xbb\xbfClass MyApp.BOM\n{\n}")
+        assert load_content(file_path) == ["Class MyApp.BOM", "{", "}"]
 
 
 class TestValidateDocName:

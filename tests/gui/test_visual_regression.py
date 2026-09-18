@@ -30,7 +30,7 @@ try:
 except ImportError:
     HAS_PYAUTOGUI = False
 
-from tests.gui.emy_vision import analyze_screenshot, assert_contains  # noqa: E402
+from tests.gui.emy_vision import analyze_screenshot, assert_contains
 
 
 @pytest.fixture(scope="module")
@@ -145,9 +145,7 @@ class TestVisualLayout:
         )
         # Should mention results/rows
         lower = response.lower()
-        assert "result" in lower or "row" in lower, (
-            f"Expected results in response: {response}"
-        )
+        assert "result" in lower or "row" in lower, f"Expected results in response: {response}"
 
     def test_database_tree_expandable(self, gui_process, tmp_path):
         """Clicking a schema in the tree should expand it."""

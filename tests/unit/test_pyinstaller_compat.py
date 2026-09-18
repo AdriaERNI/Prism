@@ -18,7 +18,6 @@ import importlib.metadata
 
 import pytest
 
-
 # ── Package metadata availability ──────────────────────────────────
 # PyInstaller --onefile builds must include .dist-info dirs for any
 # package that calls importlib.metadata.version() at import time.
@@ -70,7 +69,7 @@ class TestPackageMetadata:
         import click
 
         # Click 8.x uses importlib.metadata for __version__
-        assert click.__version__  # noqa: B018
+        assert click.__version__
 
 
 # ── Binary module availability ─────────────────────────────────────

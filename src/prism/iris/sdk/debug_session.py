@@ -98,9 +98,7 @@ class SessionManager:
         if session.is_expired:
             # Schedule cleanup but report as missing
             asyncio.create_task(self.close(session_id))
-            raise KeyError(
-                f"Debug session '{session_id}' has expired due to inactivity"
-            )
+            raise KeyError(f"Debug session '{session_id}' has expired due to inactivity")
         session.touch()
         return session
 

@@ -74,7 +74,7 @@ jobs:
           }
 
           # Same PyInstaller flags as build-release.yml
-          uv run pyinstaller --onefile --name prism `
+          uv run pyinstaller --onedir --name prism `
             --copy-metadata fastmcp `
             --copy-metadata click `
             --copy-metadata httpx `
@@ -86,7 +86,6 @@ jobs:
             --copy-metadata python-dotenv `
             --copy-metadata toons `
             --collect-all lupa `
-            --collect-all fakeredis `
             --collect-all docket `
             --collect-all shellingham `
             --collect-submodules prism.mcp `
@@ -96,17 +95,17 @@ jobs:
       - name: Verify build
         shell: pwsh
         run: |
-          if (-not (Test-Path dist\prism.exe)) {
+          if (-not (Test-Path dist\prism\prism.exe)) {
             Write-Error "prism.exe not found"
             exit 1
           }
-          $size = [math]::Round((Get-Item dist\prism.exe).Length / 1MB, 1)
+          $size = [math]::Round((Get-Item dist\prism\prism.exe).Length / 1MB, 1)
           Write-Host "prism.exe built: $size MB"
 
       - name: Test frozen binary --version
         shell: pwsh
         run: |
-          $v = & .\dist\prism.exe --version 2>&1
+          $v = & .\dist\prism\prism.exe --version 2>&1
           Write-Host "Version: $v"
           if ($v -notmatch "Prism") {
             Write-Error "--version failed: $v"
@@ -117,7 +116,7 @@ jobs:
         shell: pwsh
         run: |
           # Capture both stdout and stderr
-          $output = (& .\dist\prism.exe --help 2>&1) | Out-String
+          $output = (& .\dist\prism\prism.exe --help 2>&1) | Out-String
           Write-Host "Output length: $($output.Length)"
           Write-Host $output
           if ($output -notmatch "serve") {
@@ -130,7 +129,7 @@ jobs:
         shell: pwsh
         run: |
           # Verify --install-completion and --show-completion are available
-          $help = (& .\dist\prism.exe --help 2>&1) | Out-String
+          $help = (& .\dist\prism\prism.exe --help 2>&1) | Out-String
           if ($help -notmatch "--install-completion") {
             Write-Error "--install-completion not found in --help"
             exit 1
@@ -142,7 +141,7 @@ jobs:
 
           # Test that --show-completion generates a valid script.
           # This verifies shellingham is bundled and completion infrastructure works.
-          $bashScript = (& .\dist\prism.exe --show-completion bash 2>&1) | Out-String
+          $bashScript = (& .\dist\prism\prism.exe --show-completion bash 2>&1) | Out-String
           if ($bashScript -notmatch "prism" -or $bashScript.Length -lt 50) {
             Write-Error "--show-completion bash failed: $bashScript"
             exit 1
@@ -155,7 +154,7 @@ jobs:
           $env:_PRISM_COMPLETE = "complete_powershell"
           $env:_TYPER_COMPLETE_ARGS = "prism conf"
           $env:_TYPER_COMPLETE_WORD_TO_COMPLETE = "conf"
-          $result = (& .\dist\prism.exe 2>&1) | Out-String
+          $result = (& .\dist\prism\prism.exe 2>&1) | Out-String
           $exeExitCode = $LASTEXITCODE
           Remove-Item Env:\_PRISM_COMPLETE -ErrorAction SilentlyContinue
           Remove-Item Env:\_TYPER_COMPLETE_ARGS -ErrorAction SilentlyContinue
@@ -176,7 +175,7 @@ jobs:
       - name: Test frozen binary cast --list
         shell: pwsh
         run: |
-          $c = & .\dist\prism.exe cast --list 2>&1
+          $c = & .\dist\prism\prism.exe cast --list 2>&1
           if ($LASTEXITCODE -ne 0) {
             Write-Error "cast --list failed with exit code $LASTEXITCODE"
             Write-Host $c
@@ -191,7 +190,7 @@ jobs:
           # Start serve in background
           $logFile = "serve_test.log"
           $errFile = "serve_test.err"
-          $proc = Start-Process -FilePath ".\dist\prism.exe" `
+          $proc = Start-Process -FilePath ".\dist\prism\prism.exe" `
             -ArgumentList @("serve", "--skip-preflight", "--port", "29999") `
             -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput $logFile `
@@ -253,7 +252,7 @@ jobs:
           uv pip install httpx
 
           # Start serve in background
-          $proc = Start-Process -FilePath ".\dist\prism.exe" `
+          $proc = Start-Process -FilePath ".\dist\prism\prism.exe" `
             -ArgumentList @("serve", "--skip-preflight", "--port", "29999") `
             -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput "mcp_serve.log" `
@@ -299,4 +298,4 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: prism-windows-exe
-          path: dist/prism.exe
+          path: dist/prism

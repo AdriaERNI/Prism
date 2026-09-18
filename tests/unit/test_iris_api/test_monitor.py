@@ -24,11 +24,9 @@ class TestGetMetrics:
 
         def handler(request):
             assert "/api/monitor/metrics" in str(request.url)
-            return httpx.Response(
-                200, text=body, headers={"Content-Type": "text/plain"}
-            )
+            return httpx.Response(200, text=body, headers={"Content-Type": "text/plain"})
 
-        with patch.object(monitor_api, "client", lambda: mock_client(handler)):
+        with patch.object(monitor_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await monitor_api.get_metrics()
         assert isinstance(result, str)
         assert "iris_cpu_usage" in result
@@ -38,7 +36,7 @@ class TestGetMetrics:
         def handler(request):
             return httpx.Response(500, text="Internal Server Error")
 
-        with patch.object(monitor_api, "client", lambda: mock_client(handler)):
+        with patch.object(monitor_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.HTTPStatusError):
                 await monitor_api.get_metrics()
 
@@ -46,7 +44,7 @@ class TestGetMetrics:
         def handler(request):
             return httpx.Response(200, text="", headers={"Content-Type": "text/plain"})
 
-        with patch.object(monitor_api, "client", lambda: mock_client(handler)):
+        with patch.object(monitor_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await monitor_api.get_metrics()
         assert result == ""
 
@@ -54,7 +52,7 @@ class TestGetMetrics:
         def handler(request):
             raise httpx.ConnectError("Connection refused")
 
-        with patch.object(monitor_api, "client", lambda: mock_client(handler)):
+        with patch.object(monitor_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.ConnectError):
                 await monitor_api.get_metrics()
 
@@ -72,11 +70,9 @@ class TestGetAlerts:
 
         def handler(request):
             assert "/api/monitor/alerts" in str(request.url)
-            return httpx.Response(
-                200, text=body, headers={"Content-Type": "text/plain"}
-            )
+            return httpx.Response(200, text=body, headers={"Content-Type": "text/plain"})
 
-        with patch.object(monitor_api, "client", lambda: mock_client(handler)):
+        with patch.object(monitor_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await monitor_api.get_alerts()
         assert isinstance(result, str)
         assert "iris_system_alerts" in result
@@ -85,7 +81,7 @@ class TestGetAlerts:
         def handler(request):
             return httpx.Response(404, text="Not Found")
 
-        with patch.object(monitor_api, "client", lambda: mock_client(handler)):
+        with patch.object(monitor_api, "client", lambda *a, **kw: mock_client(handler)):
             with pytest.raises(httpx.HTTPStatusError):
                 await monitor_api.get_alerts()
 
@@ -93,6 +89,6 @@ class TestGetAlerts:
         def handler(request):
             return httpx.Response(200, text="", headers={"Content-Type": "text/plain"})
 
-        with patch.object(monitor_api, "client", lambda: mock_client(handler)):
+        with patch.object(monitor_api, "client", lambda *a, **kw: mock_client(handler)):
             result = await monitor_api.get_alerts()
         assert result == ""

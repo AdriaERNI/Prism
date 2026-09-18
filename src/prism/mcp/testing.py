@@ -10,44 +10,69 @@ from prism.mcp._decorator import logged_tool
 _STATUS_MAP = {0: "failed", 1: "passed", 2: "skipped"}
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def run_tests(
     test_class: Annotated[
         str,
         Field(
-            description="Fully qualified ObjectScript class name extending %UnitTest.TestCase. Examples: 'MyApp.Tests.Calculator', 'Test.PersonTests'. The class must already be compiled on the server."
+            description="Fully qualified ObjectScript class name extending %UnitTest.TestCase. Examples: 'MyApp.Tests.Calculator', 'Test.PersonTests'. The class must already be compiled on the server.",
+            min_length=1,
+            max_length=255,
         ),
     ],
     test_method: Annotated[
         str | None,
         Field(
-            description="Specific test method to run (e.g. 'TestAddition'). If omitted, all Test* methods in the class are executed."
+            description="Specific test method to run (e.g. 'TestAddition'). If omitted, all Test* methods in the class are executed.",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     manager_class: Annotated[
         str | None,
         Field(
-            description="Custom %UnitTest.Manager subclass to use for execution (e.g. 'TestCoverage.Manager'). Defaults to IRIS_TEST_MANAGER_CLASS env var ('%UnitTest.Manager')."
+            description="Custom %UnitTest.Manager subclass to use for execution (e.g. 'TestCoverage.Manager'). Defaults to IRIS_TEST_MANAGER_CLASS env var ('%UnitTest.Manager').",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to run tests in. Uses the configured default if omitted."
+            description="IRIS namespace to run tests in. Uses the configured default if omitted.",
+            min_length=1,
+            max_length=64,
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port. Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
         ),
     ] = None,
 ) -> dict:
     """Run ObjectScript unit tests on the IRIS server and return structured results.
 
-    **Runs on: IRIS server** (remote — executes tests via IRIS %UnitTest framework).
+    **Runs on: IRIS server** (remote, %UnitTest framework). Runs one or all
+    Test* methods of a %UnitTest.TestCase subclass via DebugRunTestCase (class
+    must be compiled; no filesystem access needed). Helper auto-deployed on
+    first use.
 
-    Executes one or all Test* methods in a %UnitTest.TestCase subclass using
-    DebugRunTestCase (no file system access needed — the class must already be
-    compiled). A helper class is auto-deployed to IRIS on first use.
-
-    Returns ``{"class": "...", "status": "passed|failed", "passed": N,
-    "failed": N, "skipped": N, "methods": [...]}`` where each method has
-    name, status, duration, and error details for failures.
+    Returns ``{"class", "status": passed|failed, "passed", "failed", "skipped",
+    "methods": [...]}`` — each method has name, status, duration, error details.
     """
     # Run the tests via SqlProc
     run_data = await testing_api.run_tests(
@@ -55,6 +80,8 @@ async def run_tests(
         test_method=test_method or "",
         manager_class=manager_class,
         namespace=namespace,
+        target_host=target_host,
+        target_port=target_port,
     )
 
     # Check for SQL-level errors
@@ -71,7 +98,12 @@ async def run_tests(
         return {"class": test_class, "error": runner_result}
 
     # Fetch structured results from %UnitTest_Result tables
-    results_data = await testing_api.get_latest_results(test_class, namespace)
+    results_data = await testing_api.get_latest_results(
+        test_class,
+        namespace,
+        target_host=target_host,
+        target_port=target_port,
+    )
     result_errors = results_data.get("status", {}).get("errors", [])
     if result_errors:
         # Results tables might not be accessible — return basic status
@@ -112,7 +144,11 @@ async def run_tests(
 
             # Fetch assertion-level detail for failed methods
             assertions_data = await testing_api.get_assertions(
-                test_class, row.get("method_name", ""), namespace
+                test_class,
+                row.get("method_name", ""),
+                namespace,
+                target_host=target_host,
+                target_port=target_port,
             )
             assertion_rows = assertions_data.get("result", {}).get("content", [])
             if assertion_rows:
@@ -127,13 +163,7 @@ async def run_tests(
 
         methods.append(method_info)
 
-    overall = (
-        "passed"
-        if failed == 0 and passed > 0
-        else "failed"
-        if failed > 0
-        else "unknown"
-    )
+    overall = "passed" if failed == 0 and passed > 0 else "failed" if failed > 0 else "unknown"
 
     return {
         "class": test_class,
@@ -145,33 +175,58 @@ async def run_tests(
     }
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def list_tests(
     filter: Annotated[
         str | None,
         Field(
-            description="Filter test classes by name prefix. Examples: 'MyApp.Tests' returns all test classes in that package. Omit to list all test classes in the namespace."
+            description="Test class name prefix (e.g. 'MyApp.Tests'). Omit for all.",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to search for test classes. Uses the configured default if omitted."
+            description="IRIS namespace for test classes (default if omitted).",
+            min_length=1,
+            max_length=64,
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port. Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
         ),
     ] = None,
 ) -> dict:
     """Discover %UnitTest.TestCase classes and their Test* methods on the IRIS server.
 
-    **Runs on: IRIS server** (remote — queries IRIS %Dictionary tables).
-
-    Queries the %Dictionary tables to find all compiled classes extending
-    %UnitTest.TestCase, with their test method names. Use this before
-    run_tests to see what tests are available.
+    **Runs on: IRIS server** (remote, %Dictionary tables). Use before run_tests
+    to see what tests exist before running them.
 
     Returns ``{"classes": [{"name": "...", "methods": ["TestX", ...]}, ...],
     "count": N}``.
     """
-    data = await testing_api.list_test_classes(filter, namespace)
+    data = await testing_api.list_test_classes(
+        filter,
+        namespace,
+        target_host=target_host,
+        target_port=target_port,
+    )
 
     errors = data.get("status", {}).get("errors", [])
     if errors:
@@ -188,18 +243,25 @@ async def list_tests(
         if cls_name:
             classes.setdefault(cls_name, []).append(method_name)
 
-    class_list = [
-        {"name": name, "methods": methods} for name, methods in classes.items()
-    ]
+    class_list = [{"name": name, "methods": methods} for name, methods in classes.items()]
     return {"classes": class_list, "count": len(class_list)}
 
 
-@logged_tool
+@logged_tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 async def get_test_results(
     test_class: Annotated[
         str | None,
         Field(
-            description="Filter results to a specific test class. Omit to see results across all classes."
+            description="Filter results to a specific test class. Omit to see results across all classes.",
+            min_length=1,
+            max_length=255,
         ),
     ] = None,
     limit: Annotated[
@@ -213,7 +275,21 @@ async def get_test_results(
     namespace: Annotated[
         str | None,
         Field(
-            description="IRIS namespace to query results from. Uses the configured default if omitted."
+            description="IRIS namespace for results (default if omitted).",
+            min_length=1,
+            max_length=64,
+        ),
+    ] = None,
+    target_host: Annotated[
+        str | None,
+        Field(description="IRIS server host or IP. Uses the configured default if omitted."),
+    ] = None,
+    target_port: Annotated[
+        int | None,
+        Field(
+            description="IRIS REST API port. Uses the configured default if omitted.",
+            ge=1,
+            le=65535,
         ),
     ] = None,
 ) -> dict:
@@ -227,7 +303,13 @@ async def get_test_results(
     Returns ``{"runs": [{"run_id": N, "run_time": "...", "test_class": "...",
     "status": "passed|failed", ...}], "count": N}``.
     """
-    data = await testing_api.get_test_history(test_class, limit, namespace)
+    data = await testing_api.get_test_history(
+        test_class,
+        limit,
+        namespace,
+        target_host=target_host,
+        target_port=target_port,
+    )
 
     errors = data.get("status", {}).get("errors", [])
     if errors:

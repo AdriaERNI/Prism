@@ -38,8 +38,7 @@ via PR):
 |----------|------|--------------|
 | Test Linux | `.github/workflows/test-linux.yml` | Lint, Unit tests (884), Integration tests (82, Docker IRIS) |
 | Test Windows | `.github/workflows/test-windows.yml` | Unit tests (884), PyInstaller frozen binary tests |
-| Build and Release | `.github/workflows/build-release.yml` | Full pipeline + GitHub Release (triggered by `v*` tags) |
-| Changelog | `.github/workflows/changelog.yml` | Regenerates `CHANGELOG.md` + `docs/changelog.md` via git-cliff (on `v*` tags) |
+| Build and Release | `.github/workflows/build-release.yml` | Full pipeline + GitHub Release with git-cliff changelog (triggered by `v*` tags) |
 | GitHub Pages | `.github/workflows/pages.yml` | MkDocs build + deploy (on push to `main`) |
 
 Branch protection is enabled on `main` and `development`. Required status
@@ -62,8 +61,8 @@ workflow.
 - **NEVER run `gh release create`** — CI auto-creates releases from tag pushes
 - **NEVER create `release/vX.Y.Z-beta.N` branches** — pre-releases are tags only, not branches
 - **NEVER create `release/x` branches without the `v` prefix** — use `release/vX.Y.Z`
-- **Use rebase, not merge** on `development` (linear history enforced); if diverged significantly, use a sync branch with `git merge main` + PR
-- **Check `git diff --stat origin/main development` before rebasing** — squash merges create duplicate SHAs that look like "ahead" commits but have no actual file changes
+- **Sync main→dev with hard-reset, not rebase or merge** — squash-merge creates a new SHA on main that can never match development's history. Rebase replays phantom commits (conflict after conflict); merge+PR creates yet another phantom SHA. The correct sync is `git reset --hard origin/main && git push --force-with-lease origin development` (requires temporarily disabling branch protection if `enforce_admins=true`). Only use merge+PR when trees actually differ (e.g. hotfix landed on main and development has new commits).
+- **Check `git diff --stat origin/main development` before syncing** — if the diff is empty, hard-reset development to main. If the diff shows real changes, use a sync branch with `git merge main` + PR.
 - **CI syncs version from the tag** — never manually edit `pyproject.toml` or `__init__.py` version for a release
 
 ### Branch model (Git Flow)
@@ -98,7 +97,7 @@ src/prism/
 ├── mcp/                # MCP tools with @logged_tool decorator
 │   ├── _decorator.py   # logged_tool implementation
 │   ├── server.py       # FastMCP server with auto-discovery
-│   └── *.py            # One module per tool domain (12 always + 5 gated + 9 debug)
+│   └── *.py            # One module per tool domain (12 always + 4 gated + 9 debug)
 ├── chatbot/            # AI agent that orchestrates MCP tools via LLM
 │   ├── agent.py        # LLM-powered tool-use loop (OpenAI-compatible API)
 │   └── skills.py       # Markdown skill folder reader/loader
@@ -108,7 +107,7 @@ src/prism/
 │   ├── controllers/    # SQL execution controller (async)
 │   └── widgets/        # DatabaseTree, SQLEditor, ResultsTable, StatusBar, Toolbar
 └── cli/                # Typer commands (sync wrappers around async API)
-    └── commands/       # One module per command (19 commands)
+    └── commands/       # One module per command (17 commands)
 ```
 
 ### MCP Tool Registration
@@ -117,10 +116,10 @@ Tools are registered conditionally based on settings:
 
 | Category | Count | Condition |
 |----------|-------|-----------|
-| Always-on | 12 | Always registered (including `index_code` and `monitor_system`) |
-| Workspace-gated | 5 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`, `list_files`, `read_file`, `run_shell`) |
+| Always-on | 12 | Always registered (including `monitor_system` and `run_shell`) |
+| Workspace-gated | 4 | `IRIS_WORKSPACE` is set (`put_document`, `put_and_compile`, `list_files`, `read_file`) |
 | Debug-gated | 9 | `IRIS_DEBUG_ENABLED=true` (`debug_*` tools) |
-| **Maximum** | **26** | Both workspace + debug enabled |
+| **Maximum** | **25** | Both workspace + debug enabled |
 
 ### Settings (28 fields)
 
@@ -143,6 +142,7 @@ from pydantic import Field
 from prism.mcp._decorator import logged_tool
 from prism.iris.api import my_api  # your API module
 
+
 @logged_tool
 async def my_tool(
     param: Annotated[str, Field(description="What this param does")],
@@ -163,6 +163,7 @@ API modules in `src/prism/iris/api/` are thin HTTP wrappers:
 ```python
 from prism.iris.sdk.http import api_url, client, parse_json
 
+
 async def my_operation(param: str, namespace: str | None = None) -> dict:
     c = client()
     r = await c.post(f"{api_url(namespace)}/action/endpoint", json={"param": param})
@@ -182,8 +183,10 @@ import httpx
 from unittest.mock import patch
 from prism.iris.api import my_api
 
+
 def mock_client(handler):
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
 
 async def test_my_api():
     def handler(request):
@@ -206,8 +209,8 @@ async def test_with_iris(live, cleanup):
 **Key fixtures**: `client` (MCP client), `live` (connected client), `workspace`
 (tmp_path), `cleanup` (auto-delete docs), `debug_session` (skip if XDebug unavailable).
 
-**Test counts**: 884 unit tests, 82 integration tests, 29 GUI tests (7 integration
-tests skip on CI due to IRIS Community license limits).
+**Test counts**: 1252 unit tests, 68 integration tests, 29 GUI tests (7 of the 68
+integration tests skip on CI due to IRIS Community license limits).
 
 ## Conventions
 
@@ -231,8 +234,3 @@ tests skip on CI due to IRIS Community license limits).
 
 1. `debug_attach` (attach by PID) does not work on Windows IRIS due to a server-side
    limitation. Use `debug_start` with breakpoints instead.
-2. Parallel native terminal tests skip on CI — IRIS Community license limits
-   concurrent SuperServer connections (3+ parallel calls fail with "Unable to
-   allocate a license").
-3. Native terminal `_run_command_sync` retries 3× on transient errors (CLASS DOES
-   NOT EXIST, license limit, COMMUNICATION LINK ERROR) with 2s delay.

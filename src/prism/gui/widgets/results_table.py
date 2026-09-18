@@ -13,19 +13,19 @@ Features:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from tkinter import (
     BOTH,
     END,
     LEFT,
     RIGHT,
-    X,
     YES,
     Frame,
     Label,
     Scrollbar,
+    X,
     ttk,
 )
-from typing import Callable
 
 from prism.gui import theme
 from prism.gui.controllers.sql_controller import QueryResult, SQLController
@@ -41,9 +41,7 @@ class ResultsTable(Frame):
         self._sort_reverse: bool = False
         self._result_tab_count = 0
         # Editing state
-        self._modified_cells: dict[
-            str, dict[str, str]
-        ] = {}  # {item_id: {col: new_value}}
+        self._modified_cells: dict[str, dict[str, str]] = {}  # {item_id: {col: new_value}}
         self._source_table: str | None = None  # e.g. "Ens.AlarmRequest"
         self._controller: SQLController | None = None  # for executing UPDATEs
         self._on_status: Callable | None = None  # status callback to app
@@ -294,8 +292,7 @@ class ResultsTable(Frame):
                 if idx < len(row):
                     val = self._format_cell(row[idx])
                     w = font_obj.measure(str(val)) + 24
-                    if w > max_data_w:
-                        max_data_w = w
+                    max_data_w = max(max_data_w, w)
 
             best_w = max(header_w, max_data_w, 60)
             best_w = min(best_w, 350)
@@ -358,11 +355,7 @@ class ResultsTable(Frame):
 
     def _commit_edit(self) -> None:
         """Save the edited cell value and mark it as modified."""
-        if (
-            self._entry is None
-            or self._editing_item is None
-            or self._editing_col is None
-        ):
+        if self._entry is None or self._editing_item is None or self._editing_col is None:
             return
 
         new_value = self._entry.get()
@@ -395,9 +388,7 @@ class ResultsTable(Frame):
             total_changes = sum(len(v) for v in self._modified_cells.values())
             self._status.config(
                 text=f"⚠ {total_changes} cell(s) modified — click 💾 Save to commit",
-                foreground=theme.FG_WARNING
-                if hasattr(theme, "FG_WARNING")
-                else "#ebcb8b",
+                foreground=theme.FG_WARNING if hasattr(theme, "FG_WARNING") else "#ebcb8b",
             )
 
     def _cancel_edit(self) -> None:
@@ -624,9 +615,7 @@ class ResultsTable(Frame):
             failed = total - committed
             self._status.config(
                 text=f"⚠ {committed} saved, {failed} failed — {self._source_table}",
-                foreground=theme.FG_WARNING
-                if hasattr(theme, "FG_WARNING")
-                else "#ebcb8b",
+                foreground=theme.FG_WARNING if hasattr(theme, "FG_WARNING") else "#ebcb8b",
             )
 
     # ── Cancel / Revert ──────────────────────────────────────────────

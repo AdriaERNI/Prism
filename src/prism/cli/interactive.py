@@ -147,9 +147,7 @@ def _print_help() -> None:
     typer.echo(f"  {'-' * 12} {'-' * 40}")
     for cmd, desc in _LOCAL_COMMANDS.items():
         typer.echo(f"  {cmd:<12} {desc}")
-    typer.echo(
-        "\n  Type any ObjectScript command and press Enter to execute it on IRIS."
-    )
+    typer.echo("\n  Type any ObjectScript command and press Enter to execute it on IRIS.")
     typer.echo("  Variables and state persist between commands within this session.\n")
 
 
@@ -164,9 +162,7 @@ def _print_startup_banner(namespace: str) -> None:
         f"{_ANSI_DIM}Connected to IRIS at {settings.iris_base_url}"
         f" in namespace {namespace}{_ANSI_RESET}"
     )
-    typer.echo(
-        f"{_ANSI_DIM}Type 'help' for local commands, 'exit' to quit.{_ANSI_RESET}\n"
-    )
+    typer.echo(f"{_ANSI_DIM}Type 'help' for local commands, 'exit' to quit.{_ANSI_RESET}\n")
 
 
 def _format_prompt(prompt_text: str, multiline: bool = False) -> str | _ANSIType:
@@ -225,9 +221,7 @@ def _clean_text(text: str) -> str:
     control characters, preserving newlines, tabs, and printable text.
     """
     stripped = _strip_ansi(text)
-    return "".join(
-        ch for ch in stripped if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f")
-    )
+    return "".join(ch for ch in stripped if ch in "\n\r\t" or (ord(ch) >= 32 and ch != "\x7f"))
 
 
 def _print_history(prompt_session: PromptSession) -> None:
@@ -396,13 +390,11 @@ async def _async_interactive(
         multiline_buffer = ""
 
         try:
-            result = await session.run(
-                full_command, on_read=_make_on_read(prompt_session)
-            )
+            result = await session.run(full_command, on_read=_make_on_read(prompt_session))
             _print_output(result.get("output", ""))
         except TerminalError as exc:
             typer.echo(f"{_ANSI_RED}{exc}{_ANSI_RESET}", err=True)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             typer.echo(
                 f"{_ANSI_RED}Error: Command timed out after {timeout}s{_ANSI_RESET}",
                 err=True,
@@ -522,7 +514,7 @@ async def _simple_repl(session: InteractiveWSSession, timeout: float) -> None:
             _print_output(result.get("output", ""))
         except TerminalError as exc:
             typer.echo(f"{_ANSI_RED}{exc}{_ANSI_RESET}", err=True)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             typer.echo(
                 f"{_ANSI_RED}Error: Command timed out after {timeout}s{_ANSI_RESET}",
                 err=True,

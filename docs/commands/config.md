@@ -47,7 +47,7 @@ keep their current value. The 8 most-used settings have a short flag.
 |------|------|---------|
 | `--api-prefix` | string | `api/atelier/v8` |
 | `--compile-flags` | string | `cuk` |
-| `--terminal-method` | `native` \| `ws` | `native` |
+| `--terminal-method` | `ws` (accepts `websocket`/`ws`; `native` retained for compatibility) | `ws` |
 | `--terminal-max-output` | int | `100000` |
 | `--test-runner` | string | `MCP.TestRunner` |
 | `--test-method` | string | `RunTests` |

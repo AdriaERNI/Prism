@@ -15,15 +15,16 @@ from __future__ import annotations
 
 import sys
 import time
-import traceback
 import tkinter as tk
+import traceback
 
 # Ensure we can import from the Prism package
 sys.path.insert(0, "/home/hermes/Projects/ERNI/Prism/src")
 
-from prism.gui.app import PrismGUI  # noqa: E402
-from prism.iris.sdk.http import api_url, parse_json  # noqa: E402
-import httpx  # noqa: E402
+import httpx
+
+from prism.gui.app import PrismGUI
+from prism.iris.sdk.http import api_url, parse_json
 
 # ── Helpers ──────────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ def pump(root, seconds: float) -> None:
 def execute_sql_direct(query: str) -> tuple[list[str], list[tuple]]:
     """Execute SQL directly against IRIS (bypass GUI) for verification."""
     import asyncio
+
     from prism.settings import settings
 
     async def _run():
@@ -136,9 +138,7 @@ def test_1_connect_and_tree(app, root):
 
     tree = app._db_tree._tree
     root_children = tree.get_children()
-    assert len(root_children) >= 1, (
-        f"Expected at least 1 root node, got {len(root_children)}"
-    )
+    assert len(root_children) >= 1, f"Expected at least 1 root node, got {len(root_children)}"
 
     # Root should be the IRIS connection
     root_text = tree.item(root_children[0], "text")
@@ -149,9 +149,7 @@ def test_1_connect_and_tree(app, root):
     pump(root, 1)
 
     root_kids = tree.get_children(root_children[0])
-    assert len(root_kids) >= 2, (
-        f"Expected Schemas + System Schemas, got {len(root_kids)}"
-    )
+    assert len(root_kids) >= 2, f"Expected Schemas + System Schemas, got {len(root_kids)}"
 
     # Open Schemas folder
     tree.item(root_kids[0], open=True)
@@ -295,9 +293,7 @@ def test_4_double_click_select(app, root):
     pump(root, 0.3)
 
     text = app._editor.get_text()
-    assert "SELECT * FROM SQLUser.PrismE2ETest" in text, (
-        f"Expected SELECT query, got: {text}"
-    )
+    assert "SELECT * FROM SQLUser.PrismE2ETest" in text, f"Expected SELECT query, got: {text}"
     print(f"  Double-click generated: {text.strip()[:60]}")
 
 
@@ -360,9 +356,7 @@ def test_6_browse_and_sort(app, root):
     sorted_rows = app._results._tree.get_children()
     first_val = app._results._tree.item(sorted_rows[0], "values")[1]
     print(f"  After sort by Name, first row Name = {first_val}")
-    print(
-        f"  All names: {[app._results._tree.item(r, 'values')[1] for r in sorted_rows]}"
-    )
+    print(f"  All names: {[app._results._tree.item(r, 'values')[1] for r in sorted_rows]}")
 
     # Verify alphabetical order
     names = [str(app._results._tree.item(r, "values")[1]) for r in sorted_rows]
@@ -423,14 +417,10 @@ def test_7_edit_cell_save(app, root):
     pump(root, 5)
 
     # Verify in DB
-    cols, db_rows = execute_sql_direct(
-        "SELECT Email FROM SQLUser.PrismE2ETest WHERE ID = 1"
-    )
+    cols, db_rows = execute_sql_direct("SELECT Email FROM SQLUser.PrismE2ETest WHERE ID = 1")
     assert len(db_rows) == 1, f"Expected 1 row, got {len(db_rows)}"
     db_email = str(db_rows[0][0])
-    assert db_email == new_email, (
-        f"DB email not updated! Expected {new_email}, got {db_email}"
-    )
+    assert db_email == new_email, f"DB email not updated! Expected {new_email}, got {db_email}"
     print(f"  DB verified: email is now {db_email}")
 
 
@@ -477,12 +467,8 @@ def test_8_revert_edit(app, root):
     )
 
     # Verify DB unchanged
-    cols, db_rows = execute_sql_direct(
-        "SELECT Name FROM SQLUser.PrismE2ETest WHERE ID = 2"
-    )
-    assert str(db_rows[0][0]) == orig_name, (
-        f"DB Name changed despite revert! Got {db_rows[0][0]}"
-    )
+    cols, db_rows = execute_sql_direct("SELECT Name FROM SQLUser.PrismE2ETest WHERE ID = 2")
+    assert str(db_rows[0][0]) == orig_name, f"DB Name changed despite revert! Got {db_rows[0][0]}"
     print(f"  Reverted to: {orig_name}, DB unchanged")
 
 
@@ -527,10 +513,9 @@ def test_10_error_handling(app, root):
     status_text = app._results._status.cget("text")
     print(f"  Error query status: {status_text}")
     # Should show an error, not crash
-    assert (
-        app._results._tree.get_children() == []
-        or len(app._results._tree.get_children()) == 0
-    ), "Should have no results for invalid table"
+    assert app._results._tree.get_children() == [] or len(app._results._tree.get_children()) == 0, (
+        "Should have no results for invalid table"
+    )
 
     # Test syntax error
     app._editor.set_text("SELCT 1")

@@ -171,7 +171,7 @@ debug_start(
     classname="MyApp.Service",
     method="ProcessOrder",
     arguments="orderId",
-    breakpoints=[{"classname": "MyApp.Service", "line": 42}]
+    breakpoints=[{"classname": "MyApp.Service", "line": 42}],
 )
 # Then use debug_step, debug_variables, debug_inspect as needed
 debug_stop()

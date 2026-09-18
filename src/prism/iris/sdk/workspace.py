@@ -7,9 +7,7 @@ from pathlib import Path
 
 from prism.settings import settings
 
-_DOC_NAME_RE = re.compile(
-    r"^[A-Za-z%][A-Za-z0-9]*(\.[A-Za-z%][A-Za-z0-9]*)*\.[a-z][a-z0-9]*$"
-)
+_DOC_NAME_RE = re.compile(r"^[A-Za-z%][A-Za-z0-9]*(\.[A-Za-z%][A-Za-z0-9]*)*\.[a-z][a-z0-9]*$")
 
 
 def validate_doc_name(name: str) -> None:
@@ -43,9 +41,7 @@ def resolve_safe(relative_path: str) -> Path:
     root = workspace_root()
     resolved = (root / relative_path).resolve()
     if not resolved.is_relative_to(root):
-        raise ValueError(
-            f"Path escapes workspace: {relative_path!r} resolves to {resolved}"
-        )
+        raise ValueError(f"Path escapes workspace: {relative_path!r} resolves to {resolved}")
     return resolved
 
 
@@ -63,4 +59,4 @@ def load_content(path: Path) -> list[str]:
             f"File not found in workspace: {path.name}. "
             f"Write the file to the workspace before calling put_document."
         )
-    return path.read_text().split("\n")
+    return path.read_text(encoding="utf-8-sig").split("\n")

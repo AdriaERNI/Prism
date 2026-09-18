@@ -229,6 +229,7 @@ app.command()(ip)
 # commands/weather.py
 import typer
 
+
 def weather(
     city: str = typer.Argument(None, help="City name"),
 ) -> None:
@@ -288,6 +289,7 @@ The repo's root `__init__.py` is missing the Typer `app` instance. Add it:
 
 ```python
 import typer
+
 app = typer.Typer(name="myrepo", help="...", no_args_is_help=True)
 ```
 

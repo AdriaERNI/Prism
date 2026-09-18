@@ -350,9 +350,7 @@ def render_dashboard(
     # Add top-3 process types by CPU %
     cpu_types = aggregated.get("cpu_by_type", {})
     if isinstance(cpu_types, dict):
-        for ptype, pct in sorted(cpu_types.items(), key=lambda x: x[1], reverse=True)[
-            :3
-        ]:
+        for ptype, pct in sorted(cpu_types.items(), key=lambda x: x[1], reverse=True)[:3]:
             if pct > 0:
                 cpu_sub[f"  {ptype}"] = (float(pct), "%")
 
@@ -412,15 +410,9 @@ def render_dashboard(
         "CSP In-Use": (float(aggregated.get("csp_in_use_connections", 0.0)), "#"),
     }
 
-    cpu_panel = _metric_table(
-        "CPU", score.cpu, history.cpu_history(), cpu_sub, cpu_color
-    )
-    mem_panel = _metric_table(
-        "Memory", score.memory, history.memory_history(), mem_sub, mem_color
-    )
-    disk_panel = _metric_table(
-        "Disk/IO", score.disk, history.disk_history(), disk_sub, disk_color
-    )
+    cpu_panel = _metric_table("CPU", score.cpu, history.cpu_history(), cpu_sub, cpu_color)
+    mem_panel = _metric_table("Memory", score.memory, history.memory_history(), mem_sub, mem_color)
+    disk_panel = _metric_table("Disk/IO", score.disk, history.disk_history(), disk_sub, disk_color)
     proc_panel = _metric_table(
         "Process", score.process, history.process_history(), proc_sub, proc_color
     )

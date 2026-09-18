@@ -23,7 +23,6 @@
 - **Terminal** — Execute ObjectScript via native (SuperServer) or WebSocket backend
 - **Debugging** — Interactive step-through debugger with breakpoints, variable inspection, and stack traces
 - **Testing** — Run `%UnitTest` test classes, list test methods, view historical results
-- **Code Indexing** — Build a compact, token-efficient index of all classes using `%Dictionary` metadata
 - **Monitoring** — Live IRIS resource dashboard with CPU, memory, disk, process load scoring, and real-time sparkline graphs
 - **MCP Server** — Expose all tools to AI assistants (Claude Code, Claude Desktop, Cursor, GitHub Copilot)
 - **Chatbot** — AI agent that orchestrates Prism's MCP tools via natural language, connecting to any OpenAI-compatible LLM
@@ -95,7 +94,6 @@ for more details.
 | Command | Description |
 |---------|-------------|
 | `prism sql` | Run an SQL query |
-| `prism terminal` | Run ObjectScript via native SuperServer |
 | `prism ws` | Run ObjectScript via WebSocket |
 | `prism put-doc` | Upload a file to IRIS |
 | `prism get-doc` | Fetch a document from IRIS |
@@ -106,7 +104,6 @@ for more details.
 | `prism monitor` | Live IRIS resource monitoring dashboard |
 | `prism test` | Run unit test classes |
 | `prism list-tests` | Discover test classes |
-| `prism index` | Build a compact class index |
 | `prism config` | View or edit settings |
 | `prism cast` | Run custom commands from Git repos |
 | `prism serve` | Start the MCP server |
@@ -131,9 +128,9 @@ See the [commands overview](https://adriaerni.github.io/Prism/commands/) for det
 
 ## MCP Tools
 
-12 tools are always available (including `monitor_system`), 5 workspace-gated
-(`put_document`, `put_and_compile`, `list_files`, `read_file`, `run_shell`),
-and 9 debug-gated (`debug_*`) — up to 26 total.
+12 tools are always available (including `monitor_system` and `run_shell`),
+4 workspace-gated (`put_document`, `put_and_compile`, `list_files`,
+`read_file`) and 9 debug-gated (`debug_*`) — up to 25 total.
 
 See the [full tool reference](https://adriaerni.github.io/Prism/mcp/tools/) for details.
 
@@ -236,7 +233,7 @@ src/prism/
 ├── mcp/               # MCP tools with @logged_tool decorator
 │   ├── _decorator.py   # Logging + auto-discovery
 │   ├── server.py       # FastMCP server
-│   └── *.py            # One module per tool domain (12 always + 5 gated + 9 debug)
+│   └── *.py            # One module per tool domain (12 always + 4 gated + 9 debug)
 ├── chatbot/           # AI chatbot agent (OpenAI-compatible LLM)
 │   ├── agent.py        # Tool-calling agent with conversation memory
 │   └── skills.py       # Built-in skills (code review, testing, etc.)
@@ -248,15 +245,15 @@ src/prism/
 ├── cast/              # Cast plugin system (import-based Typer plugins)
 │   └── manager.py      # Clone, import, cache, run commands
 └── cli/               # Typer CLI commands (async wrappers)
-    └── commands/       # One module per command (18 commands)
+    └── commands/       # One module per command (17 commands)
 ```
 
 ## Testing
 
 ```bash
-uv run pytest tests/unit/ -v                    # No IRIS needed (966 tests)
+uv run pytest tests/unit/ -v                    # No IRIS needed (1252 tests: 1241 pass, 11 skip)
 IRIS_BASE_URL=http://localhost:52773 \
-  uv run pytest tests/integration/ -v            # Needs IRIS (87 tests)
+  uv run pytest tests/integration/ -v            # Needs IRIS (68 tests)
 uv run pytest tests/gui/ -v                      # GUI tests (29 tests, needs display)
 uv run ruff check . && uv run ruff format --check .  # Lint
 ```

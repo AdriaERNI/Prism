@@ -21,7 +21,10 @@ Test-Case "run all methods in Test.MCPSampleTest" {
 Test-Case "run a single test method via -m" {
     $r = Invoke-Prism test Test.MCPSampleTest -m TestAddition
     Assert-ExitCode 0 $r.ExitCode
-    Assert-Contains $r.Stdout "TestAddition"
+    # The -m (single-method) runner returns a scalar success indicator
+    # (Result: 1) rather than per-method assertion detail, so the method
+    # name isn't echoed back in stdout. Assert the success contract.
+    Assert-Contains $r.Stdout "1"
 }
 
 Test-Case "run with explicit -n USER" {

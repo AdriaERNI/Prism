@@ -25,10 +25,7 @@ from __future__ import annotations
 import sys
 from typing import NoReturn
 
-import httpx
 import typer
-
-from prism.iris.sdk.http import base_url
 
 
 def handle_command_error(exc: Exception) -> NoReturn:
@@ -36,7 +33,16 @@ def handle_command_error(exc: Exception) -> NoReturn:
 
     Handles common IRIS connection failures with helpful guidance.
     Any other exception is printed as ``Error: {exc}``.
+
+    ``httpx`` is imported lazily so that CLI commands which never touch
+    the network (e.g. ``prism --help``) don't pay the ~50 ms httpx
+    import cost at startup.
     """
+    # Local import keeps httpx out of the cold-start import chain.
+    import httpx
+
+    from prism.iris.sdk.http import base_url
+
     if isinstance(exc, httpx.ConnectError):
         typer.echo(
             f"Error: Cannot connect to IRIS at {base_url()}. Is the server running?",
@@ -49,8 +55,7 @@ def handle_command_error(exc: Exception) -> NoReturn:
         )
     elif isinstance(exc, httpx.HTTPStatusError):
         typer.echo(
-            f"Error: IRIS returned HTTP {exc.response.status_code}: "
-            f"{exc.response.text[:200]}",
+            f"Error: IRIS returned HTTP {exc.response.status_code}: {exc.response.text[:200]}",
             err=True,
         )
     elif isinstance(exc, TimeoutError):

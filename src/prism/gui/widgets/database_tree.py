@@ -203,9 +203,7 @@ class DatabaseTree(Frame):
 
         for schema_name in sorted(user_schemas.keys()):
             schema_tables = user_schemas[schema_name]
-            self._build_schema_node(
-                schemas_node, schema_name, schema_tables, is_system=False
-            )
+            self._build_schema_node(schemas_node, schema_name, schema_tables, is_system=False)
 
         # ── System Schemas node (collapsed) ───────────────────────────
         if sys_schemas:
@@ -218,9 +216,7 @@ class DatabaseTree(Frame):
             )
             for schema_name in sorted(sys_schemas.keys()):
                 schema_tables = sys_schemas[schema_name]
-                self._build_schema_node(
-                    sys_node, schema_name, schema_tables, is_system=True
-                )
+                self._build_schema_node(sys_node, schema_name, schema_tables, is_system=True)
 
     def _build_schema_node(
         self, parent: str, schema_name: str, tables: list[dict], is_system: bool
@@ -303,9 +299,7 @@ class DatabaseTree(Frame):
             return
 
         filtered = [
-            t
-            for t in self._all_tables
-            if text in t["name"].lower() or text in t["schema"].lower()
+            t for t in self._all_tables if text in t["name"].lower() or text in t["schema"].lower()
         ]
         self._rebuild_tree(filtered)
 
@@ -501,9 +495,7 @@ class DatabaseTree(Frame):
             for child in self._tree.get_children(selection):
                 child_text = self._tree.item(child, "text")
                 # Auto-expand the Tables / System Tables folder
-                if child_text.startswith("📋 Tables") or child_text.startswith(
-                    "📋 System Tables"
-                ):
+                if child_text.startswith("📋 Tables") or child_text.startswith("📋 System Tables"):
                     self._tree.item(child, open=True)
             return
 

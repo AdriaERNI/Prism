@@ -65,7 +65,7 @@ try {
         Assert-Contains $r.Stdout "Saved 3 setting"
         $r2 = Invoke-Prism config
         Assert-Contains $r2.Stdout "ck"
-        Assert-Contains $r2.Stdout "ws"
+        Assert-Contains $r2.Stdout "websocket"
     }
 
     Test-Case "config bool flag --debug toggles" {
