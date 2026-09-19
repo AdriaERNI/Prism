@@ -1,0 +1,29 @@
+name: Lock Diff Guard
+on:
+  pull_request:
+    paths:
+      - uv.lock
+      - pyproject.toml
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+      - name: Extract base (main) and head lock files
+        run: |
+          git show origin/main:uv.lock > /tmp/base-uv.lock
+          cp uv.lock /tmp/head-uv.lock
+      - name: Run lock-diff guard
+        run: |
+          uv run python scripts/lock_diff_guard.py \
+            --base-file /tmp/base-uv.lock \
+            --head-file /tmp/head-uv.lock
