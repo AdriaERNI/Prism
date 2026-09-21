@@ -1,4 +1,10 @@
-"""Detect textual divergence in uv.lock between two branches (main vs head)."""
+"""Detect textual divergence in uv.lock between two branches (main vs head).
+
+The guard compares the FULL text of each `[[package]]` block, not just the
+version line: any overlapping hunk that differs (version, source,
+requires-python, dependency lists) can produce a three-way merge conflict on
+a release PR, so any of those must be flagged.
+"""
 
 from __future__ import annotations
 
@@ -10,26 +16,27 @@ from pathlib import Path
 _PACKAGE_NAME = re.compile(r'^name = "([^"]+)"')
 
 
-def _block_map(path: str) -> dict[str, dict[str, str]]:
-    out: dict[str, dict[str, str]] = {}
-    cur: dict[str, str] | None = None
+def _block_map(path: str) -> dict[str, str]:
+    """Map each package name to the full normalized text of its block."""
+    blocks: dict[str, str] = {}
     cur_name: str | None = None
+    cur: list[str] = []
     for line in _path_lines(path):
-        m = _PACKAGE_NAME.match(line.strip())
-        if m:
-            cur_name = m.group(1)
-            cur = {}
-            out[cur_name] = cur
+        stripped = line.strip()
+        if stripped == "[[package]]":
+            if cur_name is not None:
+                blocks[cur_name] = "\n".join(cur)
+            cur_name, cur = None, []
             continue
-        if cur is None or cur_name is None:
-            continue
-        if "=" in line:
-            key, _, value = line.partition("=")
-            if key.strip() == "version":
-                cur["version"] = value.strip().strip('"')
-            elif key.strip() == "source":
-                cur["source"] = value.strip()
-    return out
+        if cur_name is None:
+            m = _PACKAGE_NAME.match(stripped)
+            cur_name = m.group(1) if m else None
+            if cur_name is None:
+                continue
+        cur.append(line.rstrip("\n"))
+    if cur_name is not None:
+        blocks[cur_name] = "\n".join(cur)
+    return blocks
 
 
 def _path_lines(path: str) -> list[str]:
@@ -37,7 +44,7 @@ def _path_lines(path: str) -> list[str]:
 
 
 def find_divergent_packages(base_lock: str, head_lock: str) -> list[str]:
-    """Return package names present in both locks whose text differs."""
+    """Return package names present in both locks whose block text differs."""
     base = _block_map(base_lock)
     head = _block_map(head_lock)
     divergent: list[str] = []
@@ -56,23 +63,27 @@ def main(argv: list[str] | None = None) -> int:
             "--head-file <PR-head uv.lock> [--json]\n"
         )
         return 2
-    args = {"base": None, "head": None, "json": False}
+    args: dict[str, object] = {"base": None, "head": None, "json": False}
     i = 0
     while i < len(argv):
         a = argv[i]
-        if a == "--base-file":
+        if a in ("--base-file", "--head-file"):
             i += 1
-            args["base"] = argv[i]
-        elif a == "--head-file":
-            i += 1
-            args["head"] = argv[i]
+            if i >= len(argv):
+                sys.stderr.write(f"missing value for {a}\n")
+                return 2
+            args["base" if a == "--base-file" else "head"] = argv[i]
         elif a == "--json":
             args["json"] = True
+        else:
+            sys.stderr.write(f"unknown argument: {a}\n")
+            return 2
         i += 1
-    if not args["base"] or not args["head"]:
+    base, head = args["base"], args["head"]
+    if not base or not head:
         sys.stderr.write("missing --base-file or --head-file\n")
         return 2
-    divergent = find_divergent_packages(args["base"], args["head"])
+    divergent = find_divergent_packages(str(base), str(head))
     if args["json"]:
         print(json.dumps({"divergent": divergent}))
     elif divergent:

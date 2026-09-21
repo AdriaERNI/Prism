@@ -10,9 +10,13 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-import time
 
-from scripts.apply_protection import branches, development_window_payload, full_protection_payload, restore_repo_settings_ops
+from scripts.apply_protection import (
+    branches,
+    development_window_payload,
+    full_protection_payload,
+    restore_repo_settings_ops,
+)
 
 REPO = "AdriaERNI/Prism"
 WINDOW_MAX_MINUTES = int(os.environ.get("PRISM_WINDOW_MAX_MINUTES", "5"))
@@ -25,9 +29,15 @@ def _gh(args: list[str]) -> None:
 def begin() -> None:
     _gh(["--method", "PATCH", f"/repos/{REPO}", "-f", "allow_merge_commit=true"])
     for branch in branches():
-        payload = development_window_payload() if branch == "development" else full_protection_payload()
+        payload = (
+            development_window_payload() if branch == "development" else full_protection_payload()
+        )
         from json import dumps
-        _gh(["--method", "PUT", f"/repos/{REPO}/branches/{branch}/protection", "--input", "-"], input=dumps(payload))
+
+        _gh(
+            ["--method", "PUT", f"/repos/{REPO}/branches/{branch}/protection", "--input", "-"],
+            input=dumps(payload),
+        )
     sys.stderr.write(f"window open — restore within {WINDOW_MAX_MINUTES} min\n")
 
 
