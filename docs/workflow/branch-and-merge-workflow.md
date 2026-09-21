@@ -36,9 +36,9 @@ Branch and tag naming uses the `v` prefix consistently: `release/v0.2.0`,
 3. Keep the head up to date before opening/merging — GitHub marks a PR
    `dirty` when the head is behind the base and the branches touch the same
    lines (fetch + rebase locally when needed).
-4. All CI checks must pass before merging (`lint`, `test-linux`,
-   `test-windows`). Release PRs additionally require the integration tests
-   against a live IRIS container.
+4. All CI checks must pass before merging (`Lint`, `Unit Tests`,
+   `Integration Tests`, `Build and Test Frozen Executable`). Release PRs
+   additionally require the integration tests against a live IRIS container.
 
 ## Merge methods on GitHub
 
@@ -71,20 +71,25 @@ repository settings (`allow_merge_commit`, `allow_squash_merge`,
 
 ## Policy decision (issue #37)
 
-Adopted **A+B** (approved 2026-09-19):
+Adopted a **manual** procedure (approved 2026-09-19; the originally
+planned automation — a lock-diff guard workflow plus protection scripts,
+PR #39 — was dropped on 2026-09-21 to keep the repo free of agent
+tooling; the knowledge below is the procedure to follow by hand):
 
-| Part | Mechanism | Where it lives |
+| Part | Mechanism | How to execute |
 |------|-----------|----------------|
-| **A — CI lock-diff guard** | `scripts/lock_diff_guard.py` + workflow fails a PR when `uv.lock` packages present on both sides have differing text (example: `fastmcp` 3.4.7 vs 4.0.0). Run before every release PR. | `.github/workflows/lock-diff-guard.yml` (PR #39) |
-| **B — temporary merge-commit window** | during sync of divergent trees: enable `allow_merge_commit=true` and relax `required_linear_history` on `development` **only**; merge the sync PR with **Create a merge commit**; then restore both settings + protection. | `scripts/toggle_merge_window.py` (PR #39); admin toggles in the web UI per the restore checklist |
-| **Never** | squash/rebase a sync PR when trees are identical; never leave a merge window open | enforced by docs + guard |
+| **A — release-PR preflight** | before opening a release PR, compare `uv.lock` / `pyproject.toml` between `origin/main` and the head; packages present on both sides with differing text (example: `fastmcp` 3.4.7 vs 4.0.0) must be aligned to the union first (see the trap below, fix 1) | manual: `git diff origin/main <head> -- uv.lock pyproject.toml` — if overlapping package blocks differ, resolve to byte-identical text before opening the PR |
+| **B — temporary merge-commit window** | during sync of divergent trees: enable `allow_merge_commit=true` and relax `required_linear_history` on `development` **only**; merge the sync PR with **Create a merge commit**; then restore both settings + protection | manual, via the GitHub web UI (repo settings) or `gh api`, following the restore checklist below |
+| **Never** | squash/rebase a sync PR when trees are identical; never leave a merge window open | enforced by this doc |
 
 **Restore checklist (standing):** after any sync/merge window, put back
 `allow_merge_commit=false`, `allow_rebase_merge=false`,
-`allow_squash_merge=true`, and re-create `development` + `main` protection
-(`enforce_admins` true, strict `lint`/`test-linux`, linear history, no force
-pushes/deletions). `scripts/apply_protection.py` reproduces the exact
-verified payload.
+`allow_squash_merge=true`, and verify `development` + `main` protection is
+restored exactly: `enforce_admins` true, strict required checks
+(`Lint`, `Unit Tests`, `Integration Tests`, `Build and Test Frozen
+Executable`), linear history, no force pushes/deletions. Check the live
+state with `gh api repos/<owner>/<repo>/branches/<branch>/protection`
+before and after.
 
 ## The squash-only trap (why release PRs get DIRTY repeatedly)
 
@@ -132,13 +137,14 @@ verified payload.
 | Trees identical (fast-forward) | hard-reset `development` to `main` (`git reset --hard origin/main && git push --force-with-lease origin development`) — temporarily disable protection if `enforce_admins=true`, re-enable after |
 | Trees diverge (real changes) | `git merge main` on a sync branch, resolve conflicts, open a PR, merge with **Create a merge commit** during the Option-B window | 
 | Never | squash or rebase a sync PR when trees are identical — it creates phantom SHAs and keeps release PRs dirty |
-| Before any release PR | preflight: `git diff --stat origin/main origin/development` + `uv run python scripts/lock_diff_guard.py --base-file <main uv.lock> --head-file <head uv.lock>` — clean → open PR; flagged → align to the union/sync first |
+| Before any release PR | preflight: `git diff --stat origin/main origin/development`, then inspect the overlapping `uv.lock` / `pyproject.toml` hunks with `git diff origin/main <head> -- uv.lock pyproject.toml` — clean → open PR; diverging package blocks → align to the union/sync first |
 
 ## Branch protection interactions
 
-- `main` and `development` enforce: PR required, strict CI (`lint`,
-  `test-linux`, `test-windows`), linear history, `enforce_admins: true`,
-  no force pushes, no deletions.
+- `main` and `development` enforce: PR required, strict CI (required
+  checks `Lint`, `Unit Tests`, `Integration Tests`, `Build and Test Frozen
+  Executable`), linear history, `enforce_admins: true`, no force pushes,
+  no deletions.
 - The merge dropdown only shows the methods the repository allows
   (`allow_merge_commit`, `allow_squash_merge`, `allow_rebase_merge`).
 - With `"Require approval of the most recent reviewable push"` +
