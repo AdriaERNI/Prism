@@ -95,17 +95,24 @@ gh pr create --base main --head release/v0.2.0 \
   --body "Stable release v0.2.0"
 ```
 
-All CI checks must pass before merging:
+All CI checks must pass before merging (check-run names, required on both
+protected branches):
 
-- **Lint** (`lint` context) -- ruff check + format
-- **Unit Tests** (`test-linux` context) -- 884 unit tests (Linux) + 884 unit tests (Windows)
-- **Integration Tests** (`test-linux` context) -- 82 integration tests against a live IRIS
-  container (Linux only; 7 skip on CI due to IRIS Community license limits)
-- **Windows Build** (`test-windows` context) -- Unit tests + PyInstaller frozen binary
-  tests (`--version`, `--help`, `cast --list`, `prism serve` startup)
+- **Lint** -- ruff check + format (`test-linux.yml`)
+- **Unit Tests** -- 884 unit tests, run once on Linux (`test-linux.yml`)
+  and once on Windows (`test-windows.yml`); the name is required, so
+  GitHub waits for **all** same-named check runs
+- **Integration Tests** -- 82 integration tests against a live IRIS
+  container (`test-linux.yml`; Linux only; 7 skip on CI due to IRIS
+  Community license limits)
+- **Build and Test Frozen Executable** -- PyInstaller frozen binary tests
+  on Windows (`test-windows.yml`: `--version`, `--help`, `cast --list`,
+  `prism serve` startup)
 
-Required status checks on `main`: `lint`, `test-linux`. Branch protection
-enforces `enforce_admins: true`, `required_linear_history: true`,
+Required status checks on `main`: `Lint`, `Unit Tests`, `Integration
+Tests`, `Build and Test Frozen Executable`. Branch protection enforces
+`enforce_admins: true`, `required_linear_history: true` (off on
+`development` so merge-commit sync PRs can land),
 `allow_force_pushes: false`, `allow_deletions: false`.
 
 ### 4. Merge to main — via GitHub web UI
@@ -147,15 +154,12 @@ pre-release commits roll up into the stable release notes.
 
 ### 6. Sync main back to development
 
-After the release, `main` has the release commits (rebase-merged) + version
-bump. Development needs those changes. With `enforce_admins: true` and
-`required_linear_history: true`, you cannot push merge commits directly
-### 6. Sync main back to development
-
 After a rebase-merge, the release commits on `main` have new SHAs that do
-not exist in `development`'s history. **Rebase and merge+PR both fail here**:
-rebase replays phantom commits causing conflict after conflict; a sync PR
-squash-merged into development creates yet another phantom SHA.
+not exist in `development`'s history. **Rebasing or squash-merging a sync
+PR both fail here**: rebase replays phantom commits causing conflict after
+conflict; squash erases `main`'s ancestry, so the next release PR re-walks
+the old split point and goes dirty again. The correct sync depends on the
+tree comparison below.
 
 **Check if a hard-reset is appropriate (trees identical):**
 
@@ -327,25 +331,25 @@ git push origin --delete hotfix/v0.2.1
 
                 ┌─── STABLE RELEASE ──────────────────────────────────┐
                 │                                                    │
-  development ──CUT── release/vX.Y.Z ──PR──> main ──SQUASH MERGE (web UI)
+  development ──CUT── release/vX.Y.Z ──PR──> main ──REBASE MERGE (web UI)
                 │                        │         │
                 │                        │         TAG vX.Y.Z ──> CI builds
                 │                        │         │              + git-cliff
                 │                        │         ├──> GitHub Release (auto)
                 │                        │         └──> CHANGELOG.md commit
                 │                        │
-                │   SYNC: hard-reset dev to main (trees identical)
+                │   SYNC: hard-reset (trees identical) or merge-commit
                 │<──────── main ──────────────────────────────────┘
                 │
                 └── DELETE release/vX.Y.Z (local + remote)
                                                     │
                 ┌─── HOTFIX ────────────────────────┘
                 │
-  main ──CUT── hotfix/vX.Y.Z ──PR──> main ──SQUASH MERGE (web UI)
+  main ──CUT── hotfix/vX.Y.Z ──PR──> main ──REBASE MERGE (web UI)
                 │                     │
                 │                     TAG vX.Y.Z ──> CI builds
                 │
-                │   SYNC: hard-reset dev to main (trees identical)
+                │   SYNC: hard-reset (trees identical) or merge-commit
                 │<──────── main ──────────────────────┘
                 │
                 └── DELETE hotfix/vX.Y.Z (local + remote)
