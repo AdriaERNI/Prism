@@ -42,18 +42,23 @@ via PR):
 | GitHub Pages | `.github/workflows/pages.yml` | MkDocs build + deploy (on push to `main`) |
 
 Branch protection is enabled on `main` and `development`. Required status
-checks: `lint`, `test-linux`. PRs must pass CI before merge. Linear history
-enforced (squash merges only). `enforce_admins: true` — no bypasses, even
+checks: `Lint`, `Unit Tests`, `Integration Tests`, `Build and Test Frozen
+Executable` (context names must match check-run names exactly — a
+mismatch makes every PR permanently BLOCKED). PRs must pass CI before
+merge. Merge method: **rebase-and-merge for all PRs**; merge commits are
+permanently allowed on `development` for divergent-tree syncs only (linear
+history stays on for `main`). `enforce_admins: true` — no bypasses, even
 for admins. See [docs/releases.md](docs/releases.md) for the full release
-workflow.
+workflow and [docs/workflow/branch-and-merge-workflow.md](docs/workflow/branch-and-merge-workflow.md)
+for the merge strategy.
 
 ### Release quick reference
 
 | Action | Steps |
 |--------|-------|
 | **Pre-release** | Tag on development: `git tag vX.Y.Z-beta.N && git push origin vX.Y.Z-beta.N`. CI auto-builds + creates GitHub Pre-release. No branch, no PR. |
-| **Stable release** | Cut `release/vX.Y.Z` from development → PR to `main` → squash-merge via **web UI** → tag `vX.Y.Z` on main → push tag → sync main back to development → delete release branch. |
-| **Hotfix** | Cut `hotfix/vX.Y.Z` from main → fix → PR to `main` → squash-merge via **web UI** → tag → sync back to development → delete hotfix branch. |
+| **Stable release** | Cut `release/vX.Y.Z` from development → PR to `main` → rebase-merge via **web UI** → tag `vX.Y.Z` on main → push tag → sync main back to development → delete release branch. |
+| **Hotfix** | Cut `hotfix/vX.Y.Z` from main → fix → PR to `main` → rebase-merge via **web UI** → tag → sync back to development → delete hotfix branch. |
 
 **Critical release rules:**
 
@@ -61,7 +66,7 @@ workflow.
 - **NEVER run `gh release create`** — CI auto-creates releases from tag pushes
 - **NEVER create `release/vX.Y.Z-beta.N` branches** — pre-releases are tags only, not branches
 - **NEVER create `release/x` branches without the `v` prefix** — use `release/vX.Y.Z`
-- **Sync main→dev with hard-reset, not rebase or merge** — squash-merge creates a new SHA on main that can never match development's history. Rebase replays phantom commits (conflict after conflict); merge+PR creates yet another phantom SHA. The correct sync is `git reset --hard origin/main && git push --force-with-lease origin development` (requires temporarily disabling branch protection if `enforce_admins=true`). Only use merge+PR when trees actually differ (e.g. hotfix landed on main and development has new commits).
+- **Sync main→dev with hard-reset, not rebase or merge** — rebase-merge creates new SHAs on main that can never match development's history. Rebase replays phantom commits (conflict after conflict); the correct sync is `git reset --hard origin/main && git push --force-with-lease origin development` (requires temporarily disabling branch protection if `enforce_admins=true`). Only use merge+PR when trees actually differ (e.g. hotfix landed on main and development has new commits) — merge that sync PR with **Create a merge commit** (permanently allowed on `development`); never squash a sync PR (it erases ancestry and re-dirties release PRs).
 - **Check `git diff --stat origin/main development` before syncing** — if the diff is empty, hard-reset development to main. If the diff shows real changes, use a sync branch with `git merge main` + PR.
 - **CI syncs version from the tag** — never manually edit `pyproject.toml` or `__init__.py` version for a release
 

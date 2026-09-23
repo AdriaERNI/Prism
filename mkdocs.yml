@@ -116,6 +116,8 @@ nav:
     - Interactive debugger: mcp/debugging.md
   - Changelog: changelog.md
   - Releases: releases.md
+  - Workflow:
+    - Branching & Merging: workflow/branch-and-merge-workflow.md
   - Plans:
     - Installer CI Verification: plans/2026-09-07-installer-ci-verification.md
     - Exit Code Reproduction: plans/2026-09-07-exit-code-reproduction.md
